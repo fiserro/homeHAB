@@ -53,12 +53,29 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- openHAB Script Rule Support (SimpleRule) -->
+        <dependency>
+            <groupId>org.openhab.core.bundles</groupId>
+            <artifactId>org.openhab.core.automation.module.script.rulesupport</artifactId>
+            <version>${openhab.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- openHAB Java223 Automation -->
         <dependency>
             <groupId>org.openhab.addons.bundles</groupId>
             <artifactId>org.openhab.automation.java223</artifactId>
             <version>${openhab.version}</version>
             <scope>provided</scope>
+        </dependency>
+
+        <!-- Java223 Helper Library (Rule annotations, Java223Script base class) -->
+        <dependency>
+            <groupId>org.openhab.addons.bundles</groupId>
+            <artifactId>org.openhab.automation.java223-lib</artifactId>
+            <version>${openhab.version}</version>
+            <scope>system</scope>
+            <systemPath>${user.home}/.m2/repository/org/openhab/addons/bundles/org.openhab.automation.java223/5.0.1/org.openhab.automation.java223-5.0.1-lib.jar</systemPath>
         </dependency>
 
         <!-- Lombok -->
@@ -83,6 +100,14 @@
             <version>5.10.3</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- SLF4J Simple implementation for tests -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.13</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -94,6 +119,10 @@
                 <configuration>
                     <source>21</source>
                     <target>21</target>
+                    <!-- Exclude example scripts - they compile in OpenHAB only -->
+                    <excludes>
+                        <exclude>**/scripts/**/*.java</exclude>
+                    </excludes>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>
@@ -107,6 +136,34 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <shadedClassifierName>shaded</shadedClassifierName>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
