@@ -1,21 +1,18 @@
 package com.example.lib;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static java.util.concurrent.TimeUnit.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.openhab.core.scheduler.Scheduler;
 import org.openhab.core.scheduler.ScheduledCompletableFuture;
+import org.openhab.core.scheduler.Scheduler;
 import org.openhab.core.scheduler.SchedulerRunnable;
 
 /**

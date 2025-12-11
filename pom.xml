@@ -18,6 +18,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <openhab.version>5.0.1</openhab.version>
         <lombok.version>1.18.34</lombok.version>
+        <guava.version>33.5.0-jre</guava.version>
     </properties>
 
     <dependencies>
@@ -86,6 +87,20 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- https://mvnrepository.com/artifact/com.google.guava/guava -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava.version}</version>
+        </dependency>
+
+        <!-- Options library -->
+        <dependency>
+            <groupId>io.github.fiserro</groupId>
+            <artifactId>options</artifactId>
+            <version>1.0.0-alpha1</version>
+        </dependency>
+
         <!-- SLF4J API (for logging) -->
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -98,6 +113,21 @@
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>5.10.3</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Mockito for mocking -->
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.14.2</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <version>5.14.2</version>
             <scope>test</scope>
         </dependency>
 
