@@ -91,11 +91,12 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Step 2: Find the built JAR
-JAR_FILE=$(find target -name "homeHAB-*.jar" -not -name "*-shaded.jar" | head -1)
+# Step 2: Find the built shaded JAR (contains all dependencies)
+JAR_FILE=$(find target -name "homeHAB-*-shaded.jar" | head -1)
 
 if [ -z "$JAR_FILE" ]; then
-    echo -e "${RED}Error: JAR file not found in target directory${NC}"
+    echo -e "${RED}Error: Shaded JAR file not found in target directory${NC}"
+    echo -e "${RED}Make sure Maven shade plugin is configured correctly${NC}"
     exit 1
 fi
 

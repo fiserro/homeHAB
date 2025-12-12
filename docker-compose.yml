@@ -26,3 +26,4 @@ services:
       - CRYPTO_POLICY=  # Disabled - Temurin JDK 21 uses unlimited by default
       - EXTRA_JAVA_OPTS=${EXTRA_JAVA_OPTS}
       - JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-arm64
+      - PATH=/usr/lib/jvm/temurin-21-jdk-arm64/bin:$PATH

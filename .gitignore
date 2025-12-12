@@ -47,6 +47,7 @@ nbdist/
 openhab-dev/userdata/
 openhab-dev/addons/*.jar
 openhab-dev/conf/automation/lib/java/*.jar
+openhab-dev/conf/automation/lib/java/*.jar.backup.*
 openhab-dev/conf/automation/lib/java/helper/
 
 # Compiled class files

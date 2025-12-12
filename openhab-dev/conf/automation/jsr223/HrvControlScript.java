@@ -7,7 +7,6 @@ import org.openhab.core.items.Item;
 
 /**
  * HRV (Heat Recovery Ventilator) control script.
- *
  * Maps OpenHAB items to HRV inputs and controls ventilation power based on:
  * - Environmental sensors (humidity, CO2, smoke)
  * - Manual control modes
@@ -50,7 +49,6 @@ public class HrvControlScript extends Java223Script {
 
             // Services
             .events(events)
-            .scheduler(bindings.get("scheduler"))
             .itemRegistry(itemRegistry)
             .build();
 

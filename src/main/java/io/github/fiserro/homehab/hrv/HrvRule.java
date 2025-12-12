@@ -3,16 +3,12 @@ package io.github.fiserro.homehab.hrv;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import io.github.fiserro.homehab.AggregationType;
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.openhab.core.automation.module.script.defaultscope.ScriptBusEvent;
 import org.openhab.core.items.ItemRegistry;
-import org.openhab.core.scheduler.Scheduler;
 
 /**
  * OpenHAB Rule for automatic HRV (Heat Recovery Ventilator) control.
@@ -21,10 +17,7 @@ import org.openhab.core.scheduler.Scheduler;
 @Slf4j
 public class HrvRule {
 
-    // OpenHAB services (auto-injected)
-    private ScriptBusEvent events;
-    private Scheduler scheduler;
-    private ItemRegistry itemRegistry;
+    private final ScriptBusEvent events;
 
     // Configuration
     private final Multimap<HrvInputType, String> inputChannels;
@@ -35,22 +28,21 @@ public class HrvRule {
 
     // State management
     private final Map<String, Object> currentValues = new ConcurrentHashMap<>();
-    private Object temporaryModeTimer = null;  // ScheduledCompletableFuture<Void> - using Object for compile-time independence
+    private ScheduledFuture<?> temporaryModeTimer = null;
+    private final ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
 
     // Configuration item name prefix
     private static final String CONFIG_PREFIX = "hrv_config_";
 
     @Builder(builderClassName = "HrvRuleBuilder")
-    private HrvRule(
+    HrvRule(
             Multimap<HrvInputType, String> inputChannels,
             String outputChannel,
             ScriptBusEvent events,
-            Scheduler scheduler,
             ItemRegistry itemRegistry) {
         this.inputChannels = inputChannels;
         this.outputChannel = outputChannel;
         this.events = events;
-        this.scheduler = scheduler;
         this.configLoader = new HrvConfigLoader(itemRegistry);
 
         // Load configuration from OpenHAB Items
@@ -63,6 +55,7 @@ public class HrvRule {
     /**
      * Custom builder for fluent API
      */
+    @SuppressWarnings("unused")
     public static class HrvRuleBuilder {
 
         /**
@@ -181,7 +174,7 @@ public class HrvRule {
 
     private Object aggregateValues(HrvInputType type, List<Object> values) {
         if (values.size() == 1) {
-            return values.get(0);
+            return values.getFirst();
         }
 
         AggregationType aggType = type.getAggregationType();
@@ -201,18 +194,10 @@ public class HrvRule {
 
     private void handleTemporaryMode(String itemName, Object value) {
         if (Boolean.TRUE.equals(value)) {
-            // Cancel previous timer using reflection
-            if (temporaryModeTimer != null) {
-                try {
-                    java.lang.reflect.Method isDoneMethod = temporaryModeTimer.getClass().getMethod("isDone");
-                    Boolean isDone = (Boolean) isDoneMethod.invoke(temporaryModeTimer);
-                    if (!isDone) {
-                        java.lang.reflect.Method cancelMethod = temporaryModeTimer.getClass().getMethod("cancel", boolean.class);
-                        cancelMethod.invoke(temporaryModeTimer, false);
-                    }
-                } catch (Exception e) {
-                    log.warn("Failed to cancel temporary mode timer", e);
-                }
+            // Cancel previous timer
+            if (temporaryModeTimer != null && !temporaryModeTimer.isDone()) {
+                temporaryModeTimer.cancel(false);
+                log.debug("Cancelled previous temporary mode timer");
             }
 
             // Get timeout from configuration
@@ -220,12 +205,34 @@ public class HrvRule {
 
             // Schedule auto-off
             log.info("Temporary mode activated - will auto-off in {} minutes", timeoutMinutes);
-            Callable<Void> task = () -> {
-                log.info("Temporary mode timeout - turning off");
-                events.sendCommand(itemName, "OFF");
-                return null;
-            };
-            scheduler.after(task, Duration.of(timeoutMinutes, ChronoUnit.MINUTES));
+            temporaryModeTimer = executorService.schedule(
+                () -> {
+                    log.info("Temporary mode timeout - turning off");
+                    events.sendCommand(itemName, "OFF");
+                },
+                timeoutMinutes,
+                TimeUnit.MINUTES
+            );
+        }
+    }
+
+    /**
+     * Cleanup method - should be called when rule is unloaded.
+     * Shuts down the executor service gracefully.
+     */
+    public void shutdown() {
+        log.info("Shutting down HRV rule executor service");
+        if (temporaryModeTimer != null && !temporaryModeTimer.isDone()) {
+            temporaryModeTimer.cancel(false);
+        }
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
         }
     }
 
