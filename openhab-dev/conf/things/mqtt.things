@@ -1,0 +1,22 @@
+// MQTT Broker Thing Configuration
+// Based on production config, adapted for dev environment
+
+Thing mqtt:broker:zigbee "MQTT Broker" [
+    host="zigbee.home",
+    port=1883,
+    clientid="homehab-dev",
+    secure=false,
+    protocol="TCP",
+    mqttVersion="V3",
+    qos=0,
+    keepAlive=60,
+    reconnectTime=60000,
+    enableDiscovery=true,
+    lwtQos=0,
+    lwtRetain=true,
+    birthRetain=true,
+    shutdownRetain=true,
+    publickeypin=true,
+    hostnameValidated=true,
+    certificatepin=true
+]
