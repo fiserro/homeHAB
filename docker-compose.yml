@@ -1,0 +1,21 @@
+services:
+
+  openhab:
+    container_name: ${COMPOSE_PROJECT_NAME}-server
+    image: openhab/openhab:5.0.0-debian
+    restart: unless-stopped
+    ports:
+      - "8888:8080"
+      - "8889:8443"
+    group_add:
+      - tty
+    volumes:
+      - /etc/localtime:/etc/localtime
+      - /etc/timezone:/etc/timezone
+      - $OPENHAB_CONF/ssh:/openhab/.ssh
+      - $OPENHAB_ADDONS:/openhab/addons
+      - $OPENHAB_CONF:/openhab/conf
+      - $OPENHAB_USERDATA:/openhab/userdata
+    environment:
+      - CRYPTO_POLICY=unlimited
+      - EXTRA_JAVA_OPTS=${EXTRA_JAVA_OPTS}

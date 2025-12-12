@@ -1,0 +1,22 @@
+// HRV Configuration Items
+// These items are loaded by HrvConfigLoader and provide runtime configuration
+// Default values match the defaults in HrvConfig interface
+
+Group gHrvConfig "HRV Configuration" <settings>
+
+// Threshold values
+Number hrv_config_humidity_threshold "Humidity Threshold [%d %%]" (gHrvConfig) <humidity>
+Number hrv_config_co2_threshold "CO₂ Threshold [%d ppm]" (gHrvConfig) <carbondioxide>
+
+// Power levels for different modes (0-100%)
+Number hrv_config_smoke_power "Smoke Detector Power [%d %%]" (gHrvConfig) <smoke>
+Number hrv_config_window_open_power "Window Open Power [%d %%]" (gHrvConfig) <window>
+Number hrv_config_manual_default_power "Manual Mode Default Power [%d %%]" (gHrvConfig) <switch>
+Number hrv_config_boost_power "Boost Mode Power [%d %%]" (gHrvConfig) <fan>
+Number hrv_config_exhaust_hood_power "Exhaust Hood Power [%d %%]" (gHrvConfig) <fan_box>
+Number hrv_config_humidity_power "Humidity Mode Power [%d %%]" (gHrvConfig) <humidity>
+Number hrv_config_co2_power "CO₂ Mode Power [%d %%]" (gHrvConfig) <carbondioxide>
+Number hrv_config_base_power "Base Power [%d %%]" (gHrvConfig) <fan>
+
+// Timeouts
+Number hrv_config_temporary_mode_timeout_minutes "Temporary Mode Timeout [%d min]" (gHrvConfig) <time>
