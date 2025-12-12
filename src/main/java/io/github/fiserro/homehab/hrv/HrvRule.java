@@ -1,23 +1,18 @@
 package io.github.fiserro.homehab.hrv;
 
-import com.google.common.collect.Multimap;
 import com.google.common.collect.HashMultimap;
-import com.example.lib.DelayedActions;
+import com.google.common.collect.Multimap;
 import io.github.fiserro.homehab.AggregationType;
-import io.github.fiserro.options.OptionsFactory;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.openhab.core.automation.module.script.defaultscope.ScriptBusEvent;
-import org.openhab.core.items.Item;
 import org.openhab.core.items.ItemRegistry;
 import org.openhab.core.scheduler.Scheduler;
-import org.openhab.core.scheduler.ScheduledCompletableFuture;
-import org.openhab.core.library.types.DecimalType;
-
-import java.time.temporal.ChronoUnit;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  * OpenHAB Rule for automatic HRV (Heat Recovery Ventilator) control.
@@ -40,7 +35,7 @@ public class HrvRule {
 
     // State management
     private final Map<String, Object> currentValues = new ConcurrentHashMap<>();
-    private ScheduledCompletableFuture<Void> temporaryModeTimer = null;
+    private Object temporaryModeTimer = null;  // ScheduledCompletableFuture<Void> - using Object for compile-time independence
 
     // Configuration item name prefix
     private static final String CONFIG_PREFIX = "hrv_config_";
@@ -206,9 +201,18 @@ public class HrvRule {
 
     private void handleTemporaryMode(String itemName, Object value) {
         if (Boolean.TRUE.equals(value)) {
-            // Cancel previous timer
-            if (temporaryModeTimer != null && !temporaryModeTimer.isDone()) {
-                temporaryModeTimer.cancel(false);
+            // Cancel previous timer using reflection
+            if (temporaryModeTimer != null) {
+                try {
+                    java.lang.reflect.Method isDoneMethod = temporaryModeTimer.getClass().getMethod("isDone");
+                    Boolean isDone = (Boolean) isDoneMethod.invoke(temporaryModeTimer);
+                    if (!isDone) {
+                        java.lang.reflect.Method cancelMethod = temporaryModeTimer.getClass().getMethod("cancel", boolean.class);
+                        cancelMethod.invoke(temporaryModeTimer, false);
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to cancel temporary mode timer", e);
+                }
             }
 
             // Get timeout from configuration
@@ -216,11 +220,12 @@ public class HrvRule {
 
             // Schedule auto-off
             log.info("Temporary mode activated - will auto-off in {} minutes", timeoutMinutes);
-            temporaryModeTimer = DelayedActions.wait(timeoutMinutes, ChronoUnit.MINUTES)
-                .then(() -> {
-                    log.info("Temporary mode timeout - turning off");
-                    events.sendCommand(itemName, "OFF");
-                });
+            Callable<Void> task = () -> {
+                log.info("Temporary mode timeout - turning off");
+                events.sendCommand(itemName, "OFF");
+                return null;
+            };
+            scheduler.after(task, Duration.of(timeoutMinutes, ChronoUnit.MINUTES));
         }
     }
 

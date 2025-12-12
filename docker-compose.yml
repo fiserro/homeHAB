@@ -5,7 +5,10 @@ services:
 
   openhab:
     container_name: ${COMPOSE_PROJECT_NAME}-server
-    image: openhab/openhab:5.0.0-debian
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: homehab-openhab:5.0.0-jdk
     restart: unless-stopped
     ports:
       - "8888:8080"
@@ -20,5 +23,6 @@ services:
       - $OPENHAB_CONF:/openhab/conf
       - $OPENHAB_USERDATA:/openhab/userdata
     environment:
-      - CRYPTO_POLICY=unlimited
+      - CRYPTO_POLICY=  # Disabled - Temurin JDK 21 uses unlimited by default
       - EXTRA_JAVA_OPTS=${EXTRA_JAVA_OPTS}
+      - JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-arm64

@@ -1,0 +1,21 @@
+// HRV Control Items
+// These items are used to control and monitor the HRV system
+
+Group gHrvControl "HRV Control"
+
+// Manual control modes
+Switch Hrv_Manual_Mode "Manual Mode" (gHrvControl)
+Switch Hrv_Temporary_Manual_Mode "Temporary Manual Mode" (gHrvControl)
+Switch Hrv_Boost_Mode "Boost Mode" (gHrvControl)
+Switch Hrv_Temporary_Boost_Mode "Temporary Boost Mode" (gHrvControl)
+
+// Manual power setting (0-100%)
+Number Hrv_Manual_Power "Manual Power [%d %%]" (gHrvControl)
+
+// Environmental sensors (not from Zigbee)
+Switch Hrv_Exhaust_Hood "Exhaust Hood Active" (gHrvControl)
+Switch Hrv_Window_Open "Window Open" (gHrvControl)
+Number Hrv_CO2 "CO2 Level [%d ppm]" (gHrvControl)
+
+// Output - HRV power control
+Number Hrv_Power_Output "HRV Power Output [%d %%]" (gHrvControl)
