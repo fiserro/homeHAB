@@ -1,3 +1,6 @@
+# homeHAB Development Environment
+# Uses .env.dev configuration (via .env symlink)
+
 services:
 
   openhab:

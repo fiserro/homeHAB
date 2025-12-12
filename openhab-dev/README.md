@@ -14,6 +14,15 @@ openhab-dev/
 └── userdata/       # Runtime data (ignored by git)
 ```
 
+## Configuration
+
+The dev environment uses `.env.dev` configuration file (via `.env` symlink).
+
+**MQTT Settings:**
+- Broker: `zigbee.home:1883`
+- Client ID: `homehab-dev`
+- Topic prefix: `homehab-dev/`
+
 ## Starting the Environment
 
 From the project root:
@@ -38,14 +47,15 @@ docker-compose down
 ## Deploying Library to Dev Environment
 
 ```bash
-# Deploy homeHAB library to local dev environment
-./deploy.sh local
+# Deploy homeHAB library to dev environment
+./deploy.sh dev
 ```
 
 This will:
-1. Build the project (`mvn clean package`)
-2. Copy the JAR to `openhab-dev/conf/automation/lib/java/`
-3. OpenHAB will automatically detect and load the library
+1. Load configuration from `.env.dev`
+2. Build the project (`mvn clean package`)
+3. Copy the JAR to `openhab-dev/conf/automation/lib/java/`
+4. OpenHAB will automatically detect and load the library
 
 ## Resetting the Environment
 
@@ -78,10 +88,27 @@ EXTRA_JAVA_OPTS=-Xms512m -Xmx1024m    # JVM options
 
 The production environment runs on a Raspberry Pi with OpenHABian.
 
-Deploy to production:
+**Configuration:**
+1. Create `.env.prod` from the example:
+   ```bash
+   cp .env.prod.example .env.prod
+   # Edit .env.prod with your production settings
+   ```
+
+2. Configure production settings:
+   - MQTT broker: `zigbee.home:1883`
+   - Client ID: `homehab-prod`
+   - Topic prefix: `homehab/`
+   - Deploy target: `openhabian@raspberrypi.local:/etc/openhab`
+
+**Deploy to production:**
 
 ```bash
-./deploy.sh
+./deploy.sh prod
 ```
 
-This uses the target from `.deploy-config` file (not in git).
+This will:
+1. Load configuration from `.env.prod`
+2. Build the project
+3. Deploy via SSH/SCP to the Raspberry Pi
+4. OpenHAB will automatically detect and load the library

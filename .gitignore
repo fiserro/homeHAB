@@ -38,7 +38,9 @@ nbdist/
 # Logs
 *.log
 
-# Deployment config (may contain credentials)
+# Environment configs (production contains credentials)
+.env
+.env.prod
 .deploy-config
 
 # OpenHAB Dev Environment
@@ -46,7 +48,6 @@ openhab-dev/userdata/
 openhab-dev/addons/*.jar
 openhab-dev/conf/automation/lib/java/*.jar
 openhab-dev/conf/automation/lib/java/helper/
-.env
 
 # Compiled class files
 *.class

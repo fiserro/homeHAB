@@ -1,12 +1,15 @@
 #!/bin/bash
 
-# Script for building and deploying homeHAB library to OpenHAB (local or remote)
+# Script for building and deploying homeHAB library to OpenHAB
 # Usage:
-#   Local:  ./deploy.sh [local|/path/to/openhab/conf]
-#   Remote: ./deploy.sh user@host:/path/to/openhab/conf
-#   Remote with SSH key: ./deploy.sh user@host:/path/to/openhab/conf -i ~/.ssh/key
+#   ./deploy.sh dev   # Deploy to development environment (local Docker)
+#   ./deploy.sh prod  # Deploy to production environment (remote OpenHABian)
 
 set -e  # Exit on any error
+
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -17,63 +20,61 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}=== homeHAB Build & Deploy ===${NC}"
 
-# Load configuration from .deploy-config if exists
-CONFIG_FILE=".deploy-config"
-if [ -f "$CONFIG_FILE" ]; then
-    echo -e "${BLUE}Loading config from: ${CONFIG_FILE}${NC}"
-    source "$CONFIG_FILE"
+# Determine environment
+ENV="${1:-dev}"
+
+if [ "$ENV" != "dev" ] && [ "$ENV" != "prod" ]; then
+    echo -e "${RED}Error: Invalid environment '${ENV}'${NC}"
+    echo ""
+    echo "Usage:"
+    echo "  ./deploy.sh dev   # Deploy to development (local Docker)"
+    echo "  ./deploy.sh prod  # Deploy to production (remote OpenHABian)"
+    exit 1
 fi
 
-# Parse arguments (command line overrides config file)
-TARGET="${1:-$DEPLOY_TARGET}"
-SSH_KEY="${SSH_KEY_PATH:+"-i $SSH_KEY_PATH"}"
+# Load environment configuration
+ENV_FILE=".env.${ENV}"
+if [ ! -f "$ENV_FILE" ]; then
+    echo -e "${RED}Error: Configuration file not found: ${ENV_FILE}${NC}"
+    echo ""
+    if [ "$ENV" = "prod" ]; then
+        echo "Create .env.prod based on .env.prod.example:"
+        echo "  cp .env.prod.example .env.prod"
+        echo "  # Edit .env.prod with your production settings"
+    fi
+    exit 1
+fi
+
+echo -e "${BLUE}Loading config from: ${ENV_FILE}${NC}"
+source "$ENV_FILE"
+
+# Display environment info
+echo -e "${BLUE}Environment: ${YELLOW}${ENV}${NC}"
+echo -e "${BLUE}MQTT Broker: ${YELLOW}${MQTT_BROKER_HOST}:${MQTT_BROKER_PORT}${NC}"
+echo -e "${BLUE}MQTT Client ID: ${YELLOW}${MQTT_CLIENT_ID}${NC}"
+echo -e "${BLUE}MQTT Topic Prefix: ${YELLOW}${MQTT_TOPIC_PREFIX}${NC}"
+
+# Determine deployment type
 REMOTE_DEPLOY=false
+SSH_KEY="${SSH_KEY_PATH:+"-i $SSH_KEY_PATH"}"
 
-# Command line SSH key overrides config file
-if [ "$2" = "-i" ] && [ -n "$3" ]; then
-    SSH_KEY="-i $3"
-fi
-
-# Determine deployment type (local or remote)
-if [[ "$TARGET" =~ ^[^@]+@[^:]+:.+$ ]]; then
-    # Remote deployment (user@host:/path)
+if [ "$DEPLOY_TYPE" = "remote" ]; then
+    # Remote deployment
     REMOTE_DEPLOY=true
-    REMOTE_USER_HOST="${TARGET%:*}"
-    REMOTE_PATH="${TARGET#*:}"
+    if [[ ! "$DEPLOY_TARGET" =~ ^[^@]+@[^:]+:.+$ ]]; then
+        echo -e "${RED}Error: Invalid DEPLOY_TARGET for remote deployment: ${DEPLOY_TARGET}${NC}"
+        echo "Expected format: user@host:/path"
+        exit 1
+    fi
+    REMOTE_USER_HOST="${DEPLOY_TARGET%:*}"
+    REMOTE_PATH="${DEPLOY_TARGET#*:}"
     echo -e "${BLUE}Deployment mode: ${YELLOW}REMOTE${NC}"
     echo -e "${BLUE}Target: ${YELLOW}${REMOTE_USER_HOST}:${REMOTE_PATH}${NC}"
-elif [ -n "$TARGET" ] && [ "$TARGET" != "local" ]; then
-    # Local deployment with explicit path
-    OPENHAB_CONF="$TARGET"
-    echo -e "${BLUE}Deployment mode: ${YELLOW}LOCAL${NC}"
-    echo -e "${BLUE}Target: ${YELLOW}${OPENHAB_CONF}${NC}"
 else
-    # Local deployment with auto-detection
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-    if [ -d "$SCRIPT_DIR/openhab-dev/conf" ]; then
-        # Prefer local dev environment in this repo
-        OPENHAB_CONF="$SCRIPT_DIR/openhab-dev/conf"
-    elif [ -n "$OPENHAB_CONF" ]; then
-        OPENHAB_CONF="$OPENHAB_CONF"
-    elif [ -d "/etc/openhab/conf" ]; then
-        OPENHAB_CONF="/etc/openhab/conf"
-    elif [ -d "/usr/share/openhab/conf" ]; then
-        OPENHAB_CONF="/usr/share/openhab/conf"
-    elif [ -d "$HOME/openhab/conf" ]; then
-        OPENHAB_CONF="$HOME/openhab/conf"
-    else
-        echo -e "${RED}Error: OpenHAB configuration directory not found!${NC}"
-        echo ""
-        echo "Usage:"
-        echo "  Local dev:  ./deploy.sh local (deploys to ./openhab-dev/)"
-        echo "  Local path: ./deploy.sh /path/to/openhab/conf"
-        echo "  Remote:     ./deploy.sh user@host:/path/to/openhab/conf [-i ~/.ssh/key]"
-        echo ""
-        echo "Examples:"
-        echo "  ./deploy.sh local"
-        echo "  ./deploy.sh /opt/openhab/conf"
-        echo "  ./deploy.sh openhab@192.168.1.100:/etc/openhab/conf"
-        echo "  ./deploy.sh openhab@server.local:/opt/openhab/conf -i ~/.ssh/openhab_key"
+    # Local deployment
+    OPENHAB_CONF="$DEPLOY_TARGET"
+    if [ ! -d "$OPENHAB_CONF" ]; then
+        echo -e "${RED}Error: Directory does not exist: $OPENHAB_CONF${NC}"
         exit 1
     fi
     echo -e "${BLUE}Deployment mode: ${YELLOW}LOCAL${NC}"
@@ -149,12 +150,6 @@ else
     # Local deployment
     echo -e "${BLUE}Step 2: Deploying to local OpenHAB...${NC}"
 
-    # Verify OpenHAB directory exists
-    if [ ! -d "$OPENHAB_CONF" ]; then
-        echo -e "${RED}Error: Directory does not exist: $OPENHAB_CONF${NC}"
-        exit 1
-    fi
-
     # Create automation/lib/java directory if it doesn't exist
     LIB_DIR="$OPENHAB_CONF/automation/lib/java"
     if [ ! -d "$LIB_DIR" ]; then
@@ -184,8 +179,13 @@ else
     echo -e "${GREEN}=== Deployment Complete ===${NC}"
     echo -e "${BLUE}Next steps:${NC}"
     echo "  1. OpenHAB will automatically detect and load the new library"
-    echo "  2. Check logs: tail -f $OPENHAB_CONF/../logs/openhab.log"
-    echo "  3. If needed: sudo systemctl restart openhab"
+    if [ "$ENV" = "dev" ]; then
+        echo "  2. Check logs: docker-compose logs -f openhab"
+        echo "  3. If needed: docker-compose restart openhab"
+    else
+        echo "  2. Check logs: tail -f $OPENHAB_CONF/../logs/openhab.log"
+        echo "  3. If needed: sudo systemctl restart openhab"
+    fi
     echo ""
     echo -e "${BLUE}Local location:${NC} $LIB_DIR/$(basename $JAR_FILE)"
 fi
