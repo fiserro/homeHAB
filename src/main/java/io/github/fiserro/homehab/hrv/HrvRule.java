@@ -35,7 +35,7 @@ public class HrvRule {
     private static final String CONFIG_PREFIX = "hrv_config_";
 
     @Builder(builderClassName = "HrvRuleBuilder")
-    HrvRule(
+    public HrvRule(
             Multimap<HrvInputType, String> inputChannels,
             String outputChannel,
             ScriptBusEvent events,

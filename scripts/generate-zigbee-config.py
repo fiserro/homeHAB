@@ -17,6 +17,7 @@ import json
 import subprocess
 import argparse
 import re
+import yaml
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
@@ -28,6 +29,23 @@ class ZigbeeConfigGenerator:
         self.output_dir = Path(output_dir)
         self.things_file = self.output_dir / "things" / "zigbee-devices.things"
         self.items_file = self.output_dir / "items" / "zigbee-devices.items"
+        self.hrv_mapping_file = self.output_dir / "hrv-zigbee-mapping.yaml"
+        self.hrv_mappings = self.load_hrv_mappings()
+
+    def load_hrv_mappings(self) -> Dict[str, Any]:
+        """Load HRV to Zigbee device mappings from YAML file."""
+        if not self.hrv_mapping_file.exists():
+            print(f"⚠️  HRV mapping file not found: {self.hrv_mapping_file}")
+            return {}
+
+        try:
+            with open(self.hrv_mapping_file, 'r') as f:
+                mappings = yaml.safe_load(f) or {}
+                print(f"✓ Loaded HRV mappings from {self.hrv_mapping_file}")
+                return mappings
+        except Exception as e:
+            print(f"⚠️  Failed to load HRV mappings: {e}")
+            return {}
 
     def fetch_devices_via_ssh(self, ssh_host: str) -> List[Dict[str, Any]]:
         """Fetch devices from Zigbee2MQTT via SSH."""
@@ -225,6 +243,11 @@ class ZigbeeConfigGenerator:
 
             label = expose.get('label', exp_name.title())
             item_name = f'{safe_prefix}_{exp_name.title()}'
+
+            # OpenHAB item names cannot start with a digit - add prefix if needed
+            if item_name[0].isdigit():
+                item_name = f'Zigbee_{item_name}'
+
             channel_id = f'mqtt:topic:zigbee:{safe_id}:{exp_name}'
 
             items.append(f'{item_type} {item_name}{state_format} {{ channel="{channel_id}" }}')
@@ -235,12 +258,87 @@ class ZigbeeConfigGenerator:
         header = f'// {friendly_name}'
         return '\n'.join([header] + items + [''])
 
+    def generate_hrv_items(self, devices: List[Dict[str, Any]]) -> List[str]:
+        """Generate HRV control items (linked to Zigbee + manual controls)."""
+        if not self.hrv_mappings:
+            return []
+
+        hrv_items = []
+        channel_mappings = self.hrv_mappings.get('channel_mappings', {})
+
+        # Header
+        hrv_items.append('// HRV Control Items')
+        hrv_items.append('// Auto-generated: Zigbee sensors + manual controls')
+        hrv_items.append('')
+        hrv_items.append('Group gHrvControl "HRV Control"')
+        hrv_items.append('')
+
+        # Zigbee-linked sensors
+        hrv_items.append('// === Zigbee Sensors for HRV ===')
+        for hrv_input, zigbee_id in self.hrv_mappings.items():
+            if hrv_input == 'channel_mappings':
+                continue
+
+            channel_name = channel_mappings.get(hrv_input, '')
+            if not channel_name:
+                continue
+
+            # Find device
+            device = next((d for d in devices if d.get('ieee_address') == zigbee_id or
+                          d.get('friendly_name') == zigbee_id), None)
+            if not device:
+                print(f"  ⚠️  Device not found for HRV input '{hrv_input}': {zigbee_id}")
+                continue
+
+            ieee = device.get('ieee_address', zigbee_id).lower()
+            safe_id = self.safe_name(device.get('friendly_name', zigbee_id))
+            channel_id = f'mqtt:topic:zigbee:{safe_id}:{channel_name}'
+
+            # Generate item name: hrv_zigbee_item_<ieee>_<channel>
+            item_name = f'hrv_zigbee_item_{ieee}_{channel_name}'
+
+            # Determine item type based on HRV input
+            if hrv_input == 'smoke_detector':
+                item_type = 'Contact'
+                label = 'HRV Smoke Detector'
+                hrv_items.append(f'{item_type} {item_name} "{label}" (gHrvControl) {{ channel="{channel_id}" }}')
+            elif hrv_input == 'humidity_sensor':
+                item_type = 'Number'
+                label = 'HRV Humidity [%.0f %%]'
+                hrv_items.append(f'{item_type} {item_name} "{label}" (gHrvControl) {{ channel="{channel_id}" }}')
+            elif hrv_input == 'co2_sensor':
+                item_type = 'Number'
+                label = 'HRV CO2 [%d ppm]'
+                hrv_items.append(f'{item_type} {item_name} "{label}" (gHrvControl) {{ channel="{channel_id}" }}')
+            elif hrv_input == 'window_sensor':
+                item_type = 'Contact'
+                label = 'HRV Window Sensor'
+                hrv_items.append(f'{item_type} {item_name} "{label}" (gHrvControl) {{ channel="{channel_id}" }}')
+
+        hrv_items.append('')
+
+        # Manual control items
+        hrv_items.append('// === Manual Control Items ===')
+        hrv_items.append('Switch hrv_item_manual_mode "Manual Mode" (gHrvControl)')
+        hrv_items.append('Switch hrv_item_temporary_manual_mode "Temporary Manual Mode" (gHrvControl)')
+        hrv_items.append('Switch hrv_item_boost_mode "Boost Mode" (gHrvControl)')
+        hrv_items.append('Switch hrv_item_temporary_boost_mode "Temporary Boost Mode" (gHrvControl)')
+        hrv_items.append('Switch hrv_item_exhaust_hood "Exhaust Hood Active" (gHrvControl)')
+        hrv_items.append('Number hrv_item_manual_power "Manual Power [%d %%]" (gHrvControl)')
+        hrv_items.append('')
+
+        # Output item
+        hrv_items.append('// === Output ===')
+        hrv_items.append('Number hrv_output_power "HRV Power Output [%d %%]" (gHrvControl)')
+        hrv_items.append('')
+
+        return hrv_items
+
     def generate_all(self, devices: List[Dict[str, Any]]):
         """Generate all things and items files."""
         print("\n🔧 Generating OpenHAB configuration...")
 
         things = []
-        items = []
 
         for device in devices:
             friendly_name = device.get('friendly_name', 'unknown')
@@ -249,11 +347,6 @@ class ZigbeeConfigGenerator:
             if thing:
                 things.append(thing)
                 print(f"  ✓ Thing: {friendly_name}")
-
-            item = self.generate_item(device)
-            if item:
-                items.append(item)
-                print(f"  ✓ Items: {friendly_name}")
 
         # Write things file
         if things:
@@ -268,16 +361,22 @@ class ZigbeeConfigGenerator:
             self.things_file.write_text(content)
             print(f"\n✅ Generated: {self.things_file}")
 
-        # Write items file
-        if items:
+        # Generate HRV items
+        hrv_items = self.generate_hrv_items(devices)
+        if hrv_items:
+            print(f"  ✓ HRV control items generated")
+
+        # Write items file (HRV items only, no raw Zigbee items)
+        if hrv_items:
             self.items_file.parent.mkdir(parents=True, exist_ok=True)
             header = [
-                '// Zigbee2MQTT Device Items',
+                '// HRV Control Items',
                 '// Auto-generated by generate-zigbee-config.py',
                 '// DO NOT EDIT MANUALLY - regenerate using the script',
                 ''
             ]
-            content = '\n'.join(header + items)
+
+            content = '\n'.join(header + hrv_items)
             self.items_file.write_text(content)
             print(f"✅ Generated: {self.items_file}")
 

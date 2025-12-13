@@ -64,6 +64,7 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>${guava.version}</version>
+            <scope>provided</scope>
         </dependency>
 
         <!-- Options library -->
@@ -155,10 +156,14 @@
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <promoteTransitiveDependencies>false</promoteTransitiveDependencies>
                             <artifactSet>
-                                <includes>
-                                    <!-- Include ONLY our project classes - no 3rd party dependencies -->
-                                    <include>com.example:homeHAB</include>
-                                </includes>
+                                <excludes>
+                                    <!-- Exclude OpenHAB dependencies (provided by runtime) -->
+                                    <exclude>org.openhab.*:*</exclude>
+                                    <!-- Exclude other large dependencies provided by OpenHAB -->
+                                    <exclude>com.google.guava:*</exclude>
+                                    <exclude>org.slf4j:*</exclude>
+                                    <exclude>ch.qos.logback:*</exclude>
+                                </excludes>
                             </artifactSet>
                             <filters>
                                 <filter>
