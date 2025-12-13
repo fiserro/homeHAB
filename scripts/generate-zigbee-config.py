@@ -17,9 +17,9 @@ import json
 import subprocess
 import argparse
 import re
-import yaml
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Set, Tuple
+from collections import defaultdict
 
 
 class ZigbeeConfigGenerator:
@@ -29,23 +29,6 @@ class ZigbeeConfigGenerator:
         self.output_dir = Path(output_dir)
         self.things_file = self.output_dir / "things" / "zigbee-devices.things"
         self.items_file = self.output_dir / "items" / "zigbee-devices.items"
-        self.hrv_mapping_file = self.output_dir / "hrv-zigbee-mapping.yaml"
-        self.hrv_mappings = self.load_hrv_mappings()
-
-    def load_hrv_mappings(self) -> Dict[str, Any]:
-        """Load HRV to Zigbee device mappings from YAML file."""
-        if not self.hrv_mapping_file.exists():
-            print(f"⚠️  HRV mapping file not found: {self.hrv_mapping_file}")
-            return {}
-
-        try:
-            with open(self.hrv_mapping_file, 'r') as f:
-                mappings = yaml.safe_load(f) or {}
-                print(f"✓ Loaded HRV mappings from {self.hrv_mapping_file}")
-                return mappings
-        except Exception as e:
-            print(f"⚠️  Failed to load HRV mappings: {e}")
-            return {}
 
     def fetch_devices_via_ssh(self, ssh_host: str) -> List[Dict[str, Any]]:
         """Fetch devices from Zigbee2MQTT via SSH."""
@@ -71,14 +54,45 @@ class ZigbeeConfigGenerator:
         print(f"✓ Found {len(devices)} devices")
         return devices
 
-    def safe_name(self, name: str) -> str:
-        """Convert friendly name to safe identifier."""
-        # Remove special characters, replace spaces with underscores
-        safe = re.sub(r'[^a-zA-Z0-9_]', '_', name)
-        safe = re.sub(r'_+', '_', safe)  # Remove duplicate underscores
-        return safe.strip('_')
+    def get_metric_category(self, exp_name: str) -> str:
+        """Get normalized metric category name."""
+        # Normalize common metric names
+        category_map = {
+            'temperature': 'temperature',
+            'humidity': 'humidity',
+            'pressure': 'pressure',
+            'co2': 'co2',
+            'smoke': 'smoke',
+            'contact': 'contact',
+            'occupancy': 'occupancy',
+            'illuminance': 'illuminance',
+            'battery': 'battery',
+            'voltage': 'voltage',
+            'linkquality': 'linkquality',
+            'link_quality': 'linkquality',
+        }
 
-    def map_expose_to_channel(self, expose: Dict[str, Any], device_topic: str) -> Optional[Dict[str, str]]:
+        exp_lower = exp_name.lower()
+        return category_map.get(exp_lower, exp_name.lower())
+
+    def get_icon_for_category(self, category: str) -> str:
+        """Get OpenHAB icon for metric category."""
+        icon_map = {
+            'temperature': 'temperature',
+            'humidity': 'humidity',
+            'pressure': 'pressure',
+            'co2': 'carbondioxide',
+            'smoke': 'smoke',
+            'contact': 'contact',
+            'occupancy': 'motion',
+            'illuminance': 'light',
+            'battery': 'battery',
+            'voltage': 'energy',
+            'linkquality': 'network',
+        }
+        return icon_map.get(category, 'none')
+
+    def map_expose_to_channel(self, expose: Dict[str, Any], device_topic: str, ieee: str) -> Optional[Dict[str, Any]]:
         """Map Zigbee2MQTT expose to OpenHAB channel definition."""
         exp_type = expose.get('type')
         exp_name = expose.get('name') or expose.get('property', '')
@@ -97,16 +111,19 @@ class ZigbeeConfigGenerator:
             # Composite switch type with state feature
             features = expose.get('features', [])
             if features:
-                return self.map_expose_to_channel(features[0], device_topic)
+                return self.map_expose_to_channel(features[0], device_topic, ieee)
             channel_type = 'switch'
         else:
             return None
+
+        category = self.get_metric_category(exp_name)
 
         # Build channel configuration
         channel = {
             'type': channel_type,
             'name': exp_name,
-            'label': expose.get('label', exp_name.title()),
+            'category': category,
+            'label': f'[zigbee, {category}]',
             'stateTopic': device_topic,
             'transformationPattern': f'JSONPATH:$.{exp_name}'
         }
@@ -123,15 +140,18 @@ class ZigbeeConfigGenerator:
 
         return channel
 
-    def generate_thing(self, device: Dict[str, Any]) -> Optional[str]:
-        """Generate OpenHAB Thing definition for a device."""
+    def generate_thing(self, device: Dict[str, Any]) -> Optional[Tuple[str, str]]:
+        """Generate OpenHAB Thing definition for a device.
+
+        Returns:
+            Tuple of (thing_definition, ieee_address) or None
+        """
         # Skip coordinator
         if device.get('type') == 'Coordinator':
             return None
 
         friendly_name = device.get('friendly_name', device.get('ieee_address', 'unknown'))
-        safe_id = self.safe_name(friendly_name)
-        ieee = device.get('ieee_address', '')
+        ieee = device.get('ieee_address', '').lower()
         topic = f"zigbee2mqtt/{friendly_name}"
 
         definition = device.get('definition', {})
@@ -154,7 +174,7 @@ class ZigbeeConfigGenerator:
         exposes = definition.get('exposes', [])
 
         for expose in exposes:
-            channel = self.map_expose_to_channel(expose, topic)
+            channel = self.map_expose_to_channel(expose, topic, ieee)
             if channel:
                 channels.append(channel)
 
@@ -162,11 +182,11 @@ class ZigbeeConfigGenerator:
             print(f"  ⚠️  No channels found for {friendly_name}")
             return None
 
-        # Build Thing definition
+        # Build Thing definition - UID format: mqtt:zigbee:<ieee>
         thing_lines = [
             f'// {vendor} {model} - {description}',
             f'// IEEE: {ieee}',
-            f'Thing mqtt:topic:zigbee:{safe_id} "{thing_label}" (mqtt:broker:zigbee) {{',
+            f'Thing mqtt:topic:zigbee:{ieee} "{thing_label}" (mqtt:broker:zigbee) {{',
             '    Channels:'
         ]
 
@@ -177,7 +197,7 @@ class ZigbeeConfigGenerator:
             state_topic = ch['stateTopic']
             transform = ch['transformationPattern']
 
-            config_parts = [f'stateTopic="{state_topic}"', f'transformationPattern="{transform}"']
+            config_parts = [f'stateTopic="{state_topic}"', f'transformationPattern="{transform}"', 'retained=true']
 
             if 'commandTopic' in ch:
                 config_parts.append(f'commandTopic="{ch["commandTopic"]}"')
@@ -192,21 +212,30 @@ class ZigbeeConfigGenerator:
         thing_lines.append('}')
         thing_lines.append('')
 
-        return '\n'.join(thing_lines)
+        return ('\n'.join(thing_lines), ieee)
 
-    def generate_item(self, device: Dict[str, Any]) -> Optional[str]:
-        """Generate OpenHAB Item definitions for a device."""
+    def generate_items_for_device(self, device: Dict[str, Any]) -> Tuple[List[str], Dict[str, List[str]]]:
+        """Generate OpenHAB Item definitions for a device.
+
+        Returns:
+            Tuple of (item_lines, category_to_items_map)
+        """
         if device.get('type') == 'Coordinator':
-            return None
+            return ([], {})
 
         friendly_name = device.get('friendly_name', device.get('ieee_address', 'unknown'))
-        safe_id = self.safe_name(friendly_name)
-        safe_prefix = safe_id.title().replace('_', '')
+        ieee = device.get('ieee_address', '').lower()
 
         definition = device.get('definition', {})
         exposes = definition.get('exposes', [])
 
+        # Get device description for better labels
+        description = definition.get('description', '')
+        if not description or description == 'Unknown':
+            description = friendly_name
+
         items = []
+        category_items = defaultdict(list)
 
         for expose in exposes:
             exp_type = expose.get('type')
@@ -215,138 +244,92 @@ class ZigbeeConfigGenerator:
             if not exp_name:
                 continue
 
-            # Determine item type and format
+            category = self.get_metric_category(exp_name)
+            icon = self.get_icon_for_category(category)
+
+            # Determine item type
             if exp_type == 'binary':
                 item_type = 'Switch' if expose.get('access', 0) & 2 else 'Contact'
-                state_format = ''
             elif exp_type == 'numeric':
                 item_type = 'Number'
-                unit = expose.get('unit', '')
-                if unit == '°C':
-                    state_format = ' "Temperature [%.1f °C]"'
-                elif unit == '%':
-                    state_format = ' "Humidity [%.0f %%]"'
-                elif unit == 'hPa':
-                    state_format = ' "Pressure [%.0f hPa]"'
-                elif unit == 'lqi':
-                    state_format = ' "Link Quality [%.0f]"'
-                else:
-                    state_format = f' "[%.1f {unit}]"' if unit else ' "[%.1f]"'
             elif exp_type == 'enum':
                 item_type = 'String'
-                state_format = ' "[%s]"'
             elif exp_type == 'switch':
                 item_type = 'Switch'
-                state_format = ''
             else:
                 continue
 
-            label = expose.get('label', exp_name.title())
-            item_name = f'{safe_prefix}_{exp_name.title()}'
+            # Item name format: mqttZigbee<Category>_<ieee>
+            category_title = category.title().replace('_', '')
+            item_name = f'mqttZigbee{category_title}_{ieee}'
 
-            # OpenHAB item names cannot start with a digit - add prefix if needed
-            if item_name[0].isdigit():
-                item_name = f'Zigbee_{item_name}'
+            # Label format: <device> - <category>
+            label = f'{description} - {category_title}'
 
-            channel_id = f'mqtt:topic:zigbee:{safe_id}:{exp_name}'
+            # Channel ID format: mqtt:topic:zigbee:<ieee>:<exp_name>
+            channel_id = f'mqtt:topic:zigbee:{ieee}:{exp_name}'
 
-            items.append(f'{item_type} {item_name}{state_format} {{ channel="{channel_id}" }}')
+            # Group name
+            # TEMPORARILY COMMENTED OUT - Groups disabled
+            # group_name = f'gZigbee{category_title}'
+
+            # Build item line (without group assignment)
+            items.append(f'{item_type} {item_name} "{label}" <{icon}> {{ channel="{channel_id}" }}')
+
+            # Track for group generation
+            category_items[category].append(item_name)
 
         if not items:
-            return None
+            return ([], {})
 
-        header = f'// {friendly_name}'
-        return '\n'.join([header] + items + [''])
+        # Add header
+        header = f'// {friendly_name} ({ieee})'
+        item_lines = [header] + items + ['']
 
-    def generate_hrv_items(self, devices: List[Dict[str, Any]]) -> List[str]:
-        """Generate HRV control items (linked to Zigbee + manual controls)."""
-        if not self.hrv_mappings:
-            return []
+        return (item_lines, category_items)
 
-        hrv_items = []
-        channel_mappings = self.hrv_mappings.get('channel_mappings', {})
+    def generate_groups(self, all_categories: Set[str]) -> List[str]:
+        """Generate Group items for all metric categories."""
+        groups = []
+        groups.append('// Zigbee Device Groups')
+        groups.append('// Auto-generated groups by metric category')
+        groups.append('')
 
-        # Header
-        hrv_items.append('// HRV Control Items')
-        hrv_items.append('// Auto-generated: Zigbee sensors + manual controls')
-        hrv_items.append('')
-        hrv_items.append('Group gHrvControl "HRV Control"')
-        hrv_items.append('')
+        for category in sorted(all_categories):
+            category_title = category.title().replace('_', '')
+            group_name = f'gZigbee{category_title}'
+            label = f'Zigbee {category_title}'
+            icon = self.get_icon_for_category(category)
 
-        # Zigbee-linked sensors
-        hrv_items.append('// === Zigbee Sensors for HRV ===')
-        for hrv_input, zigbee_id in self.hrv_mappings.items():
-            if hrv_input == 'channel_mappings':
-                continue
+            groups.append(f'Group {group_name} "{label}" <{icon}>')
 
-            channel_name = channel_mappings.get(hrv_input, '')
-            if not channel_name:
-                continue
-
-            # Find device
-            device = next((d for d in devices if d.get('ieee_address') == zigbee_id or
-                          d.get('friendly_name') == zigbee_id), None)
-            if not device:
-                print(f"  ⚠️  Device not found for HRV input '{hrv_input}': {zigbee_id}")
-                continue
-
-            ieee = device.get('ieee_address', zigbee_id).lower()
-            safe_id = self.safe_name(device.get('friendly_name', zigbee_id))
-            channel_id = f'mqtt:topic:zigbee:{safe_id}:{channel_name}'
-
-            # Generate item name: hrv_zigbee_item_<ieee>_<channel>
-            item_name = f'hrv_zigbee_item_{ieee}_{channel_name}'
-
-            # Determine item type based on HRV input
-            if hrv_input == 'smoke_detector':
-                item_type = 'Contact'
-                label = 'HRV Smoke Detector'
-                hrv_items.append(f'{item_type} {item_name} "{label}" (gHrvControl) {{ channel="{channel_id}" }}')
-            elif hrv_input == 'humidity_sensor':
-                item_type = 'Number'
-                label = 'HRV Humidity [%.0f %%]'
-                hrv_items.append(f'{item_type} {item_name} "{label}" (gHrvControl) {{ channel="{channel_id}" }}')
-            elif hrv_input == 'co2_sensor':
-                item_type = 'Number'
-                label = 'HRV CO2 [%d ppm]'
-                hrv_items.append(f'{item_type} {item_name} "{label}" (gHrvControl) {{ channel="{channel_id}" }}')
-            elif hrv_input == 'window_sensor':
-                item_type = 'Contact'
-                label = 'HRV Window Sensor'
-                hrv_items.append(f'{item_type} {item_name} "{label}" (gHrvControl) {{ channel="{channel_id}" }}')
-
-        hrv_items.append('')
-
-        # Manual control items
-        hrv_items.append('// === Manual Control Items ===')
-        hrv_items.append('Switch hrv_item_manual_mode "Manual Mode" (gHrvControl)')
-        hrv_items.append('Switch hrv_item_temporary_manual_mode "Temporary Manual Mode" (gHrvControl)')
-        hrv_items.append('Switch hrv_item_boost_mode "Boost Mode" (gHrvControl)')
-        hrv_items.append('Switch hrv_item_temporary_boost_mode "Temporary Boost Mode" (gHrvControl)')
-        hrv_items.append('Switch hrv_item_exhaust_hood "Exhaust Hood Active" (gHrvControl)')
-        hrv_items.append('Number hrv_item_manual_power "Manual Power [%d %%]" (gHrvControl)')
-        hrv_items.append('')
-
-        # Output item
-        hrv_items.append('// === Output ===')
-        hrv_items.append('Number hrv_output_power "HRV Power Output [%d %%]" (gHrvControl)')
-        hrv_items.append('')
-
-        return hrv_items
+        groups.append('')
+        return groups
 
     def generate_all(self, devices: List[Dict[str, Any]]):
         """Generate all things and items files."""
         print("\n🔧 Generating OpenHAB configuration...")
 
         things = []
+        all_item_lines = []
+        all_categories = set()
 
         for device in devices:
             friendly_name = device.get('friendly_name', 'unknown')
 
-            thing = self.generate_thing(device)
-            if thing:
-                things.append(thing)
+            # Generate Thing
+            thing_result = self.generate_thing(device)
+            if thing_result:
+                thing_def, ieee = thing_result
+                things.append(thing_def)
                 print(f"  ✓ Thing: {friendly_name}")
+
+            # Generate Items
+            item_lines, category_items = self.generate_items_for_device(device)
+            if item_lines:
+                all_item_lines.extend(item_lines)
+                all_categories.update(category_items.keys())
+                print(f"  ✓ Items: {friendly_name} ({len(item_lines)-2} items)")
 
         # Write things file
         if things:
@@ -361,24 +344,25 @@ class ZigbeeConfigGenerator:
             self.things_file.write_text(content)
             print(f"\n✅ Generated: {self.things_file}")
 
-        # Generate HRV items
-        hrv_items = self.generate_hrv_items(devices)
-        if hrv_items:
-            print(f"  ✓ HRV control items generated")
-
-        # Write items file (HRV items only, no raw Zigbee items)
-        if hrv_items:
+        # Write items file
+        if all_item_lines:
             self.items_file.parent.mkdir(parents=True, exist_ok=True)
             header = [
-                '// HRV Control Items',
+                '// Zigbee2MQTT Device Items',
                 '// Auto-generated by generate-zigbee-config.py',
                 '// DO NOT EDIT MANUALLY - regenerate using the script',
                 ''
             ]
 
-            content = '\n'.join(header + hrv_items)
+            # Generate groups first
+            # TEMPORARILY COMMENTED OUT - Groups generation disabled
+            # groups = self.generate_groups(all_categories)
+            groups = []
+
+            content = '\n'.join(header + groups + all_item_lines)
             self.items_file.write_text(content)
             print(f"✅ Generated: {self.items_file}")
+            print(f"  {len(all_item_lines)} item lines (groups disabled)")
 
 
 def main():

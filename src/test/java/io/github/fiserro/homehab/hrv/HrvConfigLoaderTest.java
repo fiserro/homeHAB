@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.openhab.core.automation.module.script.defaultscope.ScriptBusEvent;
 import org.openhab.core.items.Item;
 import org.openhab.core.items.ItemRegistry;
 import org.openhab.core.library.types.DecimalType;
@@ -22,6 +23,9 @@ class HrvConfigLoaderTest {
     private ItemRegistry itemRegistry;
 
     @Mock
+    private ScriptBusEvent events;
+
+    @Mock
     private Item humidityItem;
 
     @Mock
@@ -31,13 +35,13 @@ class HrvConfigLoaderTest {
 
     @BeforeEach
     void setUp() {
-        configLoader = new HrvConfigLoader(itemRegistry);
+        configLoader = new HrvConfigLoader(itemRegistry, events);
     }
 
     @Test
-    void loadConfiguration_withNoItems_shouldUseDefaults() {
+    void loadConfiguration_withNoItems_shouldUseDefaults() throws Exception {
         // Given: No items exist in registry
-        when(itemRegistry.get(anyString())).thenReturn(null);
+        when(itemRegistry.getItem(anyString())).thenThrow(new org.openhab.core.items.ItemNotFoundException(""));
 
         // When
         HrvConfig config = configLoader.loadConfiguration();
@@ -57,17 +61,17 @@ class HrvConfigLoaderTest {
     }
 
     @Test
-    void loadConfiguration_withSomeItems_shouldOverrideDefaults() {
+    void loadConfiguration_withSomeItems_shouldOverrideDefaults() throws Exception {
         // Given: Some items exist with custom values
-        when(itemRegistry.get("hrv_config_humidity_threshold")).thenReturn(humidityItem);
+        when(itemRegistry.getItem("hrvConfigHumidityThreshold")).thenReturn(humidityItem);
         when(humidityItem.getState()).thenReturn(new DecimalType(80));
 
-        when(itemRegistry.get("hrv_config_co2_threshold")).thenReturn(co2Item);
+        when(itemRegistry.getItem("hrvConfigCo2Threshold")).thenReturn(co2Item);
         when(co2Item.getState()).thenReturn(new DecimalType(1200));
 
-        when(itemRegistry.get(argThat(name ->
-            !name.equals("hrv_config_humidity_threshold") &&
-            !name.equals("hrv_config_co2_threshold")))).thenReturn(null);
+        when(itemRegistry.getItem(argThat(name ->
+            !name.equals("hrvConfigHumidityThreshold") &&
+            !name.equals("hrvConfigCo2Threshold")))).thenThrow(new org.openhab.core.items.ItemNotFoundException(""));
 
         // When
         HrvConfig config = configLoader.loadConfiguration();
@@ -83,17 +87,17 @@ class HrvConfigLoaderTest {
     @Test
     void loadConfiguration_withAllItems_shouldUseAllItemValues() throws Exception {
         // Given: All items exist with custom values
-        mockItem("hrv_config_humidity_threshold", 85);
-        mockItem("hrv_config_co2_threshold", 1500);
-        mockItem("hrv_config_smoke_power", 90);
-        mockItem("hrv_config_window_open_power", 5);
-        mockItem("hrv_config_manual_default_power", 60);
-        mockItem("hrv_config_boost_power", 75);
-        mockItem("hrv_config_exhaust_hood_power", 70);
-        mockItem("hrv_config_humidity_power", 65);
-        mockItem("hrv_config_co2_power", 55);
-        mockItem("hrv_config_base_power", 35);
-        mockItem("hrv_config_temporary_mode_timeout_minutes", 45);
+        mockItem("hrvConfigHumidityThreshold", 85);
+        mockItem("hrvConfigCo2Threshold", 1500);
+        mockItem("hrvConfigSmokePower", 90);
+        mockItem("hrvConfigWindowOpenPower", 5);
+        mockItem("hrvConfigManualDefaultPower", 60);
+        mockItem("hrvConfigBoostPower", 75);
+        mockItem("hrvConfigExhaustHoodPower", 70);
+        mockItem("hrvConfigHumidityPower", 65);
+        mockItem("hrvConfigCo2Power", 55);
+        mockItem("hrvConfigBasePower", 35);
+        mockItem("hrvConfigTemporaryModeTimeoutMinutes", 45);
 
         // When
         HrvConfig config = configLoader.loadConfiguration();
@@ -113,9 +117,9 @@ class HrvConfigLoaderTest {
     }
 
     @Test
-    void loadConfiguration_withItemRegistryException_shouldUseDefaults() {
+    void loadConfiguration_withItemRegistryException_shouldUseDefaults() throws Exception {
         // Given: ItemRegistry throws exception
-        when(itemRegistry.get(anyString())).thenThrow(new RuntimeException("Registry error"));
+        when(itemRegistry.getItem(anyString())).thenThrow(new RuntimeException("Registry error"));
 
         // When
         HrvConfig config = configLoader.loadConfiguration();
@@ -127,9 +131,9 @@ class HrvConfigLoaderTest {
     }
 
     @Test
-    void loadConfiguration_withNonDecimalState_shouldUseDefaults() {
+    void loadConfiguration_withNonDecimalState_shouldUseDefaults() throws Exception {
         // Given: Item exists but has non-decimal state
-        when(itemRegistry.get("hrv_config_humidity_threshold")).thenReturn(humidityItem);
+        when(itemRegistry.getItem("hrvConfigHumidityThreshold")).thenReturn(humidityItem);
         when(humidityItem.getState()).thenReturn(null);  // Not a DecimalType
 
         // When
@@ -142,9 +146,9 @@ class HrvConfigLoaderTest {
     /**
      * Helper method to mock an item with a decimal value
      */
-    private void mockItem(String itemName, int value) {
+    private void mockItem(String itemName, int value) throws Exception {
         Item item = mock(Item.class);
-        when(itemRegistry.get(itemName)).thenReturn(item);
+        when(itemRegistry.getItem(itemName)).thenReturn(item);
         when(item.getState()).thenReturn(new DecimalType(value));
     }
 }

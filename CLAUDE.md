@@ -205,7 +205,7 @@ The HRV system is designed as a layered architecture:
    - All thresholds and power levels are configurable
 
 4. **HrvConfigLoader** (`HrvConfigLoader.java`)
-   - Loads configuration from OpenHAB items (prefix: `hrv_config_`)
+   - Loads configuration from OpenHAB items (prefix: `hrvConfig`)
    - Falls back to defaults if items don't exist
 
 5. **HrvInputType** (`HrvInputType.java`)
@@ -305,6 +305,38 @@ openhab-dev/
 
 ## Utility Scripts
 
+### Generate All Configuration
+
+The project includes a convenience script to generate all OpenHAB configuration files at once.
+
+**Location:** `scripts/generate-all-config.sh`
+
+**Usage:**
+```bash
+# Via SSH (recommended)
+./scripts/generate-all-config.sh --ssh user@host
+
+# Via MQTT
+./scripts/generate-all-config.sh --mqtt-host zigbee.home
+```
+
+**What it does:**
+1. Runs `generate-hrv-config.py` to generate HRV configuration items
+2. Runs `generate-output-items.py` to generate output items from Control classes
+3. Runs `generate-zigbee-config.py` to generate Zigbee Things and Items
+4. Displays summary of generated files
+
+**After generation:**
+```bash
+# Restart OpenHAB to load configuration
+docker-compose restart openhab
+
+# Check logs
+docker-compose logs -f openhab
+```
+
+---
+
 ### Zigbee Configuration Generator
 
 The project includes a Python script for automatically generating OpenHAB Things and Items configuration from Zigbee2MQTT devices.
@@ -325,14 +357,22 @@ python3 scripts/generate-zigbee-config.py --ssh user@host --output-dir path/to/c
 
 **What it does:**
 - Fetches device list from Zigbee2MQTT via SSH or MQTT
-- Generates `things/zigbee-devices.things` with MQTT Thing definitions
-- Generates `items/zigbee-devices.items` with Item definitions
+- Generates `things/zigbee-devices.things` with MQTT Thing definitions for ALL Zigbee devices
+- Generates `items/zigbee-devices.items` with ALL Zigbee items organized by metric category
+- Automatically creates Group items for each metric category (temperature, humidity, smoke, etc.)
 - Automatically maps Zigbee2MQTT exposes to OpenHAB channels
 - Supports switches, sensors, numeric values, and enums
+- Assigns appropriate icons based on metric category
 
 **Generated files:**
 - `openhab-dev/conf/things/zigbee-devices.things` - Thing definitions
-- `openhab-dev/conf/items/zigbee-devices.items` - Item definitions
+- `openhab-dev/conf/items/zigbee-devices.items` - All Zigbee items with Groups
+
+**Naming conventions:**
+- **Things UID:** `mqtt:topic:zigbee:<ieee>` (e.g., `mqtt:topic:zigbee:0xa4c138aa8b540e22`)
+- **Channel label:** `[zigbee, <category>]` (e.g., `[zigbee, smoke]`, `[zigbee, humidity]`)
+- **Item name:** `mqttZigbee<Category>_<ieee>` (e.g., `mqttZigbeeSmoke_0xa4c138aa8b540e22`)
+- **Group name:** `gZigbee<Category>` (e.g., `gZigbeeSmoke`, `gZigbeeHumidity`)
 
 **After generation:**
 ```bash
@@ -348,6 +388,7 @@ docker-compose restart openhab
 - Generated files should NOT be edited manually
 - Re-run the script whenever Zigbee devices are added/removed
 - The script skips the Zigbee coordinator device automatically
+- Generates on a clean slate - removed devices will be automatically removed from configuration
 
 ### HRV Configuration Generator
 
@@ -366,85 +407,97 @@ python3 scripts/generate-hrv-config.py
 - Generates `items/hrv-config.items` with Number items for each config parameter
 - Automatically categorizes items (thresholds, power levels, timeouts)
 - Preserves proper formatting and units
+- Uses camelCase naming convention
 
 **Generated file:**
-- `openhab-dev/conf/items/hrv-config.items` - Configuration items with prefix `hrv_config_*`
+- `openhab-dev/conf/items/hrv-config.items` - Configuration items with prefix `hrvConfig*`
 
-## HRV Item Naming Convention
+**Naming convention:**
+- Item names use camelCase format: `hrvConfig<MethodName>`
+- Examples: `hrvConfigHumidityThreshold`, `hrvConfigCo2Threshold`, `hrvConfigSmokePower`
 
-The HRV system uses a **unified item naming convention** with specific prefixes:
+### Output Items Generator
 
-### Item Prefixes
+The project includes a Python script for generating output items from `*Control.java` classes.
 
-1. **`hrv_item_*`** - Manual control items
-   - `hrv_item_manual_mode` - Manual mode switch
-   - `hrv_item_temporary_manual_mode` - Temporary manual mode
-   - `hrv_item_boost_mode` - Boost mode switch
-   - `hrv_item_temporary_boost_mode` - Temporary boost mode
-   - `hrv_item_exhaust_hood` - Exhaust hood active switch
-   - `hrv_item_manual_power` - Manual power level (0-100%)
-
-2. **`hrv_zigbee_item_<ieee>_<channel>`** - Zigbee sensor items for HRV
-   - `hrv_zigbee_item_0xa4c138aa8b540e22_smoke` - Smoke detector
-   - `hrv_zigbee_item_0x00158d008b8b7beb_humidity` - Humidity sensor
-   - Format uses lowercase IEEE address from Zigbee device
-   - Unique per device - supports multiple sensors of same type
-
-3. **`hrv_config_*`** - Configuration parameters (auto-generated from `HrvConfig.java`)
-   - `hrv_config_humidity_threshold` - Humidity threshold
-   - `hrv_config_co2_threshold` - CO2 threshold
-   - `hrv_config_smoke_power` - Power level for smoke detection
-   - `hrv_config_boost_power` - Power level for boost mode
-   - etc.
-
-4. **`hrv_output_*`** - Output items
-   - `hrv_output_power` - HRV power output (0-100%)
-
-### HRV Zigbee Mapping
-
-The mapping between HRV inputs and Zigbee devices is defined in `openhab-dev/conf/hrv-zigbee-mapping.yaml`:
-
-```yaml
-# HRV Zigbee Device Mapping
-# Maps Zigbee devices to HRV input items
-
-# Sensors from Zigbee devices (use IEEE address)
-smoke_detector: "0xa4c138aa8b540e22"
-humidity_sensor: "0x00158d008b8b7beb"
-# window_sensor: "0x..."  # Add when available
-# co2_sensor: "0x..."     # Add when available
-
-# Zigbee channel mappings
-channel_mappings:
-  smoke_detector: "smoke"
-  humidity_sensor: "humidity"
-  # window_sensor: "contact"
-  # co2_sensor: "co2"
-```
+**Location:** `scripts/generate-output-items.py`
 
 **Usage:**
-1. Add Zigbee device IEEE address for each HRV input type
-2. Specify the channel name to use from that device
-3. Run `generate-zigbee-config.py` to generate items with proper naming
+```bash
+# Generate output-items.items from *Control.java files
+python3 scripts/generate-output-items.py
+```
+
+**What it does:**
+- Scans all `*Control.java` files in `openhab-dev/conf/automation/jsr223/`
+- Parses `@OutputItem` annotations on constants
+- Generates `items/output-items.items` with output items
+- Automatically extracts type, label, and icon from annotations
+
+**Example annotation in Control class:**
+```java
+@OutputItem(type = "Dimmer", label = "HRV Output Power", icon = "fan")
+public static final String OUTPUT_ITEM = "hrv_output_power";
+```
+
+**Generated file:**
+- `openhab-dev/conf/items/output-items.items` - Output items with `gOutputs` group
+
+**Important:**
+- Add `@OutputItem` annotation to any new output constants in Control classes
+- Re-run the script when adding new Control classes or output items
+
+## Item Naming Conventions
+
+The project uses specific naming conventions for different types of items:
+
+### Zigbee Items
+
+Generated by `scripts/generate-zigbee-config.py`:
+
+- **Things UID:** `mqtt:topic:zigbee:<ieee>`
+  - Example: `mqtt:topic:zigbee:0xa4c138aa8b540e22`
+- **Channel label:** `[zigbee, <category>]`
+  - Example: `[zigbee, smoke]`, `[zigbee, humidity]`
+- **Item name:** `mqttZigbee<Category>_<ieee>`
+  - Example: `mqttZigbeeSmoke_0xa4c138aa8b540e22`, `mqttZigbeeHumidity_0x00158d008b8b7beb`
+- **Group name:** `gZigbee<Category>`
+  - Example: `gZigbeeSmoke`, `gZigbeeHumidity`, `gZigbeeTemperature`
+
+### HRV Configuration Items
+
+Generated by `scripts/generate-hrv-config.py`:
+
+- **Item name:** `hrvConfig<MethodName>` (camelCase)
+  - Example: `hrvConfigHumidityThreshold`, `hrvConfigCo2Threshold`, `hrvConfigSmokePower`
+- **Group:** All items belong to `gHrvConfig` group
 
 ### Items File Structure
 
-The HRV system uses **two auto-generated items files**:
+The project uses **three auto-generated items files**:
 
 1. **`openhab-dev/conf/items/zigbee-devices.items`**
-   - HRV control items (manual switches, zigbee sensors, output)
+   - ALL Zigbee device items organized by metric category
    - Auto-generated by `generate-zigbee-config.py`
-   - Contains ONLY HRV-specific items, NO raw Zigbee items
+   - Includes Group definitions for each category
+   - Contains items like: `mqttZigbeeSmoke_0xa4c138aa8b540e22`, `mqttZigbeeHumidity_0x00158d008b8b7beb`
 
 2. **`openhab-dev/conf/items/hrv-config.items`**
-   - Configuration parameters
+   - HRV configuration parameters in camelCase
    - Auto-generated by `generate-hrv-config.py` from `HrvConfig.java`
+   - Contains items like: `hrvConfigHumidityThreshold`, `hrvConfigCo2Threshold`
+   - All labels prefixed with "UI - "
+
+3. **`openhab-dev/conf/items/output-items.items`**
+   - Output items from Control classes
+   - Auto-generated by `generate-output-items.py` from `*Control.java` files
+   - Contains items like: `hrv_output_power`
+   - Automatically extracts type, label, and icon from `@OutputItem` annotations
 
 **Important:**
-- Both files are auto-generated - do NOT edit manually
-- Raw Zigbee items (like `Zigbee_0X00158D008B8B7Beb_Voltage`) are NOT generated
-- Only HRV-relevant items are included in the configuration
-- Re-run generators after adding new Zigbee devices or config parameters
+- All files are auto-generated - do NOT edit manually
+- Scripts generate on a clean slate - removed devices will be automatically removed
+- Re-run generators after adding/removing Zigbee devices, config parameters, or Control classes
 
 ### OpenHAB Item Naming Rules
 
@@ -452,38 +505,35 @@ When generating or creating OpenHAB items, follow these rules:
 
 1. **Item names CANNOT start with a digit**
    - ❌ `0xa4c13856c27757e5_temperature`
-   - ✅ `hrv_zigbee_item_0xa4c13856c27757e5_temperature`
+   - ✅ `mqttZigbeeTemperature_0xa4c13856c27757e5`
    - The generator automatically adds prefix if needed
 
 2. **Item names are case-sensitive**
-   - Use consistent casing (lowercase for generated items)
+   - Use consistent casing conventions per type
+   - Zigbee items: camelCase with prefix (e.g., `mqttZigbeeSmoke_0xa4...`)
+   - HRV config: camelCase with prefix (e.g., `hrvConfigHumidityThreshold`)
 
 3. **Use descriptive prefixes**
-   - Helps with wildcard triggers in rules (e.g., `hrv_item_*`)
+   - Helps with wildcard triggers in rules (e.g., `mqttZigbeeSmoke_*`, `hrvConfig*`)
    - Groups related items logically
+   - Makes it clear what system the item belongs to
 
 ### Rule Triggers with Wildcards
 
-The `HrvControl.java` script uses wildcard triggers for item groups:
+Rules can use wildcard triggers to handle multiple items:
 
 ```java
-@Rule(name = "hrv.item.changed", description = "Handle HRV manual control item changes")
-@ItemStateChangeTrigger(itemName = "hrv_item_*")
-public void onItemChanged(ItemStateChange eventInfo) {
-    String itemName = eventInfo.getItemName();  // Get specific item name
-    // Handle change...
-}
-
-@Rule(name = "hrv.zigbee.changed", description = "Handle HRV Zigbee sensor changes")
-@ItemStateChangeTrigger(itemName = "hrv_zigbee_item_*")
-public void onZigbeeItemChanged(ItemStateChange eventInfo) {
-    // Handle Zigbee sensor changes...
-}
-
 @Rule(name = "hrv.config.changed", description = "Handle HRV config changes")
-@ItemStateChangeTrigger(itemName = "hrv_config_*")
+@ItemStateChangeTrigger(itemName = "hrvConfig*")
 public void onConfigChanged(ItemStateChange eventInfo) {
+    String itemName = eventInfo.getItemName();  // Get specific item name
     // Reload configuration...
+}
+
+@Rule(name = "zigbee.smoke.changed", description = "Handle smoke detector changes")
+@ItemStateChangeTrigger(itemName = "mqttZigbeeSmoke_*")
+public void onSmokeDetectorChanged(ItemStateChange eventInfo) {
+    // Handle smoke detector changes...
 }
 ```
 
@@ -504,7 +554,7 @@ Do NOT create stub classes for `helper.generated.*` - these are dynamically gene
 The Maven compiler excludes `**/scripts/**/*.java` because these files depend on OpenHAB's generated classes. They compile only within OpenHAB's runtime environment.
 
 ### Configuration Items Must Use Prefix
-All HRV configuration items in OpenHAB must use the prefix `hrv_config_` (e.g., `hrv_config_co2_threshold`). This prefix is used to detect configuration changes and trigger reloads.
+All HRV configuration items in OpenHAB must use the prefix `hrvConfig` in camelCase (e.g., `hrvConfigCo2Threshold`, `hrvConfigHumidityThreshold`). This prefix is used to detect configuration changes and trigger reloads.
 
 ## Language Guidelines
 

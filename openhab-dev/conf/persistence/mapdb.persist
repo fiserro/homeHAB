@@ -1,0 +1,13 @@
+// MapDB Persistence Configuration
+// This will restore item states after OpenHAB restart
+
+Strategies {
+    everyChange : "2"
+    everyHour : "0 0 * * * ?"
+    default = everyChange
+}
+
+Items {
+    // Restore all items on startup
+    * : strategy = everyChange, everyHour, restoreOnStartup
+}

@@ -14,7 +14,7 @@ from typing import List, Tuple
 def parse_hrv_config(java_file: Path) -> List[Tuple[str, int, str]]:
     """
     Parse HrvConfig.java and extract @Option methods with defaults.
-    Returns list of (method_name, default_value, description) tuples.
+    Returns list of (method_name_camelCase, default_value, description) tuples.
     """
     content = java_file.read_text()
     options = []
@@ -26,7 +26,7 @@ def parse_hrv_config(java_file: Path) -> List[Tuple[str, int, str]]:
     matches = re.finditer(pattern, content, re.MULTILINE)
 
     for match in matches:
-        method_name = match.group(1)
+        method_name = match.group(1)  # Keep camelCase
         default_value = int(match.group(2))
 
         # Convert camelCase to human-readable label
@@ -34,12 +34,38 @@ def parse_hrv_config(java_file: Path) -> List[Tuple[str, int, str]]:
         label = re.sub(r'([A-Z])', r' \1', method_name)
         label = label.strip().title()
 
-        # Convert method name to item name: humidityThreshold -> humidity_threshold
-        item_name = re.sub(r'([A-Z])', r'_\1', method_name).lower()
-
-        options.append((item_name, default_value, label))
+        options.append((method_name, default_value, label))
 
     return options
+
+
+def get_icon_for_config(method_name: str) -> str:
+    """Get icon for HRV config parameter."""
+    method_lower = method_name.lower()
+
+    # Specific icons based on parameter type
+    if 'humidity' in method_lower:
+        return 'humidity'
+    elif 'co2' in method_lower:
+        return 'carbondioxide'
+    elif 'smoke' in method_lower:
+        return 'smoke'
+    elif 'window' in method_lower:
+        return 'window'
+    elif 'exhaust' in method_lower:
+        return 'fan'
+    elif 'boost' in method_lower:
+        return 'fire'
+    elif 'manual' in method_lower:
+        return 'player'
+    elif 'timeout' in method_lower:
+        return 'time'
+    elif 'threshold' in method_lower:
+        return 'chart'
+    elif 'power' in method_lower:
+        return 'energy'
+    else:
+        return 'settings'
 
 
 def generate_items_file(options: List[Tuple[str, int, str]], output_file: Path):
@@ -58,19 +84,29 @@ def generate_items_file(options: List[Tuple[str, int, str]], output_file: Path):
     power_items = []
     timeout_items = []
 
-    for item_name, default_value, label in options:
-        if 'threshold' in item_name:
-            unit = '%%' if 'humidity' in item_name else 'ppm'
+    for method_name, default_value, label in options:
+        method_lower = method_name.lower()
+        # Item name format: hrvConfig<MethodName> (camelCase with prefix)
+        item_name = f'hrvConfig{method_name[0].upper()}{method_name[1:]}'
+
+        # Add "UI - " prefix to label
+        ui_label = f'UI - {label}'
+
+        # Get icon
+        icon = get_icon_for_config(method_name)
+
+        if 'threshold' in method_lower:
+            unit = '%%' if 'humidity' in method_lower else 'ppm'
             threshold_items.append(
-                f'Number hrv_config_{item_name} "{label} [%d {unit}]" (gHrvConfig)'
+                f'Number {item_name} "{ui_label} [%d {unit}]" <{icon}> (gHrvConfig) // default: {default_value}'
             )
-        elif 'timeout' in item_name:
+        elif 'timeout' in method_lower:
             timeout_items.append(
-                f'Number hrv_config_{item_name} "{label} [%d min]" (gHrvConfig)'
+                f'Number {item_name} "{ui_label} [%d min]" <{icon}> (gHrvConfig) // default: {default_value}'
             )
         else:
             power_items.append(
-                f'Number hrv_config_{item_name} "{label} [%d %%]" (gHrvConfig)'
+                f'Number {item_name} "{ui_label} [%d %%]" <{icon}> (gHrvConfig) // default: {default_value}'
             )
 
     # Write sections

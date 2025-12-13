@@ -5,18 +5,18 @@
 Group gHrvConfig "HRV Configuration"
 
 // Threshold values
-Number hrv_config_humidity_threshold "Humidity Threshold [%d %%]" (gHrvConfig)
-Number hrv_config_co2_threshold "Co2 Threshold [%d ppm]" (gHrvConfig)
+Number hrvConfigHumidityThreshold "UI - Humidity Threshold [%d %%]" <humidity> (gHrvConfig) // default: 70
+Number hrvConfigCo2Threshold "UI - Co2 Threshold [%d ppm]" <carbondioxide> (gHrvConfig) // default: 1000
 
 // Power levels for different modes (0-100%)
-Number hrv_config_smoke_power "Smoke Power [%d %%]" (gHrvConfig)
-Number hrv_config_window_open_power "Window Open Power [%d %%]" (gHrvConfig)
-Number hrv_config_manual_default_power "Manual Default Power [%d %%]" (gHrvConfig)
-Number hrv_config_boost_power "Boost Power [%d %%]" (gHrvConfig)
-Number hrv_config_exhaust_hood_power "Exhaust Hood Power [%d %%]" (gHrvConfig)
-Number hrv_config_humidity_power "Humidity Power [%d %%]" (gHrvConfig)
-Number hrv_config_co2_power "Co2 Power [%d %%]" (gHrvConfig)
-Number hrv_config_base_power "Base Power [%d %%]" (gHrvConfig)
+Number hrvConfigSmokePower "UI - Smoke Power [%d %%]" <smoke> (gHrvConfig) // default: 100
+Number hrvConfigWindowOpenPower "UI - Window Open Power [%d %%]" <window> (gHrvConfig) // default: 0
+Number hrvConfigManualDefaultPower "UI - Manual Default Power [%d %%]" <player> (gHrvConfig) // default: 50
+Number hrvConfigBoostPower "UI - Boost Power [%d %%]" <fire> (gHrvConfig) // default: 80
+Number hrvConfigExhaustHoodPower "UI - Exhaust Hood Power [%d %%]" <fan> (gHrvConfig) // default: 60
+Number hrvConfigHumidityPower "UI - Humidity Power [%d %%]" <humidity> (gHrvConfig) // default: 60
+Number hrvConfigCo2Power "UI - Co2 Power [%d %%]" <carbondioxide> (gHrvConfig) // default: 50
+Number hrvConfigBasePower "UI - Base Power [%d %%]" <energy> (gHrvConfig) // default: 30
 
 // Timeouts
-Number hrv_config_temporary_mode_timeout_minutes "Temporary Mode Timeout Minutes [%d min]" (gHrvConfig)
+Number hrvConfigTemporaryModeTimeoutMinutes "UI - Temporary Mode Timeout Minutes [%d min]" <time> (gHrvConfig) // default: 30

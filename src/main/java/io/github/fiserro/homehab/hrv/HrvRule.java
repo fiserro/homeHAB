@@ -43,9 +43,9 @@ public class HrvRule {
         this.inputChannels = inputChannels;
         this.outputChannel = outputChannel;
         this.events = events;
-        this.configLoader = new HrvConfigLoader(itemRegistry);
+        this.configLoader = new HrvConfigLoader(itemRegistry, events);
 
-        // Load configuration from OpenHAB Items
+        // Load configuration from OpenHAB Items (initializes NULL items with defaults)
         this.config = loadConfiguration();
         this.calculator = new HrvCalculator(config);
 

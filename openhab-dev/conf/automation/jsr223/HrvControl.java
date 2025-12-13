@@ -2,6 +2,7 @@ import helper.generated.Java223Script;
 import helper.rules.annotations.Rule;
 import helper.rules.annotations.ItemStateChangeTrigger;
 import helper.rules.eventinfo.ItemStateChange;
+import io.github.fiserro.homehab.OutputItem;
 import io.github.fiserro.homehab.hrv.HrvRule;
 import io.github.fiserro.homehab.hrv.HrvInputType;
 import org.openhab.core.items.Item;
@@ -12,6 +13,9 @@ import org.openhab.automation.java223.common.InjectBinding;
  * Split into multiple rules due to annotation processing limitations.
  */
 public class HrvControl extends Java223Script {
+
+    @OutputItem(type = "Dimmer", label = "HRV Output Power", icon = "fan")
+    public static final String OUTPUT_ITEM = "hrv_output_power";
 
     @InjectBinding(enable = false)
     private HrvRule hrvRule;
@@ -30,7 +34,6 @@ public class HrvControl extends Java223Script {
             .input(HrvInputType.BOOST_MODE, "hrv_item_boost_mode")
             .input(HrvInputType.TEMPORARY_BOOST_MODE, "hrv_item_temporary_boost_mode")
             .input(HrvInputType.EXHAUST_HOOD, "hrv_item_exhaust_hood")
-            // Zigbee sensors (auto-generated from zigbee-devices.items)
             .input(HrvInputType.SMOKE_DETECTOR, "hrv_zigbee_item_0xa4c138aa8b540e22_smoke")
             .input(HrvInputType.HUMIDITY, "hrv_zigbee_item_0x00158d008b8b7beb_humidity")
             // .input(HrvInputType.WINDOW_OPEN, "hrv_zigbee_item_<ieee>_contact")  // Add when sensor available
@@ -38,7 +41,7 @@ public class HrvControl extends Java223Script {
             // Manual power control
             .input(HrvInputType.MANUAL_POWER, "hrv_item_manual_power")
             // Output
-            .output("hrv_output_power")
+            .output(OUTPUT_ITEM)
             .events(events)
             .itemRegistry(itemRegistry)
             .build();
@@ -46,25 +49,20 @@ public class HrvControl extends Java223Script {
         logger.info("HRV Control Rule initialized successfully");
     }
 
-    @Rule(name = "hrv.item.changed", description = "Handle HRV manual control item changes")
-    @ItemStateChangeTrigger(itemName = "hrv_item_*")
-    public void onItemChanged(ItemStateChange eventInfo) {
-        initializeIfNeeded();
-        handleItemChange(eventInfo.getItemName());
-    }
-
     @Rule(name = "hrv.zigbee.changed", description = "Handle HRV Zigbee sensor changes")
-    @ItemStateChangeTrigger(itemName = "hrv_zigbee_item_*")
+    @ItemStateChangeTrigger(itemName = "mqttZigbee*")
     public void onZigbeeItemChanged(ItemStateChange eventInfo) {
         initializeIfNeeded();
         handleItemChange(eventInfo.getItemName());
     }
 
     @Rule(name = "hrv.config.changed", description = "Handle HRV config changes")
-    @ItemStateChangeTrigger(itemName = "hrv_config_*")
+    @ItemStateChangeTrigger(itemName = "hrvConfig*")
     public void onConfigChanged(ItemStateChange eventInfo) {
         initializeIfNeeded();
-        handleItemChange(eventInfo.getItemName());
+        // Config items don't need to be passed to HrvRule - they're loaded via HrvConfigLoader
+        logger.debug("Config item changed: {} = {}", eventInfo.getItemName(), eventInfo.getItemState());
+        // TODO: In future, could reload configuration here if needed
     }
 
 

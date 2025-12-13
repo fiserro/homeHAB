@@ -1,0 +1,8 @@
+// Output Items
+// Auto-generated from *Control.java files
+// DO NOT EDIT MANUALLY - regenerate using generate-output-items.py
+
+Group gOutputs "Outputs"
+
+// From HrvControl.java
+Dimmer hrv_output_power "HRV Output Power" <fan> (gOutputs)
