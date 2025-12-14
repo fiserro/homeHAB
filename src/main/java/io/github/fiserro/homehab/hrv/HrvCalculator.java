@@ -1,8 +1,8 @@
 package io.github.fiserro.homehab.hrv;
 
+import io.github.fiserro.homehab.State;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import java.util.Map;
 
 /**
  * Calculation logic for the HRV system.
@@ -13,7 +13,7 @@ import java.util.Map;
 public class HrvCalculator {
 
 
-    public int calculate(HrvState state) {
+    public int calculate(State state) {
         if (state.manualMode() || state.temporaryManualMode()) {
             return state.manualPower();
         }

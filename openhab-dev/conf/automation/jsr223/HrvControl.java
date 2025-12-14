@@ -4,7 +4,7 @@ import helper.rules.annotations.ItemStateChangeTrigger;
 import helper.rules.eventinfo.ItemStateChange;
 import io.github.fiserro.homehab.OutputItem;
 import io.github.fiserro.homehab.hrv.HrvRule;
-import io.github.fiserro.homehab.hrv.InputType;
+import io.github.fiserro.homehab.InputType;
 import org.openhab.core.items.Item;
 import org.openhab.automation.java223.common.InjectBinding;
 

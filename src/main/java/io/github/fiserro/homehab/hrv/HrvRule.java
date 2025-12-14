@@ -3,15 +3,17 @@ package io.github.fiserro.homehab.hrv;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import helper.rules.eventinfo.ItemStateChange;
-import io.github.fiserro.homehab.AggregationType;
+
 import java.util.*;
 import java.util.concurrent.*;
+
+import io.github.fiserro.homehab.State;
+import io.github.fiserro.homehab.InputType;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.openhab.core.automation.module.script.defaultscope.ScriptBusEvent;
 import org.openhab.core.items.GenericItem;
-import org.openhab.core.items.ItemRegistry;
 import org.openhab.core.library.items.NumberItem;
 import org.openhab.core.library.items.SwitchItem;
 
@@ -91,7 +93,7 @@ public class HrvRule {
         events.sendCommand(outputChannel, String.valueOf(power));
     }
 
-  private HrvState calculateState() {
+  private State calculateState() {
     Map<InputType, Object> result = new HashMap<>();
 
     inputs

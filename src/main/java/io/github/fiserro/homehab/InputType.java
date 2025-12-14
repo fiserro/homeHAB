@@ -1,6 +1,5 @@
-package io.github.fiserro.homehab.hrv;
+package io.github.fiserro.homehab;
 
-import io.github.fiserro.homehab.AggregationType;
 import lombok.Getter;
 import lombok.experimental.Accessors;
 
@@ -54,15 +53,6 @@ public enum InputType {
     this.dataType = dataType;
     this.aggregationType = aggregationType;
     this.defaultValue = defaultValue;
-  }
-
-  /**
-   * Returns the OpenHAB item name for @InputItem annotated fields.
-   * Converts enum name to snake_case with "hrv_" prefix.
-   * Example: MANUAL_MODE -> hrv_manual_mode
-   */
-  public String inputItemName() {
-    return "hrv_" + name().toLowerCase();
   }
 
   private static class Constants {
