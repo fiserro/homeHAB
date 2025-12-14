@@ -12,7 +12,7 @@ public record HrvState(
     @InputItem(MANUAL_MODE) boolean manualMode,
     @InputItem(TEMPORARY_MANUAL_MODE) boolean temporaryManualMode,
     @InputItem(BOOST_MODE) boolean boostMode,
-    @InputItem(BOOST_MODE) boolean temporaryBoostMode,
+    @InputItem(TEMPORARY_BOOST_MODE) boolean temporaryBoostMode,
     @InputItem(HUMIDITY_THRESHOLD) int humidityThreshold,
     @InputItem(CO2_THRESHOLD_LOW) int co2ThresholdLow,
     @InputItem(CO2_THRESHOLD_MID) int co2ThresholdMid,

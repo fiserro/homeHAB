@@ -56,6 +56,15 @@ public enum InputType {
     this.defaultValue = defaultValue;
   }
 
+  /**
+   * Returns the OpenHAB item name for @InputItem annotated fields.
+   * Converts enum name to snake_case with "hrv_" prefix.
+   * Example: MANUAL_MODE -> hrv_manual_mode
+   */
+  public String inputItemName() {
+    return "hrv_" + name().toLowerCase();
+  }
+
   private static class Constants {
     public static final int ZERO_POWER = 0;
     public static final int LOW_POWER = 15;

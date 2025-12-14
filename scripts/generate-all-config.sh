@@ -13,6 +13,11 @@ echo "🚀 Generating all OpenHAB configuration files..."
 echo "================================================"
 echo ""
 
+# Step 1: Generate input items from HrvState @InputItem annotations
+echo "📋 Step 1/3: Generating HRV input items..."
+python3 "$SCRIPT_DIR/generate-input-items.py"
+echo ""
+
 # Step 2: Generate output items from Control classes
 echo "📋 Step 2/3: Generating output items..."
 python3 "$SCRIPT_DIR/generate-output-items.py"
@@ -30,7 +35,7 @@ echo "📝 Next steps:"
 echo "  1. Review generated files:"
 echo "     - openhab-dev/conf/things/zigbee-devices.things"
 echo "     - openhab-dev/conf/items/zigbee-devices.items"
-echo "     - openhab-dev/conf/items/hrv-config.items"
+echo "     - openhab-dev/conf/items/input-items.items"
 echo "     - openhab-dev/conf/items/output-items.items"
 echo "  2. Restart OpenHAB: docker-compose restart openhab"
 echo "  3. Check logs: docker-compose logs -f openhab"
