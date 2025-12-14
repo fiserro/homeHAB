@@ -1,7 +1,3 @@
-// HRV Configuration Items
-// Auto-generated from HrvConfig.java interface
-// DO NOT EDIT MANUALLY - regenerate using generate-hrv-config.py
-
 Group gHrvConfig "HRV Configuration"
 
 // Threshold values

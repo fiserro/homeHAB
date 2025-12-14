@@ -13,11 +13,6 @@ echo "🚀 Generating all OpenHAB configuration files..."
 echo "================================================"
 echo ""
 
-# Step 1: Generate HRV configuration items
-echo "📋 Step 1/3: Generating HRV configuration items..."
-python3 "$SCRIPT_DIR/generate-hrv-config.py"
-echo ""
-
 # Step 2: Generate output items from Control classes
 echo "📋 Step 2/3: Generating output items..."
 python3 "$SCRIPT_DIR/generate-output-items.py"

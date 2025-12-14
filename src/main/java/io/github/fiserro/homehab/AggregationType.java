@@ -1,5 +1,8 @@
 package io.github.fiserro.homehab;
 
+import java.util.Collection;
+import java.util.Comparator;
+
 /**
  * General-purpose aggregation type for combining multiple values.
  * Can be used for HRV and other systems in homeHAB.
@@ -7,36 +10,55 @@ package io.github.fiserro.homehab;
 public enum AggregationType {
     MIN {
         @Override
-        public Number aggregate(Number v1, Number v2) {
-            return Math.min(v1.doubleValue(), v2.doubleValue());
+        public Number aggregate(Collection<Number> numbers) {
+            return min(numbers);
         }
     },
     MAX {
         @Override
-        public Number aggregate(Number v1, Number v2) {
-            return Math.max(v1.doubleValue(), v2.doubleValue());
+        public Number aggregate(Collection<Number> numbers) {
+            return max(numbers);
         }
     },
     SUM {
         @Override
-        public Number aggregate(Number v1, Number v2) {
-            return v1.doubleValue() + v2.doubleValue();
+        public Number aggregate(Collection<Number> numbers) {
+            return sum(numbers);
         }
     },
     COUNT {
         @Override
-        public Number aggregate(Number v1, Number v2) {
-            // Pro COUNT agregaci vrací počet hodnot
-            // V1 obsahuje aktuální count, v2 obsahuje 1 (nová hodnota)
-            return v1.intValue() + v2.intValue();
+        public Number aggregate(Collection<Number> numbers) {
+            return count(numbers);
         }
-    };
+    },
+    AVG {
+        @Override
+        public Number aggregate(Collection<Number> numbers) {
+            return avg(numbers);
+        }
+    }
+    ;
 
-    public abstract Number aggregate(Number v1, Number v2);
+    public abstract Number aggregate(Collection<Number> numbers);
 
-    public Boolean aggregate(Boolean v1, Boolean v2) {
-        if (this == MAX) return v1 || v2;  // OR - true pokud alespoň jedna true
-        if (this == MIN) return v1 && v2;  // AND - true pokud obě true
-        throw new UnsupportedOperationException(this.name() + " not supported for Boolean");
+    private static Number min(Collection<Number> numbers) {
+        return numbers.stream().min(Comparator.comparingDouble(Number::doubleValue)).orElse(null);
+    }
+
+    private static Number max(Collection<Number> numbers) {
+        return numbers.stream().max(Comparator.comparingDouble(Number::doubleValue)).orElse(null);
+    }
+
+    private static Number sum(Collection<Number> numbers) {
+        return numbers.stream().mapToDouble(Number::doubleValue).sum();
+    }
+
+    private static Number count(Collection<Number> numbers) {
+        return numbers.size();
+    }
+
+    private static Number avg(Collection<Number> numbers) {
+        return sum(numbers).doubleValue() / numbers.size();
     }
 }
