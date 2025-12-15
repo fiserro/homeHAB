@@ -25,9 +25,10 @@ public class HrvControl extends Java223Script {
     @Rule(name = "item.changed", description = "Handle item changes")
     @ItemStateChangeTrigger(itemName = "*")
     public void onZigbeeItemChanged(ItemStateChange eventInfo) {
-        val habState = HabStateFactory.of(items, itemMappings);
-        int power = new HrvCalculator().calculate(habState);
-        events.sendCommand(_items.hrv_output_power(), power);
+        val inputState = HabStateFactory.of(items, itemMappings);
+        val completeState = new HrvCalculator().calculate(inputState);
+
+        HabStateFactory.writeState(_items, events, completeState);
     }
 
 }

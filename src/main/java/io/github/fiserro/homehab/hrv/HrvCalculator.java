@@ -1,5 +1,6 @@
 package io.github.fiserro.homehab.hrv;
 
+import io.github.fiserro.homehab.Calculator;
 import io.github.fiserro.homehab.HabState;
 import lombok.extern.slf4j.Slf4j;
 
@@ -8,9 +9,14 @@ import lombok.extern.slf4j.Slf4j;
  * Determines ventilator power based on inputs and configuration.
  */
 @Slf4j
-public class HrvCalculator {
+public class HrvCalculator implements Calculator {
 
-    public int calculate(HabState habState) {
+    @Override
+    public HabState calculate(HabState state) {
+        return state.withHrvOutputPower(calculatePower(state));
+    }
+
+    private int calculatePower(HabState habState) {
         if (habState.manualMode() || habState.temporaryManualMode()) {
             return habState.manualPower();
         }
@@ -45,5 +51,4 @@ public class HrvCalculator {
 
         return habState.basePower();
     }
-
 }

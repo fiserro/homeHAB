@@ -1,6 +1,7 @@
 package io.github.fiserro.homehab;
 
 import lombok.Builder;
+import lombok.With;
 import lombok.experimental.FieldNameConstants;
 
 @FieldNameConstants(asEnum = true)
@@ -32,7 +33,7 @@ public record HabState(
     @Aggregate(AggregationType.AVG) @MqttItem int pressure,
     @Aggregate(AggregationType.MAX) @MqttItem boolean smoke,
     @Aggregate(AggregationType.MAX) @MqttItem boolean gas,
-    @OutputItem int hrvOutputPower) {
+    @With @OutputItem int hrvOutputPower) {
 
   @FieldNameConstants
   public static class HabStateBuilder {

@@ -1,21 +1,49 @@
 package io.github.fiserro.homehab;
 
+import helper.generated.Items;
 import io.github.fiserro.homehab.HabState.Fields;
 import io.github.fiserro.homehab.HabState.HabStateBuilder;
 import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import lombok.val;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import org.openhab.core.automation.module.script.defaultscope.ScriptBusEvent;
 import org.openhab.core.items.GenericItem;
+import org.openhab.core.items.Item;
 import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.types.State;
 
 public class HabStateFactory {
+
+  public static void writeState(
+      Items _items, ScriptBusEvent events, HabState state) {
+
+    Map<String, Item> outputItems =
+        _items.gOutputs().getAllMembers().stream().collect(Collectors.toMap(Item::getName, i -> i));
+
+    Map<String, Number> outputValues =
+        Stream.of(Fields.values())
+            .map(stateField -> getField(HabState.class, stateField.name()))
+            .filter(field -> field.isAnnotationPresent(OutputItem.class))
+            .collect(Collectors.toMap(Field::getName, f -> getFieldNumberValue(state, f)));
+
+    if (!outputItems.keySet().equals(outputValues.keySet())) {
+      throw new IllegalArgumentException(
+          "Output items in openHAB: " + outputItems.keySet() + " do not match with output fields: " + outputValues.keySet() + ". "
+              + "Please check your configuration or regenerate the openHAB items.");
+    }
+
+    outputValues.forEach((name, value) -> {
+      val item = outputItems.get(name);
+      events.sendCommand(item, value);
+    });
+  }
 
   public static HabState of(Map<String, State> itemStates, MqttItemMappings itemMappings) {
 
@@ -33,6 +61,17 @@ public class HabStateFactory {
             });
 
     return builder.build();
+  }
+
+  @SneakyThrows
+  private static Number getFieldNumberValue(HabState state, Field field) {
+    Object value = field.get(state);
+    return switch (value) {
+      case null -> throw new IllegalArgumentException("Field " + field.getName() + " is null");
+      case Number n -> n;
+      case Boolean b -> b ? 1 : 0;
+      default -> throw new IllegalArgumentException("Unsupported type: " + field.getType());
+    };
   }
 
   private static Optional<Object> loadInputItem(Map<String, State> itemStates, Field field) {
