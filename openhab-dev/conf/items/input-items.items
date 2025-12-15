@@ -1,22 +1,24 @@
-// Auto-generated from HrvState.java @InputItem annotations
+// Auto-generated from HabState.java @InputItem annotations
 // DO NOT EDIT - changes will be overwritten
 
 Group gHrvInputs "HRV Inputs"
 
-Switch hrv_manual_mode "HRV - Manual Mode" <switch> (gHrvInputs) { stateDescription="" [pattern="%.0f"] }
-Switch hrv_temporary_manual_mode "HRV - Temporary Manual Mode" <switch> (gHrvInputs) { stateDescription="" [pattern="%.0f"] }
-Switch hrv_boost_mode "HRV - Boost Mode" <switch> (gHrvInputs) { stateDescription="" [pattern="%.0f"] }
-Switch hrv_temporary_boost_mode "HRV - Temporary Boost Mode" <switch> (gHrvInputs) { stateDescription="" [pattern="%.0f"] }
-Number hrv_humidity_threshold "HRV - Humidity Threshold" <line> (gHrvInputs) { stateDescription="" [pattern="%.0f"] }
-Number hrv_co2_threshold_low "HRV - Co2 Threshold Low" <line> (gHrvInputs) { stateDescription="" [pattern="%.0f"] }
-Number hrv_co2_threshold_mid "HRV - Co2 Threshold Mid" <line> (gHrvInputs) { stateDescription="" [pattern="%.0f"] }
-Number hrv_co2_threshold_high "HRV - Co2 Threshold High" <line> (gHrvInputs) { stateDescription="" [pattern="%.0f"] }
-Number hrv_manual_power "HRV - Manual Power" <energy> (gHrvInputs) { stateDescription="" [pattern="%.0f"] }
-Number hrv_boost_power "HRV - Boost Power" <energy> (gHrvInputs) { stateDescription="" [pattern="%.0f"] }
-Number hrv_smoke_power "HRV - Smoke Power" <energy> (gHrvInputs) { stateDescription="" [pattern="%.0f"] }
-Number hrv_gas_power "HRV - Gas Power" <energy> (gHrvInputs) { stateDescription="" [pattern="%.0f"] }
-Number hrv_humidity_power "HRV - Humidity Power" <energy> (gHrvInputs) { stateDescription="" [pattern="%.0f"] }
-Number hrv_co2_power_low "HRV - Co2 Power Low" <energy> (gHrvInputs) { stateDescription="" [pattern="%.0f"] }
-Number hrv_co2_power_mid "HRV - Co2 Power Mid" <energy> (gHrvInputs) { stateDescription="" [pattern="%.0f"] }
-Number hrv_co2_power_high "HRV - Co2 Power High" <energy> (gHrvInputs) { stateDescription="" [pattern="%.0f"] }
-Number hrv_base_power "HRV - Base Power" <energy> (gHrvInputs) { stateDescription="" [pattern="%.0f"] }
+Switch manualMode "HRV - Manual Mode" <switch> (gHrvInputs)  // default: OFF
+Switch temporaryManualMode "HRV - Temporary Manual Mode" <switch> (gHrvInputs)  // default: OFF
+Number temporaryManualModeDurationSec "HRV - Temporary Manual Mode Duration Sec" <time> (gHrvInputs)  // default: 28800
+Switch boostMode "HRV - Boost Mode" <switch> (gHrvInputs)  // default: OFF
+Switch temporaryBoostMode "HRV - Temporary Boost Mode" <switch> (gHrvInputs)  // default: OFF
+Number temporaryBoostModeDurationSec "HRV - Temporary Boost Mode Duration Sec" <time> (gHrvInputs)  // default: 600
+Number humidityThreshold "HRV - Humidity Threshold" <line> (gHrvInputs)  // default: 60
+Number co2ThresholdLow "HRV - Co2 Threshold Low" <line> (gHrvInputs)  // default: 500
+Number co2ThresholdMid "HRV - Co2 Threshold Mid" <line> (gHrvInputs)  // default: 700
+Number co2ThresholdHigh "HRV - Co2 Threshold High" <line> (gHrvInputs)  // default: 900
+Number manualPower "HRV - Manual Power" <energy> (gHrvInputs)  // default: 50
+Number boostPower "HRV - Boost Power" <energy> (gHrvInputs)  // default: 95
+Number smokePower "HRV - Smoke Power" <energy> (gHrvInputs)  // default: 0
+Number gasPower "HRV - Gas Power" <energy> (gHrvInputs)  // default: 95
+Number humidityPower "HRV - Humidity Power" <energy> (gHrvInputs)  // default: 95
+Number co2PowerLow "HRV - Co2 Power Low" <energy> (gHrvInputs)  // default: 15
+Number co2PowerMid "HRV - Co2 Power Mid" <energy> (gHrvInputs)  // default: 50
+Number co2PowerHigh "HRV - Co2 Power High" <energy> (gHrvInputs)  // default: 95
+Number basePower "HRV - Base Power" <energy> (gHrvInputs)  // default: 50

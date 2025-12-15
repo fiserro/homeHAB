@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
-Generate OpenHAB items for HrvState @InputItem annotations.
+Generate OpenHAB items for HabState @InputItem annotations.
 
 This script:
-1. Parses HrvState.java to find all @InputItem annotated fields
-2. Extracts InputType enum values from the annotations
-3. Reads InputType.java to get default values and data types
-4. Generates input-items.items with proper item definitions
+1. Parses HabState.java to find all @InputItem annotated fields
+2. Extracts field names, types, and default values from HabStateBuilder
+3. Generates input-items.items with proper item definitions
 """
 
 import os
@@ -15,80 +14,79 @@ import sys
 from pathlib import Path
 
 
-def parse_input_type_enum(input_type_path):
-    """Parse InputType.java to extract default values and data types."""
-    with open(input_type_path, 'r') as f:
+def parse_default_values(content):
+    """Parse HabStateBuilder constructor to extract default values."""
+    defaults = {}
+
+    # Find the constructor body
+    constructor_pattern = r'public HabStateBuilder\(\)\s*\{([^}]+)\}'
+    constructor_match = re.search(constructor_pattern, content, re.DOTALL)
+
+    if constructor_match:
+        constructor_body = constructor_match.group(1)
+
+        # Pattern: fieldName = value;
+        assignment_pattern = r'(\w+)\s*=\s*([^;]+);'
+        for match in re.finditer(assignment_pattern, constructor_body):
+            field_name = match.group(1).strip()
+            value = match.group(2).strip()
+
+            # Handle boolean values
+            if value == 'false':
+                defaults[field_name] = 'OFF'
+            elif value == 'true':
+                defaults[field_name] = 'ON'
+            else:
+                # Handle numeric values (including expressions like "8 * 60 * 60")
+                try:
+                    # Evaluate simple arithmetic expressions
+                    evaluated = eval(value)
+                    defaults[field_name] = str(evaluated)
+                except:
+                    defaults[field_name] = value
+
+    return defaults
+
+
+def parse_hab_state(hab_state_path):
+    """Parse HabState.java to extract @InputItem annotations and field information."""
+    with open(hab_state_path, 'r') as f:
         content = f.read()
 
-    # Extract enum constants with their properties
-    # Pattern: ENUM_NAME(DataType.class, AggregationType.XXX, defaultValue)
-    pattern = r'(\w+)\s*\(\s*(\w+)\.class\s*,\s*\w+\.\w+\s*,\s*(\d+|Constants\.\w+)\s*\)'
+    # Extract default values from constructor
+    defaults = parse_default_values(content)
 
-    # First, extract Constants values
-    constants = {}
-    const_pattern = r'public static final int (\w+)\s*=\s*(\d+);'
-    for match in re.finditer(const_pattern, content):
-        constants[f'Constants.{match.group(1)}'] = int(match.group(2))
+    # Pattern: @InputItem type fieldName
+    pattern = r'@InputItem\s+(\w+)\s+(\w+)'
 
-    input_types = {}
+    items = []
     for match in re.finditer(pattern, content):
-        name = match.group(1)
-        data_type = match.group(2)
-        default_str = match.group(3)
-
-        # Resolve default value
-        if default_str.startswith('Constants.'):
-            default_value = constants.get(default_str, 0)
-        else:
-            default_value = int(default_str)
+        field_type = match.group(1)
+        field_name = match.group(2)
 
         # Map Java types to OpenHAB item types
-        if data_type == 'Boolean':
+        if field_type == 'boolean':
             item_type = 'Switch'
-        elif data_type == 'Number':
+        elif field_type == 'int':
             item_type = 'Number'
         else:
             item_type = 'String'
 
-        input_types[name] = {
-            'type': item_type,
-            'default': default_value
-        }
+        # Use field name directly (camelCase)
+        item_name = field_name
 
-    return input_types
-
-
-def parse_hrv_state(hrv_state_path, input_types):
-    """Parse HrvState.java to extract @InputItem annotations and field names."""
-    with open(hrv_state_path, 'r') as f:
-        content = f.read()
-
-    # Pattern: @InputItem(ENUM_VALUE) type fieldName
-    pattern = r'@InputItem\((\w+)\)\s+\w+\s+(\w+)'
-
-    items = []
-    for match in re.finditer(pattern, content):
-        input_type = match.group(1)
-        field_name = match.group(2)
-
-        if input_type not in input_types:
-            print(f"Warning: Unknown InputType: {input_type}", file=sys.stderr)
-            continue
-
-        type_info = input_types[input_type]
-
-        # Convert camelCase to snake_case for item name
-        item_name = 'hrv_' + re.sub(r'([A-Z])', r'_\1', field_name).lower().lstrip('_')
-
-        # Generate label from field name
+        # Generate label from field name (camelCase to Title Case)
         label = field_name[0].upper() + re.sub(r'([A-Z])', r' \1', field_name[1:])
+
+        # Get default value
+        default_value = defaults.get(field_name, None)
 
         items.append({
             'name': item_name,
-            'type': type_info['type'],
+            'type': item_type,
             'label': f"HRV - {label}",
-            'default': type_info['default'],
-            'input_type': input_type
+            'field_type': field_type,
+            'default': default_value
         })
 
     return items
@@ -97,7 +95,7 @@ def parse_hrv_state(hrv_state_path, input_types):
 def generate_items_file(items, output_path):
     """Generate the input-items.items file."""
     lines = [
-        "// Auto-generated from HrvState.java @InputItem annotations",
+        "// Auto-generated from HabState.java @InputItem annotations",
         "// DO NOT EDIT - changes will be overwritten",
         "",
         "Group gHrvInputs \"HRV Inputs\"",
@@ -105,8 +103,10 @@ def generate_items_file(items, output_path):
     ]
 
     for item in items:
-        # Determine icon based on item type
-        if 'mode' in item['name'].lower():
+        # Determine icon based on item name (check duration first, then mode)
+        if 'duration' in item['name'].lower():
+            icon = 'time'
+        elif 'mode' in item['name'].lower():
             icon = 'switch'
         elif 'power' in item['name'].lower():
             icon = 'energy'
@@ -115,12 +115,16 @@ def generate_items_file(items, output_path):
         else:
             icon = 'settings'
 
-        # Generate item definition
-        lines.append(
+        # Get default value
+        default = item.get('default')
+        default_comment = f"  // default: {default}" if default else ""
+
+        # Generate item definition with default value
+        item_def = (
             f'{item["type"]} {item["name"]} "{item["label"]}" '
-            f'<{icon}> (gHrvInputs) '
-            f'{{ stateDescription="" [pattern="%.0f"] }}'
+            f'<{icon}> (gHrvInputs)'
         )
+        lines.append(item_def + default_comment)
 
     lines.append("")
 
@@ -129,36 +133,83 @@ def generate_items_file(items, output_path):
 
     print(f"Generated {len(items)} input items in {output_path}")
 
+    # Generate initialization script
+    init_script_path = output_path.parent / 'input-items-init.py'
+    generate_init_script(items, init_script_path)
+
+
+def generate_init_script(items, output_path):
+    """Generate Python initialization script to set default values via REST API."""
+    lines = [
+        "#!/usr/bin/env python3",
+        '"""',
+        "Initialize input items with default values via OpenHAB REST API.",
+        "Usage: python3 input-items-init.py [openhab-url]",
+        '"""',
+        "",
+        "import requests",
+        "import sys",
+        "",
+        "OPENHAB_URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:8888'",
+        "REST_API = f'{OPENHAB_URL}/rest/items'",
+        "",
+        "items_to_init = [",
+    ]
+
+    for item in items:
+        default = item.get('default')
+        if default:
+            lines.append(f"    ('{item['name']}', '{default}'),")
+
+    lines.extend([
+        "]",
+        "",
+        "print(f'Initializing {len(items_to_init)} items...')",
+        "for item_name, default_value in items_to_init:",
+        "    try:",
+        "        response = requests.post(",
+        "            f'{REST_API}/{item_name}/state',",
+        "            data=default_value,",
+        "            headers={'Content-Type': 'text/plain', 'Accept': 'application/json'}",
+        "        )",
+        "        if response.status_code in [200, 201, 202]:",
+        "            print(f'  ✓ {item_name} = {default_value}')",
+        "        else:",
+        "            print(f'  ✗ {item_name}: {response.status_code} - {response.text}')",
+        "    except Exception as e:",
+        "        print(f'  ✗ {item_name}: {e}')",
+        "",
+        "print('Done!')",
+    ])
+
+    with open(output_path, 'w') as f:
+        f.write('\n'.join(lines))
+
+    # Make script executable
+    output_path.chmod(0o755)
+
+    print(f"Generated initialization script: {output_path}")
+
 
 def main():
     # Determine project root
     script_dir = Path(__file__).parent
     project_root = script_dir.parent
 
-    # Input files
-    input_type_path = project_root / 'src/main/java/io/github/fiserro/homehab/hrv/InputType.java'
-    hrv_state_path = project_root / 'src/main/java/io/github/fiserro/homehab/hrv/HrvState.java'
+    # Input file
+    hab_state_path = project_root / 'src/main/java/io/github/fiserro/homehab/HabState.java'
 
     # Output file
     output_path = project_root / 'openhab-dev/conf/items/input-items.items'
 
-    # Verify input files exist
-    if not input_type_path.exists():
-        print(f"Error: {input_type_path} not found", file=sys.stderr)
+    # Verify input file exists
+    if not hab_state_path.exists():
+        print(f"Error: {hab_state_path} not found", file=sys.stderr)
         sys.exit(1)
 
-    if not hrv_state_path.exists():
-        print(f"Error: {hrv_state_path} not found", file=sys.stderr)
-        sys.exit(1)
-
-    # Parse InputType enum
-    print(f"Parsing InputType enum from {input_type_path}...")
-    input_types = parse_input_type_enum(input_type_path)
-    print(f"Found {len(input_types)} InputType enum values")
-
-    # Parse HrvState
-    print(f"Parsing HrvState from {hrv_state_path}...")
-    items = parse_hrv_state(hrv_state_path, input_types)
+    # Parse HabState
+    print(f"Parsing HabState from {hab_state_path}...")
+    items = parse_hab_state(hab_state_path)
     print(f"Found {len(items)} @InputItem annotations")
 
     # Generate items file

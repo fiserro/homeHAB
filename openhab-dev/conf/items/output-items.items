@@ -1,8 +1,8 @@
 // Output Items
-// Auto-generated from *Control.java files
+// Auto-generated from HabState.java @OutputItem annotations
 // DO NOT EDIT MANUALLY - regenerate using generate-output-items.py
 
 Group gOutputs "Outputs"
 
-// From HrvControl.java
-Dimmer hrv_output_power "HRV Output Power" <fan> (gOutputs)
+// From HabState.java
+Dimmer hrvOutputPower "Hrv Output Power" <energy> (gOutputs)  // default: 50
