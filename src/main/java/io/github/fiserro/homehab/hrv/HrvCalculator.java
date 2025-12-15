@@ -1,7 +1,6 @@
 package io.github.fiserro.homehab.hrv;
 
-import io.github.fiserro.homehab.State;
-import lombok.RequiredArgsConstructor;
+import io.github.fiserro.homehab.HabState;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -9,44 +8,42 @@ import lombok.extern.slf4j.Slf4j;
  * Determines ventilator power based on inputs and configuration.
  */
 @Slf4j
-@RequiredArgsConstructor
 public class HrvCalculator {
 
-
-    public int calculate(State state) {
-        if (state.manualMode() || state.temporaryManualMode()) {
-            return state.manualPower();
+    public int calculate(HabState habState) {
+        if (habState.manualMode() || habState.temporaryManualMode()) {
+            return habState.manualPower();
         }
 
-        if (state.boostMode() || state.temporaryBoostMode()) {
-            return state.boostPower();
+        if (habState.boostMode() || habState.temporaryBoostMode()) {
+            return habState.boostPower();
         }
 
-        if (state.gas()) {
-            return state.gasPower();
+        if (habState.gas()) {
+            return habState.gasPower();
         }
 
-        if (state.smoke()) {
-            return state.smokePower();
+        if (habState.smoke()) {
+            return habState.smokePower();
         }
 
-        if (state.humidity() >= state.humidityThreshold()) {
-            return state.humidityPower();
+        if (habState.humidity() >= habState.humidityThreshold()) {
+            return habState.humidityPower();
         }
 
-        if (state.co2() >= state.co2ThresholdHigh()) {
-            return state.co2PowerHigh();
+        if (habState.co2() >= habState.co2ThresholdHigh()) {
+            return habState.co2PowerHigh();
         }
 
-        if (state.co2() >= state.co2ThresholdMid()) {
-            return state.co2PowerMid();
+        if (habState.co2() >= habState.co2ThresholdMid()) {
+            return habState.co2PowerMid();
         }
 
-        if (state.co2() >= state.co2ThresholdLow()) {
-            return state.co2PowerLow();
+        if (habState.co2() >= habState.co2ThresholdLow()) {
+            return habState.co2PowerLow();
         }
 
-        return state.basePower();
+        return habState.basePower();
     }
 
 }
