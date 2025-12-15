@@ -123,9 +123,10 @@
                 <configuration>
                     <source>21</source>
                     <target>21</target>
-                    <!-- Exclude example scripts - they compile in OpenHAB only -->
+                    <!-- Exclude OpenHAB scripts - they compile in OpenHAB runtime only -->
                     <excludes>
                         <exclude>**/scripts/**/*.java</exclude>
+                        <exclude>**/jsr223/**/*.java</exclude>
                     </excludes>
                     <annotationProcessorPaths>
                         <path>
@@ -135,6 +136,25 @@
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>add-source</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.basedir}/openhab-dev/conf/automation/lib/java</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

@@ -3,11 +3,17 @@ package io.github.fiserro.homehab;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import helper.generated.Items;
 import io.github.fiserro.homehab.HabState.Fields;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.openhab.core.automation.module.script.defaultscope.ScriptBusEvent;
 import org.openhab.core.items.GenericItem;
+import org.openhab.core.items.GroupItem;
+import org.openhab.core.items.Item;
 import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.types.State;
@@ -206,5 +212,91 @@ class HabStateFactoryTest {
     GenericItem item = mock(GenericItem.class);
     when(item.getName()).thenReturn(name);
     return item;
+  }
+
+  @Test
+  void shouldWriteStateToOutputItems() {
+    HabState state = HabState.builder().hrvOutputPower(75).build();
+
+    Item outputItem = mockItem("hrvOutputPower");
+    GroupItem gOutputs = mockGroupItem(List.of(outputItem));
+    Items items = mockItems(gOutputs);
+    ScriptBusEvent events = mock(ScriptBusEvent.class);
+
+    HabStateFactory.writeState(items, events, state);
+
+    verify(events).sendCommand(outputItem, 75);
+  }
+
+  @Test
+  void shouldThrowExceptionWhenOutputItemsDoNotMatch() {
+    HabState state = HabState.builder().hrvOutputPower(75).build();
+
+    Item wrongItem = mockItem("wrongOutputItem");
+    GroupItem gOutputs = mockGroupItem(List.of(wrongItem));
+    Items items = mockItems(gOutputs);
+    ScriptBusEvent events = mock(ScriptBusEvent.class);
+
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class, () -> HabStateFactory.writeState(items, events, state));
+
+    assertTrue(exception.getMessage().contains("Output items in openHAB"));
+    assertTrue(exception.getMessage().contains("do not match with output fields"));
+    verifyNoInteractions(events);
+  }
+
+  @Test
+  void shouldThrowExceptionWhenOutputItemsAreMissing() {
+    HabState state = HabState.builder().hrvOutputPower(75).build();
+
+    GroupItem gOutputs = mockGroupItem(List.of());
+    Items items = mockItems(gOutputs);
+    ScriptBusEvent events = mock(ScriptBusEvent.class);
+
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class, () -> HabStateFactory.writeState(items, events, state));
+
+    assertTrue(exception.getMessage().contains("Output items in openHAB"));
+    assertTrue(exception.getMessage().contains("do not match with output fields"));
+    verifyNoInteractions(events);
+  }
+
+  @Test
+  void shouldThrowExceptionWhenTooManyOutputItems() {
+    HabState state = HabState.builder().hrvOutputPower(75).build();
+
+    Item outputItem1 = mockItem("hrvOutputPower");
+    Item outputItem2 = mockItem("extraOutputItem");
+    GroupItem gOutputs = mockGroupItem(List.of(outputItem1, outputItem2));
+    Items items = mockItems(gOutputs);
+    ScriptBusEvent events = mock(ScriptBusEvent.class);
+
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class, () -> HabStateFactory.writeState(items, events, state));
+
+    assertTrue(exception.getMessage().contains("Output items in openHAB"));
+    assertTrue(exception.getMessage().contains("do not match with output fields"));
+    verifyNoInteractions(events);
+  }
+
+  private Item mockItem(String name) {
+    Item item = mock(Item.class);
+    when(item.getName()).thenReturn(name);
+    return item;
+  }
+
+  private GroupItem mockGroupItem(List<Item> members) {
+    GroupItem groupItem = mock(GroupItem.class);
+    when(groupItem.getAllMembers()).thenReturn(Set.copyOf(members));
+    return groupItem;
+  }
+
+  private Items mockItems(GroupItem gOutputs) {
+    Items items = mock(Items.class);
+    when(items.gOutputs()).thenReturn(gOutputs);
+    return items;
   }
 }
