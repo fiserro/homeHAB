@@ -197,6 +197,8 @@
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
                                         <exclude>module-info.class</exclude>
+                                        <!-- Exclude OpenHAB generated helper classes -->
+                                        <exclude>helper/**</exclude>
                                     </excludes>
                                 </filter>
                             </filters>

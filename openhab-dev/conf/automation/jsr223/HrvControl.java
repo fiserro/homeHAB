@@ -10,12 +10,14 @@ import io.github.fiserro.homehab.hrv.HrvCalculator;
 
 /**
  * HRV (Heat Recovery Ventilator) control script.
+ * Split into multiple rules due to annotation processing limitations.
  */
 public class HrvControl extends Java223Script {
 
-    @Rule(name = "hrv.item.changed", description = "Handle HRV item changes")
-    @ItemStateChangeTrigger(itemName = "manualMode")
-    public void onItemChanged(ItemStateChange eventInfo) {
+    @Rule(name = "item.changed", description = "Handle item changes")
+    @ItemStateChangeTrigger(itemName = "*")
+    public void onZigbeeItemChanged(ItemStateChange eventInfo) {
+
         MqttItemMappings itemMappings = MqttItemMappings.builder()
             .of(Fields.smoke, _items.mqttZigbeeSmoke_0xa4c138aa8b540e22())
             .of(Fields.humidity, _items.mqttZigbeeHumidity_0x00158d008b8b7beb())
@@ -24,7 +26,7 @@ public class HrvControl extends Java223Script {
         HabState inputState = HabStateFactory.of(items, itemMappings);
         HabState completeState = new HrvCalculator().calculate(inputState);
 
-        HabStateFactory.writeState(_items, events, completeState);
+        HabStateFactory.writeState(_items.gOutputs(), events, completeState);
     }
 
 }

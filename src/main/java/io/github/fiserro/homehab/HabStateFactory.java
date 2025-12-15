@@ -1,9 +1,9 @@
 package io.github.fiserro.homehab;
 
-import helper.generated.Items;
 import io.github.fiserro.homehab.HabState.Fields;
 import io.github.fiserro.homehab.HabState.HabStateBuilder;
 import java.lang.reflect.Field;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -14,6 +14,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.openhab.core.automation.module.script.defaultscope.ScriptBusEvent;
 import org.openhab.core.items.GenericItem;
+import org.openhab.core.items.GroupItem;
 import org.openhab.core.items.Item;
 import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.OnOffType;
@@ -22,10 +23,10 @@ import org.openhab.core.types.State;
 public class HabStateFactory {
 
   public static void writeState(
-      Items _items, ScriptBusEvent events, HabState state) {
+      GroupItem outputGroup, ScriptBusEvent events, HabState state) {
 
     Map<String, Item> outputItems =
-        _items.gOutputs().getAllMembers().stream().collect(Collectors.toMap(Item::getName, i -> i));
+        outputGroup.getAllMembers().stream().collect(Collectors.toMap(Item::getName, i -> i));
 
     Map<String, Number> outputValues =
         Stream.of(Fields.values())
