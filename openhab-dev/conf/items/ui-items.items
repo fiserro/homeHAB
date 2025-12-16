@@ -1,0 +1,5 @@
+// Auto-generated from HabState.java @InputItem annotations
+// DO NOT EDIT - changes will be overwritten
+
+Group gHrvInputs "HRV Inputs"
+

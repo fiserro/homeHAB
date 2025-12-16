@@ -321,10 +321,9 @@ The project includes a convenience script to generate all OpenHAB configuration 
 ```
 
 **What it does:**
-1. Runs `generate-input-items.py` to generate input configuration items from `HabState.java`
-2. Runs `generate-output-items.py` to generate output items from `HabState.java`
-3. Runs `generate-zigbee-config.py` to generate Zigbee Things and Items
-4. Displays summary of generated files
+1. Runs Java generators to generate input and output configuration items from `HabState.java`
+2. Runs `generate-zigbee-config.py` to generate Zigbee Things and Items
+3. Displays summary of generated files
 
 **After generation:**
 ```bash
@@ -390,58 +389,71 @@ docker-compose restart openhab
 - The script skips the Zigbee coordinator device automatically
 - Generates on a clean slate - removed devices will be automatically removed from configuration
 
-### Input Items Generator
+### Input and Output Items Generator
 
-The project includes a Python script for generating input items from `HabState.java` `@InputItem` annotations.
+The project includes Java-based generators for creating OpenHAB items from `HabState.java` annotations.
 
-**Location:** `scripts/generate-input-items.py`
+**Location:** `src/main/java/io/github/fiserro/homehab/generator/`
 
 **Usage:**
 ```bash
-# Generate input-items.items from HabState.java
-python3 scripts/generate-input-items.py
+# Generate both input and output items
+./scripts/generate-items.sh
+
+# Or use Java directly
+java -cp target/homeHAB-1.0-SNAPSHOT-shaded.jar \
+  io.github.fiserro.homehab.generator.Generator openhab-dev/conf/items
 ```
 
 **What it does:**
-- Parses `HabState.java` and extracts all `@InputItem` annotated fields
-- Generates `items/input-items.items` with appropriate item types (Switch for boolean, Number for int)
-- Automatically determines icons based on field names (switch, energy, line, time, settings)
-- Uses field names directly (camelCase)
-- All items belong to `gHrvInputs` group
+- **InputItemsGenerator**: Parses `HabState.java` and extracts all `@InputItem` annotated fields
+  - Generates `items/input-items.items` with appropriate item types (Switch for boolean, Number for int)
+  - Automatically determines icons based on field names (switch, energy, line, time, settings)
+  - Uses field names directly (camelCase)
+  - All items belong to `gHrvInputs` group
 
-**Generated file:**
+- **OutputItemsGenerator**: Parses `HabState.java` and extracts all `@OutputItem` annotated fields
+  - Generates `items/output-items.items` with appropriate item types
+  - Automatically maps Java types to OpenHAB types (int → Dimmer, boolean → Switch)
+  - Determines icons based on field names (energy, fan, settings)
+  - All items belong to `gOutputs` group
+
+**Generated files:**
 - `openhab-dev/conf/items/input-items.items` - Input configuration items
+- `openhab-dev/conf/items/output-items.items` - Output items
 
-**Naming convention:**
-- Item names use camelCase format matching field names: `<fieldName>`
-- Examples: `manualMode`, `humidityThreshold`, `co2ThresholdLow`, `temporaryBoostModeDurationSec`
+**Naming conventions:**
+- Input items: `<fieldName>` (camelCase, matching HabState.java field names)
+  - Examples: `manualMode`, `humidityThreshold`, `co2ThresholdLow`, `temporaryBoostModeDurationSec`
+- Output items: `<fieldName>` (camelCase)
+  - Example: `hrvOutputPower`
 
-### Output Items Generator
+### Items Initializer
 
-The project includes a Python script for generating output items from `HabState.java` `@OutputItem` annotations.
+The project includes a Java-based initializer for setting default values on OpenHAB items via REST API.
 
-**Location:** `scripts/generate-output-items.py`
+**Location:** `src/main/java/io/github/fiserro/homehab/generator/ItemsInitializer.java`
 
 **Usage:**
 ```bash
-# Generate output-items.items from HabState.java
-python3 scripts/generate-output-items.py
+# Initialize all items with default values
+./scripts/init-items.sh http://localhost:8888
+
+# Or use Java directly
+java -cp target/homeHAB-1.0-SNAPSHOT-shaded.jar \
+  io.github.fiserro.homehab.generator.ItemsInitializer http://localhost:8888
 ```
 
 **What it does:**
-- Parses `HabState.java` and extracts all `@OutputItem` annotated fields
-- Generates `items/output-items.items` with appropriate item types
-- Automatically maps Java types to OpenHAB types (int → Dimmer, boolean → Switch)
-- Determines icons based on field names (energy, fan, settings)
-- Uses field names directly (camelCase)
-- All items belong to `gOutputs` group
+- Reads default values from `HabState.builder().build()`
+- Sends HTTP PUT requests to OpenHAB REST API to initialize item states
+- Initializes both `@InputItem` and `@OutputItem` annotated fields
+- Reports success/failure for each item
 
-**Generated file:**
-- `openhab-dev/conf/items/output-items.items` - Output items with `gOutputs` group
-
-**Naming convention:**
-- Item names use camelCase format matching field names: `<fieldName>`
-- Example: `hrvOutputPower`
+**When to use:**
+- After generating items for the first time
+- After restarting OpenHAB with new items
+- To reset all items to default values
 
 ## Item Naming Conventions
 
@@ -462,7 +474,7 @@ Generated by `scripts/generate-zigbee-config.py`:
 
 ### Input Items
 
-Generated by `scripts/generate-input-items.py`:
+Generated by `InputItemsGenerator.java`:
 
 - **Item name:** `<fieldName>` (camelCase, matching HabState.java field names)
   - Example: `manualMode`, `humidityThreshold`, `co2ThresholdLow`, `basePower`
@@ -480,14 +492,14 @@ The project uses **three auto-generated items files**:
 
 2. **`openhab-dev/conf/items/input-items.items`**
    - Input configuration parameters in camelCase
-   - Auto-generated by `generate-input-items.py` from `HabState.java` `@InputItem` fields
+   - Auto-generated by `InputItemsGenerator.java` from `HabState.java` `@InputItem` fields
    - Contains items like: `manualMode`, `humidityThreshold`, `co2ThresholdLow`
    - All labels prefixed with "HRV - "
    - All items belong to `gHrvInputs` group
 
 3. **`openhab-dev/conf/items/output-items.items`**
    - Output items from `HabState.java`
-   - Auto-generated by `generate-output-items.py` from `HabState.java` `@OutputItem` fields
+   - Auto-generated by `OutputItemsGenerator.java` from `HabState.java` `@OutputItem` fields
    - Contains items like: `hrvOutputPower`
    - All items belong to `gOutputs` group
 

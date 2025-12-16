@@ -223,7 +223,7 @@ class HabStateFactoryTest {
     Items items = mockItems(gOutputs);
     ScriptBusEvent events = mock(ScriptBusEvent.class);
 
-    HabStateFactory.writeState(items, events, state);
+    HabStateFactory.writeState(items.gOutputs(), events, state);
 
     verify(events).sendCommand(outputItem, 75);
   }
@@ -239,7 +239,7 @@ class HabStateFactoryTest {
 
     IllegalArgumentException exception =
         assertThrows(
-            IllegalArgumentException.class, () -> HabStateFactory.writeState(items, events, state));
+            IllegalArgumentException.class, () -> HabStateFactory.writeState(items.gOutputs(), events, state));
 
     assertTrue(exception.getMessage().contains("Output items in openHAB"));
     assertTrue(exception.getMessage().contains("do not match with output fields"));
@@ -256,7 +256,7 @@ class HabStateFactoryTest {
 
     IllegalArgumentException exception =
         assertThrows(
-            IllegalArgumentException.class, () -> HabStateFactory.writeState(items, events, state));
+            IllegalArgumentException.class, () -> HabStateFactory.writeState(items.gOutputs(), events, state));
 
     assertTrue(exception.getMessage().contains("Output items in openHAB"));
     assertTrue(exception.getMessage().contains("do not match with output fields"));
@@ -275,7 +275,7 @@ class HabStateFactoryTest {
 
     IllegalArgumentException exception =
         assertThrows(
-            IllegalArgumentException.class, () -> HabStateFactory.writeState(items, events, state));
+            IllegalArgumentException.class, () -> HabStateFactory.writeState(items.gOutputs(), events, state));
 
     assertTrue(exception.getMessage().contains("Output items in openHAB"));
     assertTrue(exception.getMessage().contains("do not match with output fields"));
