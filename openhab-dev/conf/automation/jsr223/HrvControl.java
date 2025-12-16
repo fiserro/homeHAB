@@ -16,7 +16,7 @@ public class HrvControl extends Java223Script {
 
     @Rule(name = "item.changed", description = "Handle item changes")
     @ItemStateChangeTrigger(itemName = "*")
-    public void onZigbeeItemChanged(ItemStateChange eventInfo) {
+    public void onZigbeeItemChanged() {
 
         MqttItemMappings itemMappings = MqttItemMappings.builder()
             .of(Fields.smoke, _items.mqttZigbeeSmoke_0xa4c138aa8b540e22())

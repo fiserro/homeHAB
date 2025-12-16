@@ -1,0 +1,36 @@
+sitemap hrv label="HRV Control" {
+    Frame label="Modes" icon="switch" {
+        Switch item=manualMode label="Manual Mode"
+        Switch item=boostMode label="Boost Mode"
+        Switch item=temporaryManualMode label="Temporary Manual Mode"
+        Switch item=temporaryBoostMode label="Temporary Boost Mode"
+    }
+
+    Frame label="Thresholds" icon="line" {
+        Setpoint item=humidityThreshold label="Humidity Threshold [%d %%]" minValue=40 maxValue=80 step=5
+        Setpoint item=co2ThresholdLow label="CO2 Low [%d ppm]" minValue=400 maxValue=800 step=50
+        Setpoint item=co2ThresholdMid label="CO2 Mid [%d ppm]" minValue=600 maxValue=1000 step=50
+        Setpoint item=co2ThresholdHigh label="CO2 High [%d ppm]" minValue=800 maxValue=1500 step=50
+    }
+
+    Frame label="Power Settings" icon="energy" {
+        Slider item=basePower label="Base Power [%d %%]" minValue=0 maxValue=100 step=5
+        Slider item=manualPower label="Manual Power [%d %%]" minValue=0 maxValue=100 step=5
+        Slider item=boostPower label="Boost Power [%d %%]" minValue=0 maxValue=100 step=5
+        Slider item=humidityPower label="Humidity Power [%d %%]" minValue=0 maxValue=100 step=5
+        Slider item=co2PowerLow label="CO2 Power Low [%d %%]" minValue=0 maxValue=100 step=5
+        Slider item=co2PowerMid label="CO2 Power Mid [%d %%]" minValue=0 maxValue=100 step=5
+        Slider item=co2PowerHigh label="CO2 Power High [%d %%]" minValue=0 maxValue=100 step=5
+        Slider item=smokePower label="Smoke Power [%d %%]" minValue=0 maxValue=100 step=5
+        Slider item=gasPower label="Gas Power [%d %%]" minValue=0 maxValue=100 step=5
+    }
+
+    Frame label="Duration Settings" icon="time" {
+        Setpoint item=temporaryManualModeDurationSec label="Temp Manual Duration [%d sec]" minValue=300 maxValue=43200 step=300
+        Setpoint item=temporaryBoostModeDurationSec label="Temp Boost Duration [%d sec]" minValue=60 maxValue=3600 step=60
+    }
+
+    Frame label="Output" icon="fan" {
+        Text item=hrvOutputPower label="HRV Output Power [%d %%]" icon="energy"
+    }
+}
