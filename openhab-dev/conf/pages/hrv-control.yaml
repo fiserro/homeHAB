@@ -17,11 +17,18 @@ blocks:
             width: "100"
           slots:
             default:
-              - component: oh-label-card
+              - component: oh-list-card
                 config:
                   title: HRV Configuration
                   subtitle: Heat Recovery Ventilator Settings
                   icon: f7:wind
+                slots:
+                  default:
+                    - component: oh-label-item
+                      config:
+                        item: hrvOutputPower
+                        title: HRV Output Power
+                        icon: f7:gauge_badge_plus
 
   # === MODES SECTION ===
   - component: oh-grid-row
@@ -257,25 +264,3 @@ blocks:
                         step: 60
                         unit: sec
 
-  # === OUTPUT SECTION ===
-  - component: oh-grid-row
-    config: {}
-    slots:
-      default:
-        - component: oh-grid-col
-          config:
-            width: "100"
-          slots:
-            default:
-              - component: oh-list-card
-                config:
-                  title: Current Output
-                  icon: f7:arrow_right_circle
-                  noBorder: false
-                slots:
-                  default:
-                    - component: oh-label-item
-                      config:
-                        item: hrvOutputPower
-                        title: HRV Output Power
-                        icon: f7:gauge_badge_plus

@@ -30,7 +30,18 @@ public class ZigbeeGenerator {
 
     // Fetch devices
     List<JsonNode> devices = fetchDevices(options);
+
+    if (devices.isEmpty()) {
+      log.info("No devices found, skipping Zigbee file generation");
+      return;
+    }
+
     log.info("Found {} devices", devices.size());
+
+    // Generate MQTT Broker configuration
+    Path mqttFile = outputDir.resolve("things/mqtt.things");
+    generateMqttBrokerFile(options, mqttFile);
+    log.info("Generated MQTT Broker file: {}", mqttFile);
 
     // Generate Things file
     Path thingsFile = outputDir.resolve("things/zigbee-devices.things");
@@ -47,12 +58,13 @@ public class ZigbeeGenerator {
 
   private List<JsonNode> fetchDevices(GeneratorOptions options)
       throws IOException, InterruptedException {
-    if (options.sshHost() != null) {
+    if (options.sshHost() != null && !options.sshHost().isEmpty()) {
       return fetchDevicesViaSsh(options.sshHost());
-    } else if (options.mqttHost() != null) {
+    } else if (options.mqttHost() != null && !options.mqttHost().isEmpty()) {
       return fetchDevicesViaMqtt(options.mqttHost());
     } else {
-      throw new IllegalArgumentException("Either sshHost or mqttHost must be provided");
+      log.warn("Skipping Zigbee generation: neither sshHost nor mqttHost is provided");
+      return List.of();
     }
   }
 
@@ -61,7 +73,7 @@ public class ZigbeeGenerator {
     log.info("Fetching devices via SSH from {}...", sshHost);
 
     ProcessBuilder pb = new ProcessBuilder(
-        "ssh", sshHost,
+        "ssh", "-o", "StrictHostKeyChecking=no", sshHost,
         "mosquitto_sub -h localhost -t 'zigbee2mqtt/bridge/devices' -C 1"
     );
     pb.redirectErrorStream(true);
@@ -110,16 +122,44 @@ public class ZigbeeGenerator {
     return devices;
   }
 
+  private void generateMqttBrokerFile(GeneratorOptions options, Path outputFile) throws IOException {
+    StringBuilder content = new StringBuilder();
+    content.append("// Auto-generated MQTT Broker configuration\n");
+    content.append("// DO NOT EDIT - changes will be overwritten\n\n");
+
+    String mqttHost = options.mqttBrokerHost();
+    int mqttPort = options.mqttBrokerPort();
+    String clientId = options.mqttClientId();
+
+    content.append("Thing mqtt:broker:zigbee2mqtt \"Zigbee2MQTT Broker\" [\n");
+    content.append(String.format("    host=\"%s\",\n", mqttHost));
+    content.append(String.format("    port=%d,\n", mqttPort));
+    content.append(String.format("    clientid=\"%s\",\n", clientId));
+    content.append("    secure=false,\n");
+    content.append("    protocol=\"TCP\",\n");
+    content.append("    mqttVersion=\"V3\",\n");
+    content.append("    qos=0,\n");
+    content.append("    keepAlive=60,\n");
+    content.append("    reconnectTime=60000,\n");
+    content.append("    enableDiscovery=true,\n");
+    content.append("    lwtQos=0,\n");
+    content.append("    lwtRetain=true,\n");
+    content.append("    birthRetain=true,\n");
+    content.append("    shutdownRetain=true,\n");
+    content.append("    publickeypin=true,\n");
+    content.append("    hostnameValidated=true,\n");
+    content.append("    certificatepin=true\n");
+    content.append("]\n");
+
+    Files.createDirectories(outputFile.getParent());
+    Files.writeString(outputFile, content.toString());
+  }
+
   private void generateThingsFile(List<JsonNode> devices, Path outputFile) throws IOException {
     StringBuilder content = new StringBuilder();
     content.append("// Auto-generated Zigbee Things configuration\n");
-    content.append("// DO NOT EDIT - changes will be overwritten\n\n");
-
-    content.append("Bridge mqtt:broker:zigbee \"Zigbee2MQTT Bridge\" [\n");
-    content.append("    host=\"openhab.home\",\n");
-    content.append("    port=1883,\n");
-    content.append("    clientID=\"openhab-zigbee\"\n");
-    content.append("] {\n\n");
+    content.append("// DO NOT EDIT - changes will be overwritten\n");
+    content.append("// These Things use the Bridge defined in mqtt.things\n\n");
 
     for (JsonNode device : devices) {
       String type = device.has("type") ? device.get("type").asText() : "";
@@ -130,11 +170,12 @@ public class ZigbeeGenerator {
       String ieee = device.get("ieee_address").asText();
       String friendlyName = device.has("friendly_name") ? device.get("friendly_name").asText() : ieee;
 
-      content.append(String.format("    Thing topic zigbee_%s \"%s\" [\n",
+      content.append(String.format("Thing mqtt:topic:zigbee2mqtt:zigbee_%s \"%s\" (mqtt:broker:zigbee2mqtt) [\n",
           ieee.replace(":", ""), friendlyName));
-      content.append(String.format("        stateTopic=\"zigbee2mqtt/%s\",\n", friendlyName));
-      content.append(String.format("        commandTopic=\"zigbee2mqtt/%s/set\"\n", friendlyName));
-      content.append("    ] {\n");
+      content.append(String.format("    stateTopic=\"zigbee2mqtt/%s\",\n", friendlyName));
+      content.append(String.format("    commandTopic=\"zigbee2mqtt/%s/set\"\n", friendlyName));
+      content.append("] {\n");
+      content.append("    Channels:\n");
 
       // Generate channels from exposes
       if (device.has("definition") && device.get("definition").has("exposes")) {
@@ -144,10 +185,8 @@ public class ZigbeeGenerator {
         }
       }
 
-      content.append("    }\n\n");
+      content.append("}\n\n");
     }
-
-    content.append("}\n");
 
     Files.createDirectories(outputFile.getParent());
     Files.writeString(outputFile, content.toString());
@@ -169,7 +208,7 @@ public class ZigbeeGenerator {
 
     content.append(String.format("        Type %s : %s \"%s\" [\n",
         channelType, expProperty, getLabel(expProperty)));
-    content.append(String.format("            stateTopic=\"zigbee2mqtt/${thingID}\",\n"));
+    content.append(String.format("            stateTopic=\"~\",\n"));
     content.append(String.format("            transformationPattern=\"JSONPATH:$.%s\"\n", expProperty));
     content.append("        ]\n");
   }
@@ -256,7 +295,7 @@ public class ZigbeeGenerator {
     String itemName = String.format("mqttZigbee%s_%s", capitalize(category), ieee.replace(":", ""));
     String label = getLabel(property);
     String icon = getIconForCategory(category);
-    String channel = String.format("mqtt:topic:zigbee:%s:%s", thingId, property);
+    String channel = String.format("mqtt:topic:zigbee2mqtt:%s:%s", thingId, property);
 
     return String.format("%s %s \"%s\" <%s> (gZigbee%s) { channel=\"%s\" }",
         itemType, itemName, label, icon, capitalize(category), channel);

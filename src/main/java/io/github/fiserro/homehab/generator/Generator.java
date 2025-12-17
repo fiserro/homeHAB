@@ -28,18 +28,18 @@ public class Generator {
         log.info("Generated output items");
       }
 
-      // Generate Zigbee configuration
-      if (options.zigbeeEnabled()) {
-        log.info("Generating Zigbee configuration...");
-        new ZigbeeGenerator(options.baseDir()).generate(options);
-        log.info("Generated Zigbee configuration");
-      }
-
       // Initialize
       if (options.initEnabled()) {
         log.info("Initializing all items with default values...");
         new Initializer().initialize(options);
         log.info("Initialized all items");
+      }
+
+      // Generate Zigbee configuration
+      if (options.zigbeeEnabled()) {
+        log.info("Generating Zigbee configuration...");
+        new ZigbeeGenerator(options.outputDir()).generate(options);
+        log.info("Generated Zigbee configuration");
       }
 
       log.info("All configuration files generated successfully!");

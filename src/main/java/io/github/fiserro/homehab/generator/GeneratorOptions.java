@@ -19,14 +19,14 @@ public interface GeneratorOptions extends Options<GeneratorOptions> {
     return "openhab-dev/conf";
   }
 
-  @Option(description = "Enables the task")
+  @Option(description = "Enables UI items generation")
   default boolean uiEnabled() {
-    return false;
+    return true;
   }
 
-  @Option(description = "Enables the task")
+  @Option(description = "Enables output items generation")
   default boolean outputEnabled() {
-    return false;
+    return true;
   }
 
   @Option(description = "OpenHAB URL")
@@ -34,7 +34,7 @@ public interface GeneratorOptions extends Options<GeneratorOptions> {
     return "http://localhost:8888";
   }
 
-  @Option(description = "Enables the task")
+  @Option(description = "Enables items initialization with default values (requires OpenHAB restart after generating items)")
   default boolean initEnabled() {
     return false;
   }
@@ -45,8 +45,23 @@ public interface GeneratorOptions extends Options<GeneratorOptions> {
   @Option(description = "MQTT host for fetching devices")
   String mqttHost();
 
-  @Option(description = "Enables the task")
+  @Option(description = "Enables Zigbee configuration generation")
   default boolean zigbeeEnabled() {
-    return false;
+    return true;
+  }
+
+  @Option(description = "MQTT broker host for Things configuration")
+  default String mqttBrokerHost() {
+    return "zigbee.home";
+  }
+
+  @Option(description = "MQTT broker port")
+  default int mqttBrokerPort() {
+    return 1883;
+  }
+
+  @Option(description = "MQTT client ID")
+  default String mqttClientId() {
+    return "homehab-dev";
   }
 }

@@ -87,9 +87,20 @@ public class Initializer {
       HttpResponse<String> response = httpClient.send(request,
           HttpResponse.BodyHandlers.ofString());
 
-      return response.statusCode() >= 200 && response.statusCode() < 300;
+      int statusCode = response.statusCode();
+      if (statusCode >= 200 && statusCode < 300) {
+        return true;
+      } else if (statusCode == 404) {
+        log.debug("Item '{}' not found in OpenHAB - restart OpenHAB to load new items", itemName);
+      } else {
+        log.debug("Failed to update '{}': HTTP {} - {}", itemName, statusCode, response.body());
+      }
+      return false;
+    } catch (java.net.ConnectException e) {
+      log.warn("Cannot connect to OpenHAB at {} - is it running?", openhabUrl);
+      return false;
     } catch (Exception e) {
-      // Failed to update item - silently ignore for batch initialization
+      log.debug("Failed to update '{}': {}", itemName, e.getMessage());
       return false;
     }
   }
