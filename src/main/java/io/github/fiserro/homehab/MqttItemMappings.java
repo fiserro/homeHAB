@@ -8,24 +8,24 @@ import lombok.Builder;
 import org.openhab.core.items.GenericItem;
 
 @Builder(builderClassName = "MqttItemMappingsBuilder")
-public record MqttItemMappings(Multimap<HabState.Fields, GenericItem> mappings) {
+public record MqttItemMappings(Multimap<String, GenericItem> mappings) {
   public static class MqttItemMappingsBuilder {
 
     public MqttItemMappingsBuilder() {
       mappings = HashMultimap.create();
     }
 
-    public MqttItemMappingsBuilder of(HabState.Fields field, GenericItem item) {
+    public MqttItemMappingsBuilder of(String field, GenericItem item) {
       mappings.put(field, item);
       return this;
     }
   }
 
-  public Collection<GenericItem> get(HabState.Fields field) {
+  public Collection<GenericItem> get(String field) {
     return mappings.get(field);
   }
 
-  public void forEach(BiConsumer<HabState.Fields, Collection<GenericItem>> consumer) {
+  public void forEach(BiConsumer<String, Collection<GenericItem>> consumer) {
     mappings.asMap().forEach(consumer);
   }
 }

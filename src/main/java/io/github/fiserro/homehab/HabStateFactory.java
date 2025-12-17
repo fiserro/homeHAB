@@ -1,9 +1,8 @@
 package io.github.fiserro.homehab;
 
-import io.github.fiserro.homehab.HabState.Fields;
 import io.github.fiserro.homehab.HabState.HabStateBuilder;
 import java.lang.reflect.Field;
-import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -22,6 +21,12 @@ import org.openhab.core.types.State;
 
 public class HabStateFactory {
 
+  private static List<String> getFields(Class<?> clazz) {
+    return Stream.of(clazz.getDeclaredFields())
+        .map(Field::getName)
+        .toList();
+  }
+
   public static void writeState(
       GroupItem outputGroup, ScriptBusEvent events, HabState state) {
 
@@ -29,8 +34,8 @@ public class HabStateFactory {
         outputGroup.getAllMembers().stream().collect(Collectors.toMap(Item::getName, i -> i));
 
     Map<String, Number> outputValues =
-        Stream.of(Fields.values())
-            .map(stateField -> getField(HabState.class, stateField.name()))
+        getFields(HabStateBuilder.class).stream()
+            .map(stateField -> getField(HabState.class, stateField))
             .filter(field -> field.isAnnotationPresent(OutputItem.class))
             .collect(Collectors.toMap(Field::getName, f -> getFieldNumberValue(state, f)));
 
@@ -50,14 +55,13 @@ public class HabStateFactory {
 
     val builder = HabState.builder();
 
-    Stream.of(HabState.Fields.values())
+    getFields(HabStateBuilder.class)
         .forEach(
-            stateField -> {
-              val fieldName = stateField.name();
+            fieldName -> {
               val field = getField(HabState.class, fieldName);
               val value =
                   loadInputItem(itemStates, field)
-                      .or(() -> loadMqttItem(itemStates, itemMappings, stateField, field));
+                      .or(() -> loadMqttItem(itemStates, itemMappings, fieldName, field));
               value.ifPresent(o -> setValue(builder, fieldName, o));
             });
 
@@ -83,12 +87,12 @@ public class HabStateFactory {
   private static Optional<Object> loadMqttItem(
       Map<String, State> itemStates,
       MqttItemMappings itemMappings,
-      Fields stateField,
+      String fieldName,
       Field field) {
     if (!field.isAnnotationPresent(MqttItem.class)) {
       return Optional.empty();
     }
-    val items = itemMappings.get(stateField);
+    val items = itemMappings.get(fieldName);
     if (items.isEmpty()) {
       return Optional.empty();
     }

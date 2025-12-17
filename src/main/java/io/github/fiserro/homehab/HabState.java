@@ -4,11 +4,11 @@ import lombok.Builder;
 import lombok.With;
 import lombok.experimental.FieldNameConstants;
 
-@FieldNameConstants(asEnum = true)
+@FieldNameConstants
 @Builder(toBuilder = true, builderClassName = "HabStateBuilder")
 public record HabState(
     @InputItem boolean manualMode,
-    @InputItem boolean temporaryManualMode,
+    @With @InputItem boolean temporaryManualMode,
     @InputItem int temporaryManualModeDurationSec,
     @InputItem boolean boostMode,
     @InputItem boolean temporaryBoostMode,
