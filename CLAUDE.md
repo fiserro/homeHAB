@@ -585,3 +585,7 @@ All HRV configuration items in OpenHAB must use the prefix `hrvConfig` in camelC
 - OpenHAB Documentation: https://www.openhab.org/docs/
 - OpenHAB Scheduler API: https://www.openhab.org/javadoc/latest/org/openhab/core/scheduler/scheduler
 - OpenHAB JSR223 Documentation: https://www.openhab.org/docs/configuration/jsr223.html
+
+## Project Documentation
+
+- [Main UI Pages Guide](docs/MAIN-UI-PAGES.md) - How to create and manage pages in OpenHAB Main UI

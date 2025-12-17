@@ -1,0 +1,761 @@
+{
+  "overview": {
+    "class": "org.openhab.core.ui.components.RootUIComponent",
+    "value": {
+      "uid": "overview",
+      "tags": [],
+      "props": {
+        "parameters": [],
+        "parameterGroups": []
+      },
+      "component": "oh-layout-page",
+      "config": {
+        "label": "Overview"
+      },
+      "slots": {
+        "default": [
+          {
+            "component": "oh-block",
+            "config": {
+              "title": "HRV Status"
+            },
+            "slots": {
+              "default": [
+                {
+                  "component": "oh-grid-row",
+                  "config": {},
+                  "slots": {
+                    "default": [
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "100",
+                          "medium": "50",
+                          "large": "33"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-gauge-card",
+                              "config": {
+                                "title": "HRV Output Power",
+                                "item": "hrvOutputPower",
+                                "min": 0,
+                                "max": 100,
+                                "type": "semicircle",
+                                "size": 200,
+                                "borderWidth": 15,
+                                "valueTextColor": "white",
+                                "borderBgColor": "#333",
+                                "borderColor": "=items.hrvOutputPower.state > 80 ? 'red' : (items.hrvOutputPower.state > 50 ? 'orange' : 'green')"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "50",
+                          "medium": "25",
+                          "large": "16"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-label-card",
+                              "config": {
+                                "title": "Humidity",
+                                "item": "humidity",
+                                "icon": "f7:drop",
+                                "iconColor": "blue",
+                                "trendItem": "humidity"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "50",
+                          "medium": "25",
+                          "large": "16"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-label-card",
+                              "config": {
+                                "title": "CO2",
+                                "item": "co2",
+                                "icon": "f7:wind",
+                                "iconColor": "=items.co2.state > 900 ? 'red' : (items.co2.state > 700 ? 'orange' : 'green')"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "50",
+                          "medium": "25",
+                          "large": "16"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-label-card",
+                              "config": {
+                                "title": "Temperature",
+                                "item": "temperature",
+                                "icon": "f7:thermometer",
+                                "iconColor": "orange"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "50",
+                          "medium": "25",
+                          "large": "16"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-label-card",
+                              "config": {
+                                "title": "Pressure",
+                                "item": "pressure",
+                                "icon": "f7:gauge",
+                                "iconColor": "gray"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "component": "oh-block",
+            "config": {
+              "title": "Active Modes"
+            },
+            "slots": {
+              "default": [
+                {
+                  "component": "oh-grid-row",
+                  "config": {},
+                  "slots": {
+                    "default": [
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "100"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-list-card",
+                              "config": {
+                                "title": "Current Modes"
+                              },
+                              "slots": {
+                                "default": [
+                                  {
+                                    "component": "oh-label-item",
+                                    "config": {
+                                      "title": "Manual Mode",
+                                      "item": "manualMode",
+                                      "icon": "f7:hand_raised",
+                                      "iconColor": "=items.manualMode.state === 'ON' ? 'blue' : 'gray'"
+                                    }
+                                  },
+                                  {
+                                    "component": "oh-label-item",
+                                    "config": {
+                                      "title": "Boost Mode",
+                                      "item": "boostMode",
+                                      "icon": "f7:bolt",
+                                      "iconColor": "=items.boostMode.state === 'ON' ? 'orange' : 'gray'"
+                                    }
+                                  },
+                                  {
+                                    "component": "oh-label-item",
+                                    "config": {
+                                      "title": "Temporary Manual Mode",
+                                      "item": "temporaryManualMode",
+                                      "icon": "f7:timer",
+                                      "iconColor": "=items.temporaryManualMode.state === 'ON' ? 'blue' : 'gray'"
+                                    }
+                                  },
+                                  {
+                                    "component": "oh-label-item",
+                                    "config": {
+                                      "title": "Temporary Boost Mode",
+                                      "item": "temporaryBoostMode",
+                                      "icon": "f7:timer",
+                                      "iconColor": "=items.temporaryBoostMode.state === 'ON' ? 'orange' : 'gray'"
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "component": "oh-block",
+            "config": {
+              "title": "Safety Status"
+            },
+            "slots": {
+              "default": [
+                {
+                  "component": "oh-grid-row",
+                  "config": {},
+                  "slots": {
+                    "default": [
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "50",
+                          "medium": "33"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-label-card",
+                              "config": {
+                                "title": "Smoke Detector",
+                                "item": "smoke",
+                                "icon": "f7:flame",
+                                "iconColor": "=items.smoke.state === 'ON' ? 'red' : 'green'",
+                                "label": "=items.smoke.state === 'ON' ? 'ALARM!' : 'OK'"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "50",
+                          "medium": "33"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-label-card",
+                              "config": {
+                                "title": "Gas Detector",
+                                "item": "gas",
+                                "icon": "f7:cloud",
+                                "iconColor": "=items.gas.state === 'ON' ? 'red' : 'green'",
+                                "label": "=items.gas.state === 'ON' ? 'ALARM!' : 'OK'"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "100",
+                          "medium": "33"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-label-card",
+                              "config": {
+                                "title": "Open Windows",
+                                "item": "openWindows",
+                                "icon": "f7:rectangle_grid_1x2",
+                                "iconColor": "=Number.parseFloat(items.openWindows.state) > 0 ? 'blue' : 'gray'"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "hrv-control": {
+    "class": "org.openhab.core.ui.components.RootUIComponent",
+    "value": {
+      "uid": "hrv-control",
+      "tags": [],
+      "props": {
+        "parameters": [],
+        "parameterGroups": []
+      },
+      "component": "oh-layout-page",
+      "config": {
+        "label": "HRV Control",
+        "sidebar": true,
+        "order": 10,
+        "icon": "f7:wind"
+      },
+      "slots": {
+        "default": [
+          {
+            "component": "oh-block",
+            "config": {
+              "title": "Operating Modes"
+            },
+            "slots": {
+              "default": [
+                {
+                  "component": "oh-grid-row",
+                  "config": {},
+                  "slots": {
+                    "default": [
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "100"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-list-card",
+                              "config": {
+                                "title": "Mode Selection",
+                                "icon": "f7:switch_2"
+                              },
+                              "slots": {
+                                "default": [
+                                  {
+                                    "component": "oh-toggle-item",
+                                    "config": {
+                                      "title": "Manual Mode",
+                                      "subtitle": "Fixed power level",
+                                      "item": "manualMode",
+                                      "icon": "f7:hand_raised"
+                                    }
+                                  },
+                                  {
+                                    "component": "oh-toggle-item",
+                                    "config": {
+                                      "title": "Boost Mode",
+                                      "subtitle": "Maximum ventilation",
+                                      "item": "boostMode",
+                                      "icon": "f7:bolt"
+                                    }
+                                  },
+                                  {
+                                    "component": "oh-toggle-item",
+                                    "config": {
+                                      "title": "Temporary Manual Mode",
+                                      "subtitle": "Auto-off after timeout",
+                                      "item": "temporaryManualMode",
+                                      "icon": "f7:timer"
+                                    }
+                                  },
+                                  {
+                                    "component": "oh-toggle-item",
+                                    "config": {
+                                      "title": "Temporary Boost Mode",
+                                      "subtitle": "Boost with auto-off",
+                                      "item": "temporaryBoostMode",
+                                      "icon": "f7:timer"
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "component": "oh-block",
+            "config": {
+              "title": "Thresholds"
+            },
+            "slots": {
+              "default": [
+                {
+                  "component": "oh-grid-row",
+                  "config": {},
+                  "slots": {
+                    "default": [
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "100"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-list-card",
+                              "config": {
+                                "title": "Sensor Thresholds",
+                                "icon": "f7:gauge"
+                              },
+                              "slots": {
+                                "default": [
+                                  {
+                                    "component": "oh-stepper-item",
+                                    "config": {
+                                      "title": "Humidity Threshold",
+                                      "subtitle": "Trigger level (%)",
+                                      "item": "humidityThreshold",
+                                      "min": 40,
+                                      "max": 80,
+                                      "step": 5,
+                                      "icon": "f7:drop"
+                                    }
+                                  },
+                                  {
+                                    "component": "oh-stepper-item",
+                                    "config": {
+                                      "title": "CO2 Low Threshold",
+                                      "subtitle": "Low level (ppm)",
+                                      "item": "co2ThresholdLow",
+                                      "min": 400,
+                                      "max": 800,
+                                      "step": 50,
+                                      "icon": "f7:wind"
+                                    }
+                                  },
+                                  {
+                                    "component": "oh-stepper-item",
+                                    "config": {
+                                      "title": "CO2 Mid Threshold",
+                                      "subtitle": "Medium level (ppm)",
+                                      "item": "co2ThresholdMid",
+                                      "min": 600,
+                                      "max": 1000,
+                                      "step": 50,
+                                      "icon": "f7:wind"
+                                    }
+                                  },
+                                  {
+                                    "component": "oh-stepper-item",
+                                    "config": {
+                                      "title": "CO2 High Threshold",
+                                      "subtitle": "High level (ppm)",
+                                      "item": "co2ThresholdHigh",
+                                      "min": 800,
+                                      "max": 1500,
+                                      "step": 50,
+                                      "icon": "f7:wind"
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "component": "oh-block",
+            "config": {
+              "title": "Power Settings"
+            },
+            "slots": {
+              "default": [
+                {
+                  "component": "oh-grid-row",
+                  "config": {},
+                  "slots": {
+                    "default": [
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "100",
+                          "medium": "50"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-list-card",
+                              "config": {
+                                "title": "Mode Power Levels",
+                                "icon": "f7:bolt"
+                              },
+                              "slots": {
+                                "default": [
+                                  {
+                                    "component": "oh-slider-item",
+                                    "config": {
+                                      "title": "Base Power",
+                                      "subtitle": "Default level (%)",
+                                      "item": "basePower",
+                                      "min": 0,
+                                      "max": 100,
+                                      "step": 5,
+                                      "icon": "f7:gauge"
+                                    }
+                                  },
+                                  {
+                                    "component": "oh-slider-item",
+                                    "config": {
+                                      "title": "Manual Power",
+                                      "subtitle": "Manual mode level (%)",
+                                      "item": "manualPower",
+                                      "min": 0,
+                                      "max": 100,
+                                      "step": 5,
+                                      "icon": "f7:hand_raised"
+                                    }
+                                  },
+                                  {
+                                    "component": "oh-slider-item",
+                                    "config": {
+                                      "title": "Boost Power",
+                                      "subtitle": "Boost mode level (%)",
+                                      "item": "boostPower",
+                                      "min": 0,
+                                      "max": 100,
+                                      "step": 5,
+                                      "icon": "f7:bolt"
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "100",
+                          "medium": "50"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-list-card",
+                              "config": {
+                                "title": "Sensor-Triggered Power",
+                                "icon": "f7:antenna_radiowaves_left_right"
+                              },
+                              "slots": {
+                                "default": [
+                                  {
+                                    "component": "oh-slider-item",
+                                    "config": {
+                                      "title": "Humidity Power",
+                                      "subtitle": "When humidity exceeded (%)",
+                                      "item": "humidityPower",
+                                      "min": 0,
+                                      "max": 100,
+                                      "step": 5,
+                                      "icon": "f7:drop"
+                                    }
+                                  },
+                                  {
+                                    "component": "oh-slider-item",
+                                    "config": {
+                                      "title": "CO2 Low Power",
+                                      "subtitle": "For low CO2 level (%)",
+                                      "item": "co2PowerLow",
+                                      "min": 0,
+                                      "max": 100,
+                                      "step": 5,
+                                      "icon": "f7:wind"
+                                    }
+                                  },
+                                  {
+                                    "component": "oh-slider-item",
+                                    "config": {
+                                      "title": "CO2 Mid Power",
+                                      "subtitle": "For medium CO2 level (%)",
+                                      "item": "co2PowerMid",
+                                      "min": 0,
+                                      "max": 100,
+                                      "step": 5,
+                                      "icon": "f7:wind"
+                                    }
+                                  },
+                                  {
+                                    "component": "oh-slider-item",
+                                    "config": {
+                                      "title": "CO2 High Power",
+                                      "subtitle": "For high CO2 level (%)",
+                                      "item": "co2PowerHigh",
+                                      "min": 0,
+                                      "max": 100,
+                                      "step": 5,
+                                      "icon": "f7:wind"
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "component": "oh-block",
+            "config": {
+              "title": "Safety Power Settings"
+            },
+            "slots": {
+              "default": [
+                {
+                  "component": "oh-grid-row",
+                  "config": {},
+                  "slots": {
+                    "default": [
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "100"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-list-card",
+                              "config": {
+                                "title": "Emergency Power Levels",
+                                "icon": "f7:exclamationmark_triangle"
+                              },
+                              "slots": {
+                                "default": [
+                                  {
+                                    "component": "oh-slider-item",
+                                    "config": {
+                                      "title": "Smoke Power",
+                                      "subtitle": "When smoke detected (0 = OFF)",
+                                      "item": "smokePower",
+                                      "min": 0,
+                                      "max": 100,
+                                      "step": 5,
+                                      "icon": "f7:flame"
+                                    }
+                                  },
+                                  {
+                                    "component": "oh-slider-item",
+                                    "config": {
+                                      "title": "Gas Power",
+                                      "subtitle": "When gas detected (%)",
+                                      "item": "gasPower",
+                                      "min": 0,
+                                      "max": 100,
+                                      "step": 5,
+                                      "icon": "f7:cloud"
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "component": "oh-block",
+            "config": {
+              "title": "Timer Settings"
+            },
+            "slots": {
+              "default": [
+                {
+                  "component": "oh-grid-row",
+                  "config": {},
+                  "slots": {
+                    "default": [
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "100"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-list-card",
+                              "config": {
+                                "title": "Temporary Mode Durations",
+                                "icon": "f7:timer"
+                              },
+                              "slots": {
+                                "default": [
+                                  {
+                                    "component": "oh-stepper-item",
+                                    "config": {
+                                      "title": "Temp. Manual Duration",
+                                      "subtitle": "Auto-off timer (seconds)",
+                                      "item": "temporaryManualModeDurationSec",
+                                      "min": 300,
+                                      "max": 43200,
+                                      "step": 300,
+                                      "icon": "f7:timer"
+                                    }
+                                  },
+                                  {
+                                    "component": "oh-stepper-item",
+                                    "config": {
+                                      "title": "Temp. Boost Duration",
+                                      "subtitle": "Auto-off timer (seconds)",
+                                      "item": "temporaryBoostModeDurationSec",
+                                      "min": 60,
+                                      "max": 3600,
+                                      "step": 60,
+                                      "icon": "f7:timer"
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

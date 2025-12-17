@@ -137,6 +137,30 @@ if [ "$REMOTE_DEPLOY" = true ]; then
         exit 1
     fi
 
+    # Step 3: Deploy UI Pages to remote
+    echo ""
+    echo -e "${BLUE}Step 3: Deploying UI Pages...${NC}"
+
+    PAGES_SOURCE="openhab-dev/conf/ui-pages.json"
+    REMOTE_PAGES_DIR="$REMOTE_PATH/../userdata/jsondb"
+    REMOTE_PAGES_TARGET="$REMOTE_PAGES_DIR/uicomponents_ui_page.json"
+
+    if [ -f "$PAGES_SOURCE" ]; then
+        # Ensure remote directory exists
+        ssh $SSH_KEY "$REMOTE_USER_HOST" "mkdir -p $REMOTE_PAGES_DIR"
+
+        # Copy pages file
+        scp $SSH_KEY "$PAGES_SOURCE" "$REMOTE_USER_HOST:$REMOTE_PAGES_TARGET"
+
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}✓ UI Pages deployed: ${REMOTE_USER_HOST}:${REMOTE_PAGES_TARGET}${NC}"
+        else
+            echo -e "${YELLOW}Warning: Failed to copy UI pages${NC}"
+        fi
+    else
+        echo -e "${YELLOW}No UI pages source found at: $PAGES_SOURCE${NC}"
+    fi
+
     # Show next steps
     echo ""
     echo -e "${GREEN}=== Deployment Complete ===${NC}"
@@ -173,6 +197,30 @@ else
     else
         echo -e "${RED}Failed to copy JAR file${NC}"
         exit 1
+    fi
+
+    # Step 3: Deploy UI Pages
+    echo ""
+    echo -e "${BLUE}Step 3: Deploying UI Pages...${NC}"
+
+    PAGES_SOURCE="$OPENHAB_CONF/ui-pages.json"
+    PAGES_TARGET_DIR="$SCRIPT_DIR/openhab-dev/userdata/jsondb"
+    PAGES_TARGET="$PAGES_TARGET_DIR/uicomponents_ui_page.json"
+
+    if [ -f "$PAGES_SOURCE" ]; then
+        # Ensure target directory exists
+        mkdir -p "$PAGES_TARGET_DIR"
+
+        # Copy pages file
+        cp "$PAGES_SOURCE" "$PAGES_TARGET"
+
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}✓ UI Pages deployed: $PAGES_TARGET${NC}"
+        else
+            echo -e "${YELLOW}Warning: Failed to copy UI pages${NC}"
+        fi
+    else
+        echo -e "${YELLOW}No UI pages source found at: $PAGES_SOURCE${NC}"
     fi
 
     # Show next steps
