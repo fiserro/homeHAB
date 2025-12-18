@@ -1,6 +1,0 @@
-// Auto-generated from HabState.java @OutputItem annotations
-// DO NOT EDIT - changes will be overwritten
-
-Group gOutputs "Outputs"
-
-Dimmer hrvOutputPower "HRV - Hrv Output Power" <energy> (gOutputs)

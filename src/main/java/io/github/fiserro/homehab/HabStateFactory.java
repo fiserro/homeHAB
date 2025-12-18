@@ -5,20 +5,29 @@ import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import lombok.val;
 import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 import org.openhab.core.automation.module.script.defaultscope.ScriptBusEvent;
-import org.openhab.core.items.GenericItem;
-import org.openhab.core.items.GroupItem;
-import org.openhab.core.items.Item;
 import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.types.State;
 
+/**
+ * Factory for creating and writing HabState from/to OpenHAB items.
+ *
+ * <p>Reads values from:
+ * <ul>
+ *   <li>{@link InputItem} - individual items (user settings)</li>
+ *   <li>{@link MqttItem} - group items with aggregated values (OpenHAB aggregates automatically)</li>
+ * </ul>
+ *
+ * <p>Writes values to:
+ * <ul>
+ *   <li>{@link OutputItem} - individual items (computed outputs)</li>
+ * </ul>
+ */
 public class HabStateFactory {
 
   private static List<String> getFields(Class<?> clazz) {
@@ -27,45 +36,55 @@ public class HabStateFactory {
         .toList();
   }
 
-  public static void writeState(
-      GroupItem outputGroup, ScriptBusEvent events, HabState state) {
-
-    Map<String, Item> outputItems =
-        outputGroup.getAllMembers().stream().collect(Collectors.toMap(Item::getName, i -> i));
-
-    Map<String, Number> outputValues =
-        getFields(HabStateBuilder.class).stream()
-            .map(stateField -> getField(HabState.class, stateField))
-            .filter(field -> field.isAnnotationPresent(OutputItem.class))
-            .collect(Collectors.toMap(Field::getName, f -> getFieldNumberValue(state, f)));
-
-    if (!outputItems.keySet().equals(outputValues.keySet())) {
-      throw new IllegalArgumentException(
-          "Output items in openHAB: " + outputItems.keySet() + " do not match with output fields: " + outputValues.keySet() + ". "
-              + "Please check your configuration or regenerate the openHAB items.");
-    }
-
-    outputValues.forEach((name, value) -> {
-      val item = outputItems.get(name);
-      events.sendCommand(item, value);
-    });
+  /**
+   * Writes output values from HabState to OpenHAB items.
+   */
+  public static void writeState(ScriptBusEvent events, HabState state) {
+    getFields(HabStateBuilder.class).stream()
+        .map(fieldName -> getField(HabState.class, fieldName))
+        .filter(field -> field.isAnnotationPresent(OutputItem.class))
+        .forEach(field -> {
+          Number value = getFieldNumberValue(state, field);
+          events.sendCommand(field.getName(), String.valueOf(value));
+        });
   }
 
+  /**
+   * Creates HabState from OpenHAB item states.
+   *
+   * <p>For {@link InputItem} fields, reads from individual items.
+   * <p>For {@link MqttItem} fields, reads from group items (field name = group name).
+   * OpenHAB automatically aggregates member values based on group function.
+   */
   public static HabState of(Map<String, State> itemStates) {
-
     val builder = HabState.builder();
 
-    getFields(HabStateBuilder.class)
-        .forEach(
-            fieldName -> {
-              val field = getField(HabState.class, fieldName);
-              val value =
-                  loadInputItem(itemStates, field)
-                      .or(() -> loadMqttItem(itemStates, itemMappings, fieldName, field));
-              value.ifPresent(o -> setValue(builder, fieldName, o));
-            });
+    getFields(HabStateBuilder.class).forEach(fieldName -> {
+      val field = getField(HabState.class, fieldName);
+      val value = loadItemValue(itemStates, field);
+      value.ifPresent(v -> setValue(builder, fieldName, v));
+    });
 
     return builder.build();
+  }
+
+  /**
+   * Loads item value for a field. Supports @InputItem and @MqttItem annotations.
+   * For @MqttItem, the field name is the group name containing aggregated value.
+   */
+  private static Optional<Object> loadItemValue(Map<String, State> itemStates, Field field) {
+    // Both @InputItem and @MqttItem use field name as item name
+    // For @MqttItem, the item is a Group with aggregated value from OpenHAB
+    if (!field.isAnnotationPresent(InputItem.class) && !field.isAnnotationPresent(MqttItem.class)) {
+      return Optional.empty();
+    }
+
+    val stateValue = itemStates.get(field.getName());
+    if (stateValue == null) {
+      return Optional.empty();
+    }
+
+    return Optional.of(convertStateValue(stateValue, field.getType()));
   }
 
   @SneakyThrows
@@ -77,31 +96,6 @@ public class HabStateFactory {
       case Boolean b -> b ? 1 : 0;
       default -> throw new IllegalArgumentException("Unsupported type: " + field.getType());
     };
-  }
-
-  private static Optional<Object> loadInputItem(Map<String, State> itemStates, Field field) {
-    Object value = getItemValue(itemStates, field);
-    return Optional.ofNullable(value);
-  }
-
-  private static @Nullable Object getItemValue(Map<String, State> itemStates, Field field) {
-    if (!field.isAnnotationPresent(InputItem.class)) {
-      return null;
-    }
-    val stateValue = itemStates.get(field.getName());
-    if (stateValue == null) {
-      return null;
-    }
-    return convertStateValue(stateValue, field.getType());
-  }
-
-  private static @Nullable Object getMqttItemValue(
-      Map<String, State> itemStates, GenericItem item, Class<?> fieldType) {
-    val stateValue = itemStates.get(item.getName());
-    if (stateValue == null) {
-      return null;
-    }
-    return convertStateValue(stateValue, fieldType);
   }
 
   private static Object convertStateValue(State stateValue, Class<?> fieldType) {

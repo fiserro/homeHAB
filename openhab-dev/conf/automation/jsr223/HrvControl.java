@@ -16,10 +16,10 @@ public class HrvControl extends Java223Script {
   @Rule(name = "item.changed", description = "Handle item changes")
   @ItemStateChangeTrigger(itemName = "*")
   public void onZigbeeItemChanged() {
-    var inputState = HabStateFactory.of(items, itemMappings);
+    var inputState = HabStateFactory.of(items);
     inputState = new HrvCalculator().calculate(inputState);
 
-    HabStateFactory.writeState(_items.gOutputs(), events, inputState);
+    HabStateFactory.writeState(events, inputState);
   }
 
   @Rule(name = "manual.power.changed", description = "Handle manual power changes")
