@@ -3,6 +3,7 @@ package io.github.fiserro.homehab.generator;
 import io.github.fiserro.homehab.HabState;
 import io.github.fiserro.homehab.InputItem;
 import io.github.fiserro.homehab.OutputItem;
+import io.github.fiserro.homehab.ReadOnlyItem;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -26,7 +27,8 @@ public class Initializer {
     log.info("Initializing all items with default values...");
     int inputCount = initializeInputItems();
     int outputCount = initializeOutputItems();
-    log.info("Initialized {} input items and {} output items", inputCount, outputCount);
+    int readOnlyCount = initializeReadOnlyItems();
+    log.info("Initialized {} input, {} output, {} read-only items", inputCount, outputCount, readOnlyCount);
   }
 
   public int initializeInputItems() throws Exception {
@@ -64,6 +66,34 @@ public class Initializer {
 
     for (Field field : HabState.class.getDeclaredFields()) {
       if (field.isAnnotationPresent(OutputItem.class)) {
+        field.setAccessible(true);
+        Object value = field.get(defaultState);
+        String itemName = field.getName();
+        String defaultValue = formatState(value);
+
+        String currentState = getItemState(itemName);
+        if (needsInitialization(currentState)) {
+          if (updateItemState(itemName, defaultValue)) {
+            log.info("  ✓ {}: {} (was {})", itemName, defaultValue, currentState);
+            count++;
+          } else {
+            log.warn("  ✗ {}: failed", itemName);
+          }
+        } else {
+          log.debug("  - {}: keeping current value {}", itemName, currentState);
+        }
+      }
+    }
+    return count;
+  }
+
+  public int initializeReadOnlyItems() throws Exception {
+    log.info("Initializing read-only items (only if NULL/UNDEF)...");
+    int count = 0;
+    HabState defaultState = HabState.builder().build();
+
+    for (Field field : HabState.class.getDeclaredFields()) {
+      if (field.isAnnotationPresent(ReadOnlyItem.class)) {
         field.setAccessible(true);
         Object value = field.get(defaultState);
         String itemName = field.getName();

@@ -5,7 +5,10 @@ import io.github.fiserro.homehab.HabState;
 import io.github.fiserro.homehab.HabState.Fields;
 import io.github.fiserro.homehab.HabStateFactory;
 import io.github.fiserro.homehab.hrv.HrvCalculator;
+import java.time.Instant;
+import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.OnOffType;
+import org.openhab.core.types.State;
 
 /**
  * HRV (Heat Recovery Ventilator) control script. Split into multiple rules due to annotation
@@ -41,6 +44,10 @@ public class HrvControl extends Java223Script {
     if (_items.temporaryManualMode().getStateAs(OnOffType.class) == OnOffType.ON) {
       events.sendCommand(_items.manualMode(), OnOffType.OFF);
       events.sendCommand(_items.temporaryBoostMode(), OnOffType.OFF);
+      // Set off time = now + duration
+      int durationSec = _items.temporaryManualModeDurationSec().getStateAs(DecimalType.class).intValue();
+      long offTime = Instant.now().getEpochSecond() + durationSec;
+      events.postUpdate(_items.temporaryManualModeOffTime(), (State) new DecimalType(offTime));
     }
   }
 
@@ -50,6 +57,10 @@ public class HrvControl extends Java223Script {
     if (_items.temporaryBoostMode().getStateAs(OnOffType.class) == OnOffType.ON) {
       events.sendCommand(_items.manualMode(), OnOffType.OFF);
       events.sendCommand(_items.temporaryManualMode(), OnOffType.OFF);
+      // Set off time = now + duration
+      int durationSec = _items.temporaryBoostModeDurationSec().getStateAs(DecimalType.class).intValue();
+      long offTime = Instant.now().getEpochSecond() + durationSec;
+      events.postUpdate(_items.temporaryBoostModeOffTime(), (State) new DecimalType(offTime));
     }
   }
 }

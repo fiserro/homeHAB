@@ -12,6 +12,8 @@ public record HabState(
     @InputItem int temporaryManualModeDurationSec,
     @InputItem boolean temporaryBoostMode,
     @InputItem int temporaryBoostModeDurationSec,
+    @ReadOnlyItem long temporaryManualModeOffTime,
+    @ReadOnlyItem long temporaryBoostModeOffTime,
     @InputItem int humidityThreshold,
     @InputItem int co2ThresholdLow,
     @InputItem int co2ThresholdMid,

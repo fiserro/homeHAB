@@ -4,6 +4,7 @@
 // This file contains:
 // - Input items from @InputItem annotations (HRV control parameters)
 // - Output items from @OutputItem annotations (HRV outputs)
+// - Read-only items from @ReadOnlyItem annotations (system-managed values)
 // - Aggregation groups from @NumAgg and @BoolAgg annotations
 //
 // Assign MQTT device items to aggregation groups manually.
@@ -26,9 +27,13 @@ Number powerHigh "HRV - Power High" <energy> ["user"]  // default: 95
 // Output items from @OutputItem annotations
 Dimmer hrvOutputPower "HRV - Hrv Output Power" <energy> ["computed"]
 
+// Read-only items from @ReadOnlyItem annotations (system-managed)
+Number temporaryManualModeOffTime "HRV - Temporary Manual Mode Off Time" <time> ["readonly", "computed"]
+Number temporaryBoostModeOffTime "HRV - Temporary Boost Mode Off Time" <time> ["readonly", "computed"]
+
 // Aggregation groups from @NumAgg and @BoolAgg annotations
 // Assign Zigbee items to these groups manually
-Group:Number:AVG openWindows "Open Windows" <window> ["mqtt", "zigbee", "computed"]
+Group:Number:SUM openWindows "Open Windows" <window> ["mqtt", "zigbee", "computed"]
 Group:Number:MAX airHumidity "Air Humidity" <humidity> ["mqtt", "zigbee", "computed"]
 Group:Number:MIN soilHumidity "Soil Humidity" <humidity> ["mqtt", "zigbee", "computed"]
 Group:Number:MAX co2 "Co2" <carbondioxide> ["mqtt", "zigbee", "computed"]

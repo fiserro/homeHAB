@@ -7,6 +7,7 @@ import io.github.fiserro.homehab.InputItem;
 import io.github.fiserro.homehab.NumAgg;
 import io.github.fiserro.homehab.NumericAggregation;
 import io.github.fiserro.homehab.OutputItem;
+import io.github.fiserro.homehab.ReadOnlyItem;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
@@ -22,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
  * <ul>
  *   <li>{@link InputItem} - generates input items (switches, numbers) for HRV control parameters
  *   <li>{@link OutputItem} - generates output items (dimmer, switch) for HRV outputs
+ *   <li>{@link ReadOnlyItem} - generates read-only items (managed by system, not UI)
  *   <li>{@link NumAgg} - generates aggregation groups for numeric values (e.g., humidity, temperature)
  *   <li>{@link BoolAgg} - generates aggregation groups for boolean values (e.g., smoke detectors)
  * </ul>
@@ -34,6 +36,7 @@ import lombok.extern.slf4j.Slf4j;
  * @see HabState
  * @see InputItem
  * @see OutputItem
+ * @see ReadOnlyItem
  * @see NumAgg
  * @see BoolAgg
  */
@@ -47,6 +50,7 @@ public class HabStateItemsGenerator {
       // This file contains:
       // - Input items from @InputItem annotations (HRV control parameters)
       // - Output items from @OutputItem annotations (HRV outputs)
+      // - Read-only items from @ReadOnlyItem annotations (system-managed values)
       // - Aggregation groups from @NumAgg and @BoolAgg annotations
       //
       // Assign MQTT device items to aggregation groups manually.
@@ -79,6 +83,14 @@ public class HabStateItemsGenerator {
       }
     }
 
+    // Generate read-only items
+    content.append("\n// Read-only items from @ReadOnlyItem annotations (system-managed)\n");
+    for (Field field : HabState.class.getDeclaredFields()) {
+      if (field.isAnnotationPresent(ReadOnlyItem.class)) {
+        content.append(generateReadOnlyItem(field));
+      }
+    }
+
     // Generate group items from @NumAgg and @BoolAgg annotations
     content.append("\n// Aggregation groups from @NumAgg and @BoolAgg annotations\n");
     content.append("// Assign Zigbee items to these groups manually\n");
@@ -95,6 +107,7 @@ public class HabStateItemsGenerator {
   private static final String AGG_TAGS = "[\"mqtt\", \"zigbee\", \"computed\"]";
   private static final String INPUT_TAGS = "[\"user\"]";
   private static final String OUTPUT_TAGS = "[\"computed\"]";
+  private static final String READONLY_TAGS = "[\"readonly\", \"computed\"]";
 
   private static String generateGroupItem(Field field) {
     NumAgg numAgg = field.getAnnotation(NumAgg.class);
@@ -157,6 +170,33 @@ public class HabStateItemsGenerator {
 
     return String.format("%s %s \"HRV - %s\" <%s> %s%n",
         itemType, itemName, label, icon, OUTPUT_TAGS);
+  }
+
+  private static String generateReadOnlyItem(Field field) {
+    String itemName = field.getName();
+    String itemType = getReadOnlyItemType(field.getType());
+    String label = formatLabel(itemName);
+    String icon = getReadOnlyIcon(itemName);
+
+    return String.format("%s %s \"HRV - %s\" <%s> %s%n",
+        itemType, itemName, label, icon, READONLY_TAGS);
+  }
+
+  private static String getReadOnlyItemType(Class<?> type) {
+    if (type == boolean.class) {
+      return "Switch";
+    } else if (type == int.class || type == long.class || type == float.class) {
+      return "Number";
+    }
+    throw new IllegalArgumentException("Unsupported read-only type: " + type);
+  }
+
+  private static String getReadOnlyIcon(String fieldName) {
+    String lower = fieldName.toLowerCase();
+    if (lower.contains("time") || lower.contains("off")) {
+      return "time";
+    }
+    return "none";
   }
 
   private static String getInputItemType(Class<?> type) {
