@@ -280,7 +280,7 @@ public class MqttGenerator {
           if (!property.isEmpty()) {
             String category = getMetricCategory(property);
             if (category != null) {
-              String itemDef = generateItemDefinition(expose, thingId, ieee, property, category);
+              String itemDef = generateItemDefinition(expose, thingId, ieee, friendlyName, property, category);
               if (itemDef != null) {
                 content.append(itemDef).append("\n");
               }
@@ -296,20 +296,24 @@ public class MqttGenerator {
   }
 
   private String generateItemDefinition(JsonNode expose, String thingId, String ieee,
-      String property, String category) {
+      String friendlyName, String property, String category) {
     String itemType = getItemType(expose);
     if (itemType == null) {
       return null;
     }
 
-    String itemName = String.format("mqtt%s_%s", capitalize(category), ieee.replace(":", ""));
-    String label = getLabel(property);
+    // Item name: friendlyName in camelCase + category (e.g., "soil3Battery")
+    String itemName = toCamelCase(friendlyName) + category;
+    // Label: friendlyName readable + category readable (e.g., "Soil3 Battery")
+    String label = toReadableLabel(friendlyName) + " " + category;
     String icon = getIconForCategory(category);
     String channel = String.format("mqtt:topic:zigbee2mqtt:%s:%s", thingId, property);
+    // Tags: IEEE address, mqtt, zigbee
+    String tags = String.format("[\"%s\", \"mqtt\", \"zigbee\"]", ieee);
 
     // No automatic group assignment - user assigns items to groups manually
-    return String.format("%s %s \"%s\" <%s> { channel=\"%s\" }",
-        itemType, itemName, label, icon, channel);
+    return String.format("%s %s \"%s\" <%s> %s { channel=\"%s\" }",
+        itemType, itemName, label, icon, tags, channel);
   }
 
   private String getItemType(JsonNode expose) {
@@ -377,5 +381,60 @@ public class MqttGenerator {
       return str;
     }
     return str.substring(0, 1).toUpperCase() + str.substring(1);
+  }
+
+  /**
+   * Converts a friendly name to camelCase for use as item name.
+   * Examples: "soil3" -> "soil3", "living_room" -> "livingRoom", "Bedroom 1" -> "bedroom1"
+   */
+  private String toCamelCase(String friendlyName) {
+    if (friendlyName == null || friendlyName.isEmpty()) {
+      return friendlyName;
+    }
+
+    StringBuilder result = new StringBuilder();
+    boolean capitalizeNext = false;
+
+    for (int i = 0; i < friendlyName.length(); i++) {
+      char c = friendlyName.charAt(i);
+      if (c == '_' || c == ' ' || c == '-') {
+        capitalizeNext = true;
+      } else if (capitalizeNext) {
+        result.append(Character.toUpperCase(c));
+        capitalizeNext = false;
+      } else if (i == 0) {
+        result.append(Character.toLowerCase(c));
+      } else {
+        result.append(c);
+      }
+    }
+    return result.toString();
+  }
+
+  /**
+   * Converts a friendly name to readable label format.
+   * Examples: "soil3" -> "Soil3", "living_room" -> "Living Room", "bedroom1" -> "Bedroom1"
+   */
+  private String toReadableLabel(String friendlyName) {
+    if (friendlyName == null || friendlyName.isEmpty()) {
+      return friendlyName;
+    }
+
+    StringBuilder result = new StringBuilder();
+    boolean capitalizeNext = true;
+
+    for (int i = 0; i < friendlyName.length(); i++) {
+      char c = friendlyName.charAt(i);
+      if (c == '_' || c == '-') {
+        result.append(' ');
+        capitalizeNext = true;
+      } else if (capitalizeNext) {
+        result.append(Character.toUpperCase(c));
+        capitalizeNext = false;
+      } else {
+        result.append(c);
+      }
+    }
+    return result.toString();
   }
 }

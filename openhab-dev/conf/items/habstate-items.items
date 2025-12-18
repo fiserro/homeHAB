@@ -3,33 +3,35 @@
 //
 // This file contains:
 // - Input items from @InputItem annotations (HRV control parameters)
+// - Output items from @OutputItem annotations (HRV outputs)
 // - Aggregation groups from @NumAgg and @BoolAgg annotations
 //
-// Assign Zigbee device items to these groups manually.
-
-Group gHrvInputs "HRV Inputs"
+// Assign MQTT device items to aggregation groups manually.
 
 // Input items from @InputItem annotations
-Switch manualMode "HRV - Manual Mode" <switch> (gHrvInputs)  // default: OFF
-Switch temporaryManualMode "HRV - Temporary Manual Mode" <switch> (gHrvInputs)  // default: OFF
-Number temporaryManualModeDurationSec "HRV - Temporary Manual Mode Duration Sec" <switch> (gHrvInputs)  // default: 28800
-Switch temporaryBoostMode "HRV - Temporary Boost Mode" <switch> (gHrvInputs)  // default: OFF
-Number temporaryBoostModeDurationSec "HRV - Temporary Boost Mode Duration Sec" <switch> (gHrvInputs)  // default: 600
-Number humidityThreshold "HRV - Humidity Threshold" <energy> (gHrvInputs)  // default: 60
-Number co2ThresholdLow "HRV - Co2 Threshold Low" <energy> (gHrvInputs)  // default: 500
-Number co2ThresholdMid "HRV - Co2 Threshold Mid" <energy> (gHrvInputs)  // default: 700
-Number co2ThresholdHigh "HRV - Co2 Threshold High" <energy> (gHrvInputs)  // default: 900
-Number manualPower "HRV - Manual Power" <energy> (gHrvInputs)  // default: 50
-Number powerLow "HRV - Power Low" <energy> (gHrvInputs)  // default: 15
-Number powerMid "HRV - Power Mid" <energy> (gHrvInputs)  // default: 50
-Number powerHigh "HRV - Power High" <energy> (gHrvInputs)  // default: 95
+Switch manualMode "HRV - Manual Mode" <switch> ["user"]  // default: OFF
+Switch temporaryManualMode "HRV - Temporary Manual Mode" <switch> ["user"]  // default: OFF
+Number temporaryManualModeDurationSec "HRV - Temporary Manual Mode Duration Sec" <switch> ["user"]  // default: 28800
+Switch temporaryBoostMode "HRV - Temporary Boost Mode" <switch> ["user"]  // default: OFF
+Number temporaryBoostModeDurationSec "HRV - Temporary Boost Mode Duration Sec" <switch> ["user"]  // default: 600
+Number humidityThreshold "HRV - Humidity Threshold" <energy> ["user"]  // default: 60
+Number co2ThresholdLow "HRV - Co2 Threshold Low" <energy> ["user"]  // default: 500
+Number co2ThresholdMid "HRV - Co2 Threshold Mid" <energy> ["user"]  // default: 700
+Number co2ThresholdHigh "HRV - Co2 Threshold High" <energy> ["user"]  // default: 900
+Number manualPower "HRV - Manual Power" <energy> ["user"]  // default: 50
+Number powerLow "HRV - Power Low" <energy> ["user"]  // default: 15
+Number powerMid "HRV - Power Mid" <energy> ["user"]  // default: 50
+Number powerHigh "HRV - Power High" <energy> ["user"]  // default: 95
+
+// Output items from @OutputItem annotations
+Dimmer hrvOutputPower "HRV - Hrv Output Power" <energy> ["computed"]
 
 // Aggregation groups from @NumAgg and @BoolAgg annotations
 // Assign Zigbee items to these groups manually
-Group:Number:AVG openWindows "Open Windows" <window>
-Group:Number:MAX humidity "Humidity" <humidity>
-Group:Number:MAX co2 "Co2" <carbondioxide>
-Group:Number:AVG temperature "Temperature" <temperature>
-Group:Number:AVG pressure "Pressure" <pressure>
-Group:Switch:OR(ON,OFF) smoke "Smoke" <smoke>
-Group:Switch:OR(ON,OFF) gas "Gas" <gas>
+Group:Number:AVG openWindows "Open Windows" <window> ["mqtt", "zigbee", "computed"]
+Group:Number:MAX humidity "Humidity" <humidity> ["mqtt", "zigbee", "computed"]
+Group:Number:MAX co2 "Co2" <carbondioxide> ["mqtt", "zigbee", "computed"]
+Group:Number:AVG temperature "Temperature" <temperature> ["mqtt", "zigbee", "computed"]
+Group:Number:AVG pressure "Pressure" <pressure> ["mqtt", "zigbee", "computed"]
+Group:Switch:OR(ON,OFF) smoke "Smoke" <smoke> ["mqtt", "zigbee", "computed"]
+Group:Switch:OR(ON,OFF) gas "Gas" <gas> ["mqtt", "zigbee", "computed"]

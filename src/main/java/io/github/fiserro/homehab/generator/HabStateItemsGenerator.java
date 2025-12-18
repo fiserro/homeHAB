@@ -49,10 +49,7 @@ public class HabStateItemsGenerator {
       // - Output items from @OutputItem annotations (HRV outputs)
       // - Aggregation groups from @NumAgg and @BoolAgg annotations
       //
-      // Assign Zigbee device items to these groups manually.
-
-      Group gHrvInputs "HRV Inputs"
-      Group gHrvOutputs "HRV Outputs"
+      // Assign MQTT device items to aggregation groups manually.
 
       """;
 
@@ -95,6 +92,10 @@ public class HabStateItemsGenerator {
     Files.writeString(outputPath, content.toString());
   }
 
+  private static final String AGG_TAGS = "[\"mqtt\", \"zigbee\", \"computed\"]";
+  private static final String INPUT_TAGS = "[\"user\"]";
+  private static final String OUTPUT_TAGS = "[\"computed\"]";
+
   private static String generateGroupItem(Field field) {
     NumAgg numAgg = field.getAnnotation(NumAgg.class);
     BoolAgg boolAgg = field.getAnnotation(BoolAgg.class);
@@ -110,7 +111,7 @@ public class HabStateItemsGenerator {
       };
       String icon = getIconForGroup(fieldName);
       String label = formatLabel(fieldName);
-      return String.format("Group:Number:%s %s \"%s\" <%s>%n", aggFunc, fieldName, label, icon);
+      return String.format("Group:Number:%s %s \"%s\" <%s> %s%n", aggFunc, fieldName, label, icon, AGG_TAGS);
     } else if (boolAgg != null) {
       String fieldName = field.getName();
       String aggFunc = switch (boolAgg.value()) {
@@ -119,7 +120,7 @@ public class HabStateItemsGenerator {
       };
       String icon = getIconForGroup(fieldName);
       String label = formatLabel(fieldName);
-      return String.format("Group:Switch:%s %s \"%s\" <%s>%n", aggFunc, fieldName, label, icon);
+      return String.format("Group:Switch:%s %s \"%s\" <%s> %s%n", aggFunc, fieldName, label, icon, AGG_TAGS);
     }
     return null;
   }
@@ -144,8 +145,8 @@ public class HabStateItemsGenerator {
     String icon = getInputIcon(itemName);
     String defaultValue = getDefaultValue(field);
 
-    return String.format("%s %s \"HRV - %s\" <%s> (gHrvInputs)  // default: %s%n",
-        itemType, itemName, label, icon, defaultValue);
+    return String.format("%s %s \"HRV - %s\" <%s> %s  // default: %s%n",
+        itemType, itemName, label, icon, INPUT_TAGS, defaultValue);
   }
 
   private static String generateOutputItem(Field field) {
@@ -154,8 +155,8 @@ public class HabStateItemsGenerator {
     String label = formatLabel(itemName);
     String icon = getOutputIcon(itemName);
 
-    return String.format("%s %s \"HRV - %s\" <%s> (gHrvOutputs)%n",
-        itemType, itemName, label, icon);
+    return String.format("%s %s \"HRV - %s\" <%s> %s%n",
+        itemType, itemName, label, icon, OUTPUT_TAGS);
   }
 
   private static String getInputItemType(Class<?> type) {
