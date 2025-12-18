@@ -24,7 +24,7 @@ class HabStateFactoryTest {
   void shouldCreateHabStateWithInputItems() {
     Map<String, State> itemStates = new HashMap<>();
     itemStates.put("manualMode", mockState(OnOffType.ON));
-    itemStates.put("boostMode", mockState(OnOffType.OFF));
+    itemStates.put("temporaryBoostMode", mockState(OnOffType.OFF));
     itemStates.put("humidityThreshold", mockState(new DecimalType(70)));
     itemStates.put("co2ThresholdLow", mockState(new DecimalType(600)));
 
@@ -33,7 +33,7 @@ class HabStateFactoryTest {
     HabState habState = HabStateFactory.of(itemStates, itemMappings);
 
     assertTrue(habState.manualMode());
-    assertFalse(habState.boostMode());
+    assertFalse(habState.temporaryBoostMode());
     assertEquals(70, habState.humidityThreshold());
     assertEquals(600, habState.co2ThresholdLow());
   }
@@ -46,7 +46,7 @@ class HabStateFactoryTest {
     HabState habState = HabStateFactory.of(itemStates, itemMappings);
 
     assertFalse(habState.manualMode());
-    assertFalse(habState.boostMode());
+    assertFalse(habState.temporaryBoostMode());
     assertEquals(60, habState.humidityThreshold());
     assertEquals(500, habState.co2ThresholdLow());
     assertEquals(700, habState.co2ThresholdMid());

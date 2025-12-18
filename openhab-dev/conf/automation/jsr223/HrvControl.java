@@ -29,9 +29,38 @@ public class HrvControl extends Java223Script {
     HabStateFactory.writeState(_items.gOutputs(), events, inputState);
   }
 
-  @Rule(name = "manual.mode", description = "Handle item changes")
+  @Rule(name = "manual.power.changed", description = "Handle manual power changes")
   @ItemStateChangeTrigger(itemName = HabState.Fields.manualPower)
   public void onManualPowerChanged() {
     events.sendCommand(_items.temporaryManualMode(), OnOffType.ON);
   }
+
+  @Rule(name = "manual.mode.changed", description = "Handle manual mode changes")
+  @ItemStateChangeTrigger(itemName = HabState.Fields.manualMode)
+  public void onManualModeChanged() {
+    if (_items.manualMode().getStateAs(OnOffType.class) == OnOffType.ON) {
+      events.sendCommand(_items.temporaryManualMode(), OnOffType.OFF);
+      events.sendCommand(_items.temporaryBoostMode(), OnOffType.OFF);
+    }
+  }
+
+  @Rule(name = "manual.temp.mode.changed", description = "Handle temporary manual mode changes")
+  @ItemStateChangeTrigger(itemName = Fields.temporaryManualMode)
+  public void onTempManualModeChanged() {
+    if (_items.temporaryManualMode().getStateAs(OnOffType.class) == OnOffType.ON) {
+      events.sendCommand(_items.manualMode(), OnOffType.OFF);
+      events.sendCommand(_items.temporaryBoostMode(), OnOffType.OFF);
+    }
+  }
+
+  @Rule(name = "boost.temp.mode.changed", description = "Handle temporary boost mode changes")
+  @ItemStateChangeTrigger(itemName = Fields.temporaryBoostMode)
+  public void onTempBoostModeChanged() {
+    if (_items.temporaryBoostMode().getStateAs(OnOffType.class) == OnOffType.ON) {
+      events.sendCommand(_items.manualMode(), OnOffType.OFF);
+      events.sendCommand(_items.temporaryManualMode(), OnOffType.OFF);
+    }
+  }
+
+
 }

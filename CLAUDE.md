@@ -303,150 +303,86 @@ openhab-dev/
 └── userdata/       # Runtime data (gitignored)
 ```
 
-## Utility Scripts
+## Configuration Generators
 
-### Generate All Configuration
+All configuration is generated using a unified Java-based generator system. The `Generator` class orchestrates all generation tasks.
 
-The project includes a convenience script to generate all OpenHAB configuration files at once.
+**Location:** `src/main/java/io/github/fiserro/homehab/generator/`
 
-**Location:** `scripts/generate-all-config.sh`
+### Running the Generator
 
-**Usage:**
 ```bash
-# Via SSH (recommended)
-./scripts/generate-all-config.sh --ssh user@host
+# Generate all configuration (items + Zigbee)
+mvn exec:java -Dexec.mainClass="io.github.fiserro.homehab.generator.Generator" \
+  -Dexec.args="--sshHost=user@zigbee.home"
 
-# Via MQTT
-./scripts/generate-all-config.sh --mqtt-host zigbee.home
+# Generate only items (no Zigbee)
+mvn exec:java -Dexec.mainClass="io.github.fiserro.homehab.generator.Generator" \
+  -Dexec.args="--zigbeeEnabled=false"
+
+# Initialize items with default values (after OpenHAB restart)
+mvn exec:java -Dexec.mainClass="io.github.fiserro.homehab.generator.Generator" \
+  -Dexec.args="--initEnabled=true --uiEnabled=false --outputEnabled=false --zigbeeEnabled=false"
 ```
+
+### Generator Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--uiEnabled` | `true` | Generate UI/input items |
+| `--outputEnabled` | `true` | Generate output items |
+| `--initEnabled` | `false` | Initialize items with default values via REST API |
+| `--zigbeeEnabled` | `true` | Generate Zigbee Things and Items |
+| `--sshHost` | - | SSH host for Zigbee2MQTT (e.g., `user@host`) |
+| `--mqttHost` | - | MQTT host for Zigbee2MQTT |
+| `--openhabUrl` | `http://localhost:8888` | OpenHAB REST API URL |
+| `--outputDir` | `openhab-dev/conf` | Output directory for generated files |
+
+### UI Items Generator (`UiItemsGenerator`)
+
+Generates OpenHAB items from `HabState.java` fields annotated with `@InputItem`.
+
+**Generated file:** `openhab-dev/conf/items/ui-items.items`
 
 **What it does:**
-1. Runs Java generators to generate input and output configuration items from `HabState.java`
-2. Runs `generate-zigbee-config.py` to generate Zigbee Things and Items
-3. Displays summary of generated files
+- Parses `HabState.java` and extracts `@InputItem` annotated fields
+- Maps Java types to OpenHAB types (boolean → Switch, int → Number)
+- Determines icons based on field names
+- All items belong to `gHrvInputs` group
 
-**After generation:**
-```bash
-# Restart OpenHAB to load configuration
-docker-compose restart openhab
+### Output Items Generator (`OutputItemsGenerator`)
 
-# Check logs
-docker-compose logs -f openhab
-```
+Generates output items from `HabState.java` fields annotated with `@OutputItem`.
 
----
+**Generated file:** `openhab-dev/conf/items/output-items.items`
 
-### Zigbee Configuration Generator
+### Zigbee Generator (`ZigbeeGenerator`)
 
-The project includes a Python script for automatically generating OpenHAB Things and Items configuration from Zigbee2MQTT devices.
-
-**Location:** `scripts/generate-zigbee-config.py`
-
-**Usage:**
-```bash
-# Via SSH (recommended for remote Zigbee2MQTT)
-python3 scripts/generate-zigbee-config.py --ssh user@host
-
-# Via MQTT (requires mosquitto_sub)
-python3 scripts/generate-zigbee-config.py --mqtt-host zigbee.home
-
-# Custom output directory
-python3 scripts/generate-zigbee-config.py --ssh user@host --output-dir path/to/conf
-```
-
-**What it does:**
-- Fetches device list from Zigbee2MQTT via SSH or MQTT
-- Generates `things/zigbee-devices.things` with MQTT Thing definitions for ALL Zigbee devices
-- Generates `items/zigbee-devices.items` with ALL Zigbee items organized by metric category
-- Automatically creates Group items for each metric category (temperature, humidity, smoke, etc.)
-- Automatically maps Zigbee2MQTT exposes to OpenHAB channels
-- Supports switches, sensors, numeric values, and enums
-- Assigns appropriate icons based on metric category
+Generates OpenHAB Things and Items from Zigbee2MQTT devices.
 
 **Generated files:**
 - `openhab-dev/conf/things/zigbee-devices.things` - Thing definitions
 - `openhab-dev/conf/items/zigbee-devices.items` - All Zigbee items with Groups
 
 **Naming conventions:**
-- **Things UID:** `mqtt:topic:zigbee:<ieee>` (e.g., `mqtt:topic:zigbee:0xa4c138aa8b540e22`)
-- **Channel label:** `[zigbee, <category>]` (e.g., `[zigbee, smoke]`, `[zigbee, humidity]`)
-- **Item name:** `mqttZigbee<Category>_<ieee>` (e.g., `mqttZigbeeSmoke_0xa4c138aa8b540e22`)
-- **Group name:** `gZigbee<Category>` (e.g., `gZigbeeSmoke`, `gZigbeeHumidity`)
+- **Things UID:** `mqtt:topic:zigbee:<ieee>`
+- **Item name:** `mqttZigbee<Category>_<ieee>`
+- **Group name:** `gZigbee<Category>`
 
-**After generation:**
-```bash
-# Review generated files
-cat openhab-dev/conf/things/zigbee-devices.things
-cat openhab-dev/conf/items/zigbee-devices.items
+### Items Initializer (`Initializer`)
 
-# Restart OpenHAB to load configuration
-docker-compose restart openhab
-```
-
-**Important:**
-- Generated files should NOT be edited manually
-- Re-run the script whenever Zigbee devices are added/removed
-- The script skips the Zigbee coordinator device automatically
-- Generates on a clean slate - removed devices will be automatically removed from configuration
-
-### Input and Output Items Generator
-
-The project includes Java-based generators for creating OpenHAB items from `HabState.java` annotations.
-
-**Location:** `src/main/java/io/github/fiserro/homehab/generator/`
+Initializes OpenHAB items with default values from `HabState.builder().build()` via REST API.
 
 **Usage:**
 ```bash
-# Generate both input and output items
-./scripts/generate-items.sh
-
-# Or use Java directly
-java -cp target/homeHAB-1.0-SNAPSHOT-shaded.jar \
-  io.github.fiserro.homehab.generator.Generator openhab-dev/conf/items
-```
-
-**What it does:**
-- **InputItemsGenerator**: Parses `HabState.java` and extracts all `@InputItem` annotated fields
-  - Generates `items/input-items.items` with appropriate item types (Switch for boolean, Number for int)
-  - Automatically determines icons based on field names (switch, energy, line, time, settings)
-  - Uses field names directly (camelCase)
-  - All items belong to `gHrvInputs` group
-
-- **OutputItemsGenerator**: Parses `HabState.java` and extracts all `@OutputItem` annotated fields
-  - Generates `items/output-items.items` with appropriate item types
-  - Automatically maps Java types to OpenHAB types (int → Dimmer, boolean → Switch)
-  - Determines icons based on field names (energy, fan, settings)
-  - All items belong to `gOutputs` group
-
-**Generated files:**
-- `openhab-dev/conf/items/input-items.items` - Input configuration items
-- `openhab-dev/conf/items/output-items.items` - Output items
-
-**Naming conventions:**
-- Input items: `<fieldName>` (camelCase, matching HabState.java field names)
-  - Examples: `manualMode`, `humidityThreshold`, `co2ThresholdLow`, `temporaryBoostModeDurationSec`
-- Output items: `<fieldName>` (camelCase)
-  - Example: `hrvOutputPower`
-
-### Items Initializer
-
-The project includes a Java-based initializer for setting default values on OpenHAB items via REST API.
-
-**Location:** `src/main/java/io/github/fiserro/homehab/generator/ItemsInitializer.java`
-
-**Usage:**
-```bash
-# Initialize all items with default values
-./scripts/init-items.sh http://localhost:8888
-
-# Or use Java directly
-java -cp target/homeHAB-1.0-SNAPSHOT-shaded.jar \
-  io.github.fiserro.homehab.generator.ItemsInitializer http://localhost:8888
+# After generating items and restarting OpenHAB:
+mvn exec:java -Dexec.mainClass="io.github.fiserro.homehab.generator.Generator" \
+  -Dexec.args="--initEnabled=true --uiEnabled=false --outputEnabled=false --zigbeeEnabled=false"
 ```
 
 **What it does:**
 - Reads default values from `HabState.builder().build()`
-- Sends HTTP PUT requests to OpenHAB REST API to initialize item states
+- Sends HTTP PUT requests to OpenHAB REST API to set item states
 - Initializes both `@InputItem` and `@OutputItem` annotated fields
 - Reports success/failure for each item
 
@@ -461,7 +397,7 @@ The project uses specific naming conventions for different types of items:
 
 ### Zigbee Items
 
-Generated by `scripts/generate-zigbee-config.py`:
+Generated by `ZigbeeGenerator.java`:
 
 - **Things UID:** `mqtt:topic:zigbee:<ieee>`
   - Example: `mqtt:topic:zigbee:0xa4c138aa8b540e22`
@@ -486,15 +422,14 @@ The project uses **three auto-generated items files**:
 
 1. **`openhab-dev/conf/items/zigbee-devices.items`**
    - ALL Zigbee device items organized by metric category
-   - Auto-generated by `generate-zigbee-config.py`
+   - Auto-generated by `ZigbeeGenerator.java`
    - Includes Group definitions for each category
    - Contains items like: `mqttZigbeeSmoke_0xa4c138aa8b540e22`, `mqttZigbeeHumidity_0x00158d008b8b7beb`
 
-2. **`openhab-dev/conf/items/input-items.items`**
+2. **`openhab-dev/conf/items/ui-items.items`**
    - Input configuration parameters in camelCase
-   - Auto-generated by `InputItemsGenerator.java` from `HabState.java` `@InputItem` fields
-   - Contains items like: `manualMode`, `humidityThreshold`, `co2ThresholdLow`
-   - All labels prefixed with "HRV - "
+   - Auto-generated by `UiItemsGenerator.java` from `HabState.java` `@InputItem` fields
+   - Contains items like: `manualMode`, `humidityThreshold`, `powerLow`
    - All items belong to `gHrvInputs` group
 
 3. **`openhab-dev/conf/items/output-items.items`**

@@ -6,7 +6,6 @@ Group gHrvInputs "HRV Inputs"
 Switch manualMode "HRV - Manual Mode" <switch> (gHrvInputs)  // default: OFF
 Switch temporaryManualMode "HRV - Temporary Manual Mode" <switch> (gHrvInputs)  // default: OFF
 Number temporaryManualModeDurationSec "HRV - Temporary Manual Mode Duration Sec" <switch> (gHrvInputs)  // default: 28800
-Switch boostMode "HRV - Boost Mode" <switch> (gHrvInputs)  // default: OFF
 Switch temporaryBoostMode "HRV - Temporary Boost Mode" <switch> (gHrvInputs)  // default: OFF
 Number temporaryBoostModeDurationSec "HRV - Temporary Boost Mode Duration Sec" <switch> (gHrvInputs)  // default: 600
 Number humidityThreshold "HRV - Humidity Threshold" <energy> (gHrvInputs)  // default: 60
@@ -14,11 +13,6 @@ Number co2ThresholdLow "HRV - Co2 Threshold Low" <energy> (gHrvInputs)  // defau
 Number co2ThresholdMid "HRV - Co2 Threshold Mid" <energy> (gHrvInputs)  // default: 700
 Number co2ThresholdHigh "HRV - Co2 Threshold High" <energy> (gHrvInputs)  // default: 900
 Number manualPower "HRV - Manual Power" <energy> (gHrvInputs)  // default: 50
-Number boostPower "HRV - Boost Power" <energy> (gHrvInputs)  // default: 95
-Number smokePower "HRV - Smoke Power" <energy> (gHrvInputs)  // default: 0
-Number gasPower "HRV - Gas Power" <energy> (gHrvInputs)  // default: 95
-Number humidityPower "HRV - Humidity Power" <energy> (gHrvInputs)  // default: 95
-Number co2PowerLow "HRV - Co2 Power Low" <energy> (gHrvInputs)  // default: 15
-Number co2PowerMid "HRV - Co2 Power Mid" <energy> (gHrvInputs)  // default: 50
-Number co2PowerHigh "HRV - Co2 Power High" <energy> (gHrvInputs)  // default: 95
-Number basePower "HRV - Base Power" <energy> (gHrvInputs)  // default: 50
+Number powerLow "HRV - Power Low" <energy> (gHrvInputs)  // default: 15
+Number powerMid "HRV - Power Mid" <energy> (gHrvInputs)  // default: 50
+Number powerHigh "HRV - Power High" <energy> (gHrvInputs)  // default: 95

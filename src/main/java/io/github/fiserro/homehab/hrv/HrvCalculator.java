@@ -21,34 +21,34 @@ public class HrvCalculator implements Calculator {
             return habState.manualPower();
         }
 
-        if (habState.boostMode() || habState.temporaryBoostMode()) {
-            return habState.boostPower();
+        if (habState.temporaryBoostMode()) {
+            return habState.powerHigh();
         }
 
         if (habState.gas()) {
-            return habState.gasPower();
+            return habState.powerHigh();
         }
 
         if (habState.smoke()) {
-            return habState.smokePower();
+            return HabState.POWER_OFF;
         }
 
         if (habState.humidity() >= habState.humidityThreshold()) {
-            return habState.humidityPower();
+            return habState.powerHigh();
         }
 
         if (habState.co2() >= habState.co2ThresholdHigh()) {
-            return habState.co2PowerHigh();
+            return habState.powerHigh();
         }
 
         if (habState.co2() >= habState.co2ThresholdMid()) {
-            return habState.co2PowerMid();
+            return habState.powerMid();
         }
 
         if (habState.co2() >= habState.co2ThresholdLow()) {
-            return habState.co2PowerLow();
+            return habState.powerLow();
         }
 
-        return habState.basePower();
+        return habState.powerLow();
     }
 }
