@@ -1,0 +1,190 @@
+package io.github.fiserro.homehab.generator;
+
+import io.github.fiserro.homehab.BoolAgg;
+import io.github.fiserro.homehab.BooleanAggregation;
+import io.github.fiserro.homehab.HabState;
+import io.github.fiserro.homehab.InputItem;
+import io.github.fiserro.homehab.NumAgg;
+import io.github.fiserro.homehab.NumericAggregation;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * Generates OpenHAB items from {@link HabState} field annotations.
+ *
+ * <p>This generator creates OpenHAB items based on annotations in the {@link HabState} class:
+ *
+ * <ul>
+ *   <li>{@link InputItem} - generates input items (switches, numbers) for HRV control parameters
+ *   <li>{@link NumAgg} - generates aggregation groups for numeric values (e.g., humidity, temperature)
+ *   <li>{@link BoolAgg} - generates aggregation groups for boolean values (e.g., smoke detectors)
+ * </ul>
+ *
+ * <p>The generated groups are empty - Zigbee device items should be manually assigned to these
+ * groups based on the desired aggregation behavior.
+ *
+ * <p>Output file: {@code items/habstate-items.items}
+ *
+ * @see HabState
+ * @see InputItem
+ * @see NumAgg
+ * @see BoolAgg
+ */
+@Slf4j
+public class HabStateItemsGenerator {
+
+  private static final String HEADER = """
+      // Auto-generated from HabState.java annotations
+      // DO NOT EDIT - changes will be overwritten
+      //
+      // This file contains:
+      // - Input items from @InputItem annotations (HRV control parameters)
+      // - Aggregation groups from @NumAgg and @BoolAgg annotations
+      //
+      // Assign Zigbee device items to these groups manually.
+
+      Group gHrvInputs "HRV Inputs"
+
+      """;
+
+  public void generate(GeneratorOptions options) throws IOException {
+    Path outputPath = Paths.get(options.outputDir(), "items", "habstate-items.items");
+    log.info("Generating HabState items to: {}", outputPath);
+    generate(outputPath);
+    log.info("Generated HabState items to: {}", outputPath);
+  }
+
+  public static void generate(Path outputPath) throws IOException {
+    StringBuilder content = new StringBuilder(HEADER);
+
+    // Generate input items
+    content.append("// Input items from @InputItem annotations\n");
+    for (Field field : HabState.class.getDeclaredFields()) {
+      if (field.isAnnotationPresent(InputItem.class)) {
+        content.append(generateItem(field));
+      }
+    }
+
+    // Generate group items from @NumAgg and @BoolAgg annotations
+    content.append("\n// Aggregation groups from @NumAgg and @BoolAgg annotations\n");
+    content.append("// Assign Zigbee items to these groups manually\n");
+    for (Field field : HabState.class.getDeclaredFields()) {
+      String groupDef = generateGroupItem(field);
+      if (groupDef != null) {
+        content.append(groupDef);
+      }
+    }
+
+    Files.writeString(outputPath, content.toString());
+  }
+
+  private static String generateGroupItem(Field field) {
+    NumAgg numAgg = field.getAnnotation(NumAgg.class);
+    BoolAgg boolAgg = field.getAnnotation(BoolAgg.class);
+
+    if (numAgg != null) {
+      String fieldName = field.getName();
+      String aggFunc = switch (numAgg.value()) {
+        case MAX -> "MAX";
+        case MIN -> "MIN";
+        case AVG -> "AVG";
+        case SUM -> "SUM";
+        case COUNT -> "COUNT";
+      };
+      String icon = getIconForGroup(fieldName);
+      String label = formatLabel(fieldName);
+      return String.format("Group:Number:%s %s \"%s\" <%s>%n", aggFunc, fieldName, label, icon);
+    } else if (boolAgg != null) {
+      String fieldName = field.getName();
+      String aggFunc = switch (boolAgg.value()) {
+        case OR -> "OR(ON,OFF)";
+        case AND -> "AND(ON,OFF)";
+      };
+      String icon = getIconForGroup(fieldName);
+      String label = formatLabel(fieldName);
+      return String.format("Group:Switch:%s %s \"%s\" <%s>%n", aggFunc, fieldName, label, icon);
+    }
+    return null;
+  }
+
+  private static String getIconForGroup(String fieldName) {
+    String lower = fieldName.toLowerCase();
+    if (lower.contains("temperature")) return "temperature";
+    if (lower.contains("humidity")) return "humidity";
+    if (lower.contains("pressure")) return "pressure";
+    if (lower.contains("co2")) return "carbondioxide";
+    if (lower.contains("smoke")) return "smoke";
+    if (lower.contains("gas")) return "gas";
+    if (lower.contains("contact")) return "contact";
+    if (lower.contains("window")) return "window";
+    return "none";
+  }
+
+  private static String generateItem(Field field) {
+    String itemName = field.getName();
+    String itemType = getItemType(field.getType());
+    String label = formatLabel(itemName);
+    String icon = getIcon(itemName);
+    String defaultValue = getDefaultValue(field);
+
+    return String.format("%s %s \"HRV - %s\" <%s> (gHrvInputs)  // default: %s%n",
+        itemType, itemName, label, icon, defaultValue);
+  }
+
+  private static String getItemType(Class<?> type) {
+    if (type == boolean.class) {
+      return "Switch";
+    } else if (type == int.class || type == float.class) {
+      return "Number";
+    }
+    throw new IllegalArgumentException("Unsupported type: " + type);
+  }
+
+  private static String formatLabel(String fieldName) {
+    StringBuilder label = new StringBuilder();
+    for (int i = 0; i < fieldName.length(); i++) {
+      char c = fieldName.charAt(i);
+      if (i > 0 && Character.isUpperCase(c)) {
+        label.append(' ');
+      }
+      if (i == 0) {
+        label.append(Character.toUpperCase(c));
+      } else {
+        label.append(c);
+      }
+    }
+    return label.toString();
+  }
+
+  private static String getIcon(String fieldName) {
+    String lower = fieldName.toLowerCase();
+    if (lower.contains("mode")) {
+      return "switch";
+    } else if (lower.contains("power") || lower.contains("threshold")) {
+      return "energy";
+    } else if (lower.contains("duration") || lower.contains("time")) {
+      return "time";
+    } else if (lower.contains("co2") || lower.contains("humidity")) {
+      return "line";
+    }
+    return "settings";
+  }
+
+  private static String getDefaultValue(Field field) {
+    try {
+      HabState defaultState = HabState.builder().build();
+      field.setAccessible(true);
+      Object value = field.get(defaultState);
+      if (value instanceof Boolean) {
+        return (Boolean) value ? "ON" : "OFF";
+      }
+      return String.valueOf(value);
+    } catch (Exception e) {
+      return "?";
+    }
+  }
+}

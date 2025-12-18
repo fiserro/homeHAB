@@ -19,8 +19,8 @@ public interface GeneratorOptions extends Options<GeneratorOptions> {
     return "openhab-dev/conf";
   }
 
-  @Option(description = "Enables UI items generation")
-  default boolean uiEnabled() {
+  @Option(description = "Enables HabState items generation (input items + aggregation groups)")
+  default boolean habStateEnabled() {
     return true;
   }
 

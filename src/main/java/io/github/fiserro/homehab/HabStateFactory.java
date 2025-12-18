@@ -96,7 +96,7 @@ public class HabStateFactory {
     if (items.isEmpty()) {
       return Optional.empty();
     }
-    val aggregate = field.getAnnotation(Aggregate.class);
+    val aggregate = field.getAnnotation(NumAgg.class);
     if (items.size() > 1 && aggregate == null) {
       throw new IllegalArgumentException(
           "More than one MQTT item found for field " + field.getName());

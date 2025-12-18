@@ -1,8 +1,15 @@
-// Auto-generated from HabState.java @InputItem annotations
+// Auto-generated from HabState.java annotations
 // DO NOT EDIT - changes will be overwritten
+//
+// This file contains:
+// - Input items from @InputItem annotations (HRV control parameters)
+// - Aggregation groups from @NumAgg and @BoolAgg annotations
+//
+// Assign Zigbee device items to these groups manually.
 
 Group gHrvInputs "HRV Inputs"
 
+// Input items from @InputItem annotations
 Switch manualMode "HRV - Manual Mode" <switch> (gHrvInputs)  // default: OFF
 Switch temporaryManualMode "HRV - Temporary Manual Mode" <switch> (gHrvInputs)  // default: OFF
 Number temporaryManualModeDurationSec "HRV - Temporary Manual Mode Duration Sec" <switch> (gHrvInputs)  // default: 28800
@@ -16,3 +23,13 @@ Number manualPower "HRV - Manual Power" <energy> (gHrvInputs)  // default: 50
 Number powerLow "HRV - Power Low" <energy> (gHrvInputs)  // default: 15
 Number powerMid "HRV - Power Mid" <energy> (gHrvInputs)  // default: 50
 Number powerHigh "HRV - Power High" <energy> (gHrvInputs)  // default: 95
+
+// Aggregation groups from @NumAgg and @BoolAgg annotations
+// Assign Zigbee items to these groups manually
+Group:Number:AVG openWindows "Open Windows" <window>
+Group:Number:MAX humidity "Humidity" <humidity>
+Group:Number:MAX co2 "Co2" <carbondioxide>
+Group:Number:AVG temperature "Temperature" <temperature>
+Group:Number:AVG pressure "Pressure" <pressure>
+Group:Switch:OR(ON,OFF) smoke "Smoke" <smoke>
+Group:Switch:OR(ON,OFF) gas "Gas" <gas>

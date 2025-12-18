@@ -8,7 +8,7 @@ import lombok.val;
  * General-purpose aggregation type for combining multiple values. Can be used for HRV and other
  * systems in homeHAB.
  */
-public enum AggregationType {
+public enum NumericAggregation {
   MIN,
   MAX,
   SUM,

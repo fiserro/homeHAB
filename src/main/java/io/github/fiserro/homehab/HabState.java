@@ -20,13 +20,13 @@ public record HabState(
     @InputItem int powerLow,
     @InputItem int powerMid,
     @InputItem int powerHigh,
-    @Aggregate(AggregationType.AVG) @MqttItem float openWindows,
-    @Aggregate(AggregationType.MAX) @MqttItem int humidity,
-    @Aggregate(AggregationType.MAX) @MqttItem int co2,
-    @Aggregate(AggregationType.AVG) @MqttItem int temperature,
-    @Aggregate(AggregationType.AVG) @MqttItem int pressure,
-    @Aggregate(AggregationType.MAX) @MqttItem boolean smoke,
-    @Aggregate(AggregationType.MAX) @MqttItem boolean gas,
+    @NumAgg(NumericAggregation.AVG) @MqttItem float openWindows,
+    @NumAgg(NumericAggregation.MAX) @MqttItem int humidity,
+    @NumAgg(NumericAggregation.MAX) @MqttItem int co2,
+    @NumAgg(NumericAggregation.AVG) @MqttItem int temperature,
+    @NumAgg(NumericAggregation.AVG) @MqttItem int pressure,
+    @BoolAgg(BooleanAggregation.OR) @MqttItem boolean smoke,
+    @BoolAgg(BooleanAggregation.OR) @MqttItem boolean gas,
     @With @OutputItem int hrvOutputPower) {
 
   public static final int POWER_OFF = 0;

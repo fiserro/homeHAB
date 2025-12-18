@@ -14,11 +14,11 @@ public class Generator {
     try {
       log.info("Generating all OpenHAB configuration...");
 
-      // Generate UI items
-      if (options.uiEnabled()) {
-        log.info("Generating UI items...");
-        new UiItemsGenerator().generate(options);
-        log.info("Generated UI items");
+      // Generate HabState items (input items + aggregation groups)
+      if (options.habStateEnabled()) {
+        log.info("Generating HabState items...");
+        new HabStateItemsGenerator().generate(options);
+        log.info("Generated HabState items");
       }
 
       // Generate output items
