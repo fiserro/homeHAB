@@ -5,60 +5,60 @@
 // relay1
 Number relay1Linkquality "Relay1 Linkquality" <network> ["0xa4c13856c27757e5", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c13856c27757e5:linkquality" }
 
-// humidity1
-Number humidity1Battery "Humidity1 Battery" <battery> ["0x00158d008b8b7beb", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb:battery" }
-Number humidity1Temperature "Humidity1 Temperature" <temperature> ["0x00158d008b8b7beb", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb:temperature" }
-Number humidity1Humidity "Humidity1 Humidity" <humidity> ["0x00158d008b8b7beb", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb:humidity" }
-Number humidity1Pressure "Humidity1 Pressure" <pressure> ["0x00158d008b8b7beb", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb:pressure" }
-Number humidity1Voltage "Humidity1 Voltage" <energy> ["0x00158d008b8b7beb", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb:voltage" }
-Number humidity1Linkquality "Humidity1 Linkquality" <network> ["0x00158d008b8b7beb", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb:linkquality" }
+// aqara1
+Number aqara1Battery "Aqara1 Battery" <battery> ["0x00158d008b8b7beb", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb:battery" }
+Number aqara1Temperature "Aqara1 Temperature" <temperature> (temperature) ["0x00158d008b8b7beb", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb:temperature" }
+Number aqara1Humidity "Aqara1 Humidity" <humidity> (humidity) ["0x00158d008b8b7beb", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb:humidity" }
+Number aqara1Pressure "Aqara1 Pressure" <pressure> (pressure) ["0x00158d008b8b7beb", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb:pressure" }
+Number aqara1Voltage "Aqara1 Voltage" <energy> ["0x00158d008b8b7beb", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb:voltage" }
+Number aqara1Linkquality "Aqara1 Linkquality" <network> ["0x00158d008b8b7beb", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb:linkquality" }
 
 // smoke1
-Switch smoke1Smoke "Smoke1 Smoke" <smoke> ["0xa4c138aa8b540e22", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c138aa8b540e22:smoke" }
+Switch smoke1Smoke "Smoke1 Smoke" <smoke> (smoke) ["0xa4c138aa8b540e22", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c138aa8b540e22:smoke" }
 Number smoke1Battery "Smoke1 Battery" <battery> ["0xa4c138aa8b540e22", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c138aa8b540e22:battery" }
 Number smoke1Linkquality "Smoke1 Linkquality" <network> ["0xa4c138aa8b540e22", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c138aa8b540e22:linkquality" }
 
 // soil1
-Number soil1Temperature "Soil1 Temperature" <temperature> ["0xa4c1387eee7fa96f", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c1387eee7fa96f:temperature" }
-Number soil1Humidity "Soil1 Humidity" <humidity> ["0xa4c1387eee7fa96f", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c1387eee7fa96f:humidity" }
+Number soil1Temperature "Soil1 Temperature" <temperature> (temperature) ["0xa4c1387eee7fa96f", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c1387eee7fa96f:temperature" }
+Number soil1Humidity "Soil1 Humidity" <humidity> (soil) ["0xa4c1387eee7fa96f", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c1387eee7fa96f:humidity" }
 Number soil1Battery "Soil1 Battery" <battery> ["0xa4c1387eee7fa96f", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c1387eee7fa96f:battery" }
 Number soil1Linkquality "Soil1 Linkquality" <network> ["0xa4c1387eee7fa96f", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c1387eee7fa96f:linkquality" }
 
 // soil2
-Number soil2Temperature "Soil2 Temperature" <temperature> ["0xa4c138df52a26212", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c138df52a26212:temperature" }
+Number soil2Temperature "Soil2 Temperature" <temperature> (temperature) ["0xa4c138df52a26212", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c138df52a26212:temperature" }
 Number soil2Humidity "Soil2 Humidity" <humidity> ["0xa4c138df52a26212", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c138df52a26212:humidity" }
 Number soil2Battery "Soil2 Battery" <battery> ["0xa4c138df52a26212", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c138df52a26212:battery" }
 Number soil2Linkquality "Soil2 Linkquality" <network> ["0xa4c138df52a26212", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c138df52a26212:linkquality" }
 
 // soil3
-Number soil3Temperature "Soil3 Temperature" <temperature> ["0xa4c1384a743fbde0", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c1384a743fbde0:temperature" }
-Number soil3Humidity "Soil3 Humidity" <humidity> ["0xa4c1384a743fbde0", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c1384a743fbde0:humidity" }
+Number soil3Temperature "Soil3 Temperature" <temperature> (temperature) ["0xa4c1384a743fbde0", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c1384a743fbde0:temperature" }
+Number soil3Humidity "Soil3 Humidity" <humidity> (soil) ["0xa4c1384a743fbde0", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c1384a743fbde0:humidity" }
 Number soil3Battery "Soil3 Battery" <battery> ["0xa4c1384a743fbde0", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c1384a743fbde0:battery" }
 Number soil3Linkquality "Soil3 Linkquality" <network> ["0xa4c1384a743fbde0", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c1384a743fbde0:linkquality" }
 
-// humidity2
-Number humidity2Battery "Humidity2 Battery" <battery> ["0x00158d008b8b7c2d", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c2d:battery" }
-Number humidity2Temperature "Humidity2 Temperature" <temperature> ["0x00158d008b8b7c2d", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c2d:temperature" }
-Number humidity2Humidity "Humidity2 Humidity" <humidity> ["0x00158d008b8b7c2d", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c2d:humidity" }
-Number humidity2Pressure "Humidity2 Pressure" <pressure> ["0x00158d008b8b7c2d", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c2d:pressure" }
-Number humidity2Voltage "Humidity2 Voltage" <energy> ["0x00158d008b8b7c2d", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c2d:voltage" }
-Number humidity2Linkquality "Humidity2 Linkquality" <network> ["0x00158d008b8b7c2d", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c2d:linkquality" }
+// aqara2
+Number aqara2Battery "Aqara2 Battery" <battery> ["0x00158d008b8b7c2d", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c2d:battery" }
+Number aqara2Temperature "Aqara2 Temperature" <temperature> (temperature) ["0x00158d008b8b7c2d", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c2d:temperature" }
+Number aqara2Humidity "Aqara2 Humidity" <humidity> (humidity) ["0x00158d008b8b7c2d", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c2d:humidity" }
+Number aqara2Pressure "Aqara2 Pressure" <pressure> (pressure) ["0x00158d008b8b7c2d", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c2d:pressure" }
+Number aqara2Voltage "Aqara2 Voltage" <energy> ["0x00158d008b8b7c2d", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c2d:voltage" }
+Number aqara2Linkquality "Aqara2 Linkquality" <network> ["0x00158d008b8b7c2d", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c2d:linkquality" }
 
-// humidity3
-Number humidity3Battery "Humidity3 Battery" <battery> ["0x00158d008b8b7c50", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c50:battery" }
-Number humidity3Temperature "Humidity3 Temperature" <temperature> ["0x00158d008b8b7c50", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c50:temperature" }
-Number humidity3Humidity "Humidity3 Humidity" <humidity> ["0x00158d008b8b7c50", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c50:humidity" }
-Number humidity3Pressure "Humidity3 Pressure" <pressure> ["0x00158d008b8b7c50", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c50:pressure" }
-Number humidity3Voltage "Humidity3 Voltage" <energy> ["0x00158d008b8b7c50", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c50:voltage" }
-Number humidity3Linkquality "Humidity3 Linkquality" <network> ["0x00158d008b8b7c50", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c50:linkquality" }
+// aqara3
+Number aqara3Battery "Aqara3 Battery" <battery> ["0x00158d008b8b7c50", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c50:battery" }
+Number aqara3Temperature "Aqara3 Temperature" <temperature> (temperature) ["0x00158d008b8b7c50", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c50:temperature" }
+Number aqara3Humidity "Aqara3 Humidity" <humidity> (humidity) ["0x00158d008b8b7c50", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c50:humidity" }
+Number aqara3Pressure "Aqara3 Pressure" <pressure> (pressure) ["0x00158d008b8b7c50", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c50:pressure" }
+Number aqara3Voltage "Aqara3 Voltage" <energy> ["0x00158d008b8b7c50", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c50:voltage" }
+Number aqara3Linkquality "Aqara3 Linkquality" <network> ["0x00158d008b8b7c50", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c50:linkquality" }
 
 // smoke2
-Switch smoke2Smoke "Smoke2 Smoke" <smoke> ["0xa4c138085ad275de", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c138085ad275de:smoke" }
+Switch smoke2Smoke "Smoke2 Smoke" <smoke> (smoke) ["0xa4c138085ad275de", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c138085ad275de:smoke" }
 Number smoke2Battery "Smoke2 Battery" <battery> ["0xa4c138085ad275de", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c138085ad275de:battery" }
 Number smoke2Linkquality "Smoke2 Linkquality" <network> ["0xa4c138085ad275de", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c138085ad275de:linkquality" }
 
 // smoke3
-Switch smoke3Smoke "Smoke3 Smoke" <smoke> ["0xa4c138944e997eec", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c138944e997eec:smoke" }
+Switch smoke3Smoke "Smoke3 Smoke" <smoke> (smoke) ["0xa4c138944e997eec", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c138944e997eec:smoke" }
 Number smoke3Battery "Smoke3 Battery" <battery> ["0xa4c138944e997eec", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c138944e997eec:battery" }
 Number smoke3Linkquality "Smoke3 Linkquality" <network> ["0xa4c138944e997eec", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c138944e997eec:linkquality" }
 

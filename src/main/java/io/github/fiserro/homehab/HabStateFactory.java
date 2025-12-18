@@ -51,7 +51,7 @@ public class HabStateFactory {
     });
   }
 
-  public static HabState of(Map<String, State> itemStates, MqttItemMappings itemMappings) {
+  public static HabState of(Map<String, State> itemStates) {
 
     val builder = HabState.builder();
 
@@ -82,31 +82,6 @@ public class HabStateFactory {
   private static Optional<Object> loadInputItem(Map<String, State> itemStates, Field field) {
     Object value = getItemValue(itemStates, field);
     return Optional.ofNullable(value);
-  }
-
-  private static Optional<Object> loadMqttItem(
-      Map<String, State> itemStates,
-      MqttItemMappings itemMappings,
-      String fieldName,
-      Field field) {
-    if (!field.isAnnotationPresent(MqttItem.class)) {
-      return Optional.empty();
-    }
-    val items = itemMappings.get(fieldName);
-    if (items.isEmpty()) {
-      return Optional.empty();
-    }
-    val aggregate = field.getAnnotation(NumAgg.class);
-    if (items.size() > 1 && aggregate == null) {
-      throw new IllegalArgumentException(
-          "More than one MQTT item found for field " + field.getName());
-    }
-
-    val values =
-        items.stream().map(item -> getMqttItemValue(itemStates, item, field.getType())).toList();
-    val value = aggregate.value().aggregate(values);
-
-    return Optional.of(value);
   }
 
   private static @Nullable Object getItemValue(Map<String, State> itemStates, Field field) {

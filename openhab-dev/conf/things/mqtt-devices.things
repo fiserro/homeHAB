@@ -25,33 +25,33 @@ Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c13856c27757e5 "relay1" (mqtt:broker:zig
         ]
 }
 
-Thing mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb "humidity1" (mqtt:broker:zigbee2mqtt) [
-    stateTopic="zigbee2mqtt/humidity1",
-    commandTopic="zigbee2mqtt/humidity1/set"
+Thing mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb "aqara1" (mqtt:broker:zigbee2mqtt) [
+    stateTopic="zigbee2mqtt/aqara1",
+    commandTopic="zigbee2mqtt/aqara1/set"
 ] {
     Channels:
         Type number : battery "Battery" [
-            stateTopic="zigbee2mqtt/humidity1",
+            stateTopic="zigbee2mqtt/aqara1",
             transformationPattern="JSONPATH:$.battery"
         ]
         Type number : temperature "Temperature" [
-            stateTopic="zigbee2mqtt/humidity1",
+            stateTopic="zigbee2mqtt/aqara1",
             transformationPattern="JSONPATH:$.temperature"
         ]
         Type number : humidity "Humidity" [
-            stateTopic="zigbee2mqtt/humidity1",
+            stateTopic="zigbee2mqtt/aqara1",
             transformationPattern="JSONPATH:$.humidity"
         ]
         Type number : pressure "Pressure" [
-            stateTopic="zigbee2mqtt/humidity1",
+            stateTopic="zigbee2mqtt/aqara1",
             transformationPattern="JSONPATH:$.pressure"
         ]
         Type number : voltage "Voltage" [
-            stateTopic="zigbee2mqtt/humidity1",
+            stateTopic="zigbee2mqtt/aqara1",
             transformationPattern="JSONPATH:$.voltage"
         ]
         Type number : linkquality "Linkquality" [
-            stateTopic="zigbee2mqtt/humidity1",
+            stateTopic="zigbee2mqtt/aqara1",
             transformationPattern="JSONPATH:$.linkquality"
         ]
 }
@@ -278,64 +278,64 @@ Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c1384a743fbde0 "soil3" (mqtt:broker:zigb
         ]
 }
 
-Thing mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c2d "humidity2" (mqtt:broker:zigbee2mqtt) [
-    stateTopic="zigbee2mqtt/humidity2",
-    commandTopic="zigbee2mqtt/humidity2/set"
+Thing mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c2d "aqara2" (mqtt:broker:zigbee2mqtt) [
+    stateTopic="zigbee2mqtt/aqara2",
+    commandTopic="zigbee2mqtt/aqara2/set"
 ] {
     Channels:
         Type number : battery "Battery" [
-            stateTopic="zigbee2mqtt/humidity2",
+            stateTopic="zigbee2mqtt/aqara2",
             transformationPattern="JSONPATH:$.battery"
         ]
         Type number : temperature "Temperature" [
-            stateTopic="zigbee2mqtt/humidity2",
+            stateTopic="zigbee2mqtt/aqara2",
             transformationPattern="JSONPATH:$.temperature"
         ]
         Type number : humidity "Humidity" [
-            stateTopic="zigbee2mqtt/humidity2",
+            stateTopic="zigbee2mqtt/aqara2",
             transformationPattern="JSONPATH:$.humidity"
         ]
         Type number : pressure "Pressure" [
-            stateTopic="zigbee2mqtt/humidity2",
+            stateTopic="zigbee2mqtt/aqara2",
             transformationPattern="JSONPATH:$.pressure"
         ]
         Type number : voltage "Voltage" [
-            stateTopic="zigbee2mqtt/humidity2",
+            stateTopic="zigbee2mqtt/aqara2",
             transformationPattern="JSONPATH:$.voltage"
         ]
         Type number : linkquality "Linkquality" [
-            stateTopic="zigbee2mqtt/humidity2",
+            stateTopic="zigbee2mqtt/aqara2",
             transformationPattern="JSONPATH:$.linkquality"
         ]
 }
 
-Thing mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c50 "humidity3" (mqtt:broker:zigbee2mqtt) [
-    stateTopic="zigbee2mqtt/humidity3",
-    commandTopic="zigbee2mqtt/humidity3/set"
+Thing mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c50 "aqara3" (mqtt:broker:zigbee2mqtt) [
+    stateTopic="zigbee2mqtt/aqara3",
+    commandTopic="zigbee2mqtt/aqara3/set"
 ] {
     Channels:
         Type number : battery "Battery" [
-            stateTopic="zigbee2mqtt/humidity3",
+            stateTopic="zigbee2mqtt/aqara3",
             transformationPattern="JSONPATH:$.battery"
         ]
         Type number : temperature "Temperature" [
-            stateTopic="zigbee2mqtt/humidity3",
+            stateTopic="zigbee2mqtt/aqara3",
             transformationPattern="JSONPATH:$.temperature"
         ]
         Type number : humidity "Humidity" [
-            stateTopic="zigbee2mqtt/humidity3",
+            stateTopic="zigbee2mqtt/aqara3",
             transformationPattern="JSONPATH:$.humidity"
         ]
         Type number : pressure "Pressure" [
-            stateTopic="zigbee2mqtt/humidity3",
+            stateTopic="zigbee2mqtt/aqara3",
             transformationPattern="JSONPATH:$.pressure"
         ]
         Type number : voltage "Voltage" [
-            stateTopic="zigbee2mqtt/humidity3",
+            stateTopic="zigbee2mqtt/aqara3",
             transformationPattern="JSONPATH:$.voltage"
         ]
         Type number : linkquality "Linkquality" [
-            stateTopic="zigbee2mqtt/humidity3",
+            stateTopic="zigbee2mqtt/aqara3",
             transformationPattern="JSONPATH:$.linkquality"
         ]
 }

@@ -21,11 +21,12 @@ public record HabState(
     @InputItem int powerMid,
     @InputItem int powerHigh,
     @NumAgg(NumericAggregation.AVG) @MqttItem float openWindows,
-    @NumAgg(NumericAggregation.MAX) @MqttItem int humidity,
+    @NumAgg(NumericAggregation.MAX) @MqttItem({"aqara*Humidity"}) int airHumidity,
+    @NumAgg(NumericAggregation.MIN) @MqttItem("soil*Humidity") int soilHumidity,
     @NumAgg(NumericAggregation.MAX) @MqttItem int co2,
-    @NumAgg(NumericAggregation.AVG) @MqttItem int temperature,
-    @NumAgg(NumericAggregation.AVG) @MqttItem int pressure,
-    @BoolAgg(BooleanAggregation.OR) @MqttItem boolean smoke,
+    @NumAgg(NumericAggregation.AVG) @MqttItem({"aqara*Temperature", "soil*Temperature"}) int temperature,
+    @NumAgg(NumericAggregation.AVG) @MqttItem("aqara*Pressure") int pressure,
+    @BoolAgg(BooleanAggregation.OR) @MqttItem("smoke*Smoke") boolean smoke,
     @BoolAgg(BooleanAggregation.OR) @MqttItem boolean gas,
     @With @OutputItem int hrvOutputPower) {
 
@@ -52,7 +53,6 @@ public record HabState(
       powerMid = 50;
       powerHigh = 95;
       openWindows = 0;
-      humidity = 40;
       co2 = 500;
       temperature = 20;
       pressure = 1000;

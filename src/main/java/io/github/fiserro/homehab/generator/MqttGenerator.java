@@ -2,13 +2,18 @@ package io.github.fiserro.homehab.generator;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.fiserro.homehab.HabState;
+import io.github.fiserro.homehab.MqttItem;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -33,8 +38,76 @@ public class MqttGenerator {
   private final ObjectMapper objectMapper = new ObjectMapper();
   private final Path outputDir;
 
+  /** Map of compiled regex pattern to group name */
+  private final Map<Pattern, String> groupPatterns = new LinkedHashMap<>();
+
   public MqttGenerator(String outputDir) {
     this.outputDir = Paths.get(outputDir);
+    loadGroupPatterns();
+  }
+
+  /**
+   * Loads group patterns from HabState @MqttItem annotations.
+   * Patterns support wildcards: "aqara*Humidity" matches "aqara1Humidity", "aqaraBedroomHumidity", etc.
+   */
+  private void loadGroupPatterns() {
+    for (Field field : HabState.class.getDeclaredFields()) {
+      MqttItem mqttItem = field.getAnnotation(MqttItem.class);
+      if (mqttItem != null) {
+        String groupName = field.getName();
+        String[] patterns = mqttItem.value();
+
+        if (patterns.length == 0) {
+          // Default pattern: match items ending with capitalized field name
+          // e.g., field "co2" matches "*Co2"
+          String defaultPattern = "*" + capitalize(groupName);
+          Pattern regex = wildcardToRegex(defaultPattern);
+          groupPatterns.put(regex, groupName);
+          log.debug("Group '{}' default pattern: {} -> {}", groupName, defaultPattern, regex.pattern());
+        } else {
+          for (String pattern : patterns) {
+            // Handle comma-separated patterns within a single string
+            for (String p : pattern.split(",\\s*")) {
+              Pattern regex = wildcardToRegex(p.trim());
+              groupPatterns.put(regex, groupName);
+              log.debug("Group '{}' pattern: {} -> {}", groupName, p.trim(), regex.pattern());
+            }
+          }
+        }
+      }
+    }
+    log.info("Loaded {} group patterns from HabState @MqttItem annotations", groupPatterns.size());
+  }
+
+  /**
+   * Converts a wildcard pattern to a regex pattern.
+   * Wildcards: * matches any characters, ? matches a single character.
+   */
+  private Pattern wildcardToRegex(String wildcard) {
+    StringBuilder regex = new StringBuilder("^");
+    for (char c : wildcard.toCharArray()) {
+      switch (c) {
+        case '*' -> regex.append(".*");
+        case '?' -> regex.append(".");
+        case '.' -> regex.append("\\.");
+        default -> regex.append(Pattern.quote(String.valueOf(c)));
+      }
+    }
+    regex.append("$");
+    return Pattern.compile(regex.toString(), Pattern.CASE_INSENSITIVE);
+  }
+
+  /**
+   * Finds the group name for a given item name by matching against patterns.
+   * @return group name or null if no pattern matches
+   */
+  private String findGroupForItem(String itemName) {
+    for (Map.Entry<Pattern, String> entry : groupPatterns.entrySet()) {
+      if (entry.getKey().matcher(itemName).matches()) {
+        return entry.getValue();
+      }
+    }
+    return null;
   }
 
   public void generate(GeneratorOptions options) throws IOException, InterruptedException {
@@ -311,9 +384,12 @@ public class MqttGenerator {
     // Tags: IEEE address, mqtt, zigbee
     String tags = String.format("[\"%s\", \"mqtt\", \"zigbee\"]", ieee);
 
-    // No automatic group assignment - user assigns items to groups manually
-    return String.format("%s %s \"%s\" <%s> %s { channel=\"%s\" }",
-        itemType, itemName, label, icon, tags, channel);
+    // Find matching group based on @MqttItem patterns in HabState
+    String groupName = findGroupForItem(itemName);
+    String groupPart = groupName != null ? String.format("(%s) ", groupName) : "";
+
+    return String.format("%s %s \"%s\" <%s> %s%s { channel=\"%s\" }",
+        itemType, itemName, label, icon, groupPart, tags, channel);
   }
 
   private String getItemType(JsonNode expose) {

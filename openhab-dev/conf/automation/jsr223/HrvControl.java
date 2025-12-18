@@ -4,7 +4,6 @@ import helper.rules.annotations.Rule;
 import io.github.fiserro.homehab.HabState;
 import io.github.fiserro.homehab.HabState.Fields;
 import io.github.fiserro.homehab.HabStateFactory;
-import io.github.fiserro.homehab.MqttItemMappings;
 import io.github.fiserro.homehab.hrv.HrvCalculator;
 import org.openhab.core.library.types.OnOffType;
 
@@ -17,16 +16,10 @@ public class HrvControl extends Java223Script {
   @Rule(name = "item.changed", description = "Handle item changes")
   @ItemStateChangeTrigger(itemName = "*")
   public void onZigbeeItemChanged() {
-//    MqttItemMappings itemMappings =
-//        MqttItemMappings.builder()
-//            .of(Fields.smoke, _items.mqttZigbeeSmoke_0xa4c138aa8b540e22())
-//            .of(Fields.humidity, _items.mqttZigbeeHumidity_0x00158d008b8b7beb())
-//            .build();
-//
-//    var inputState = HabStateFactory.of(items, itemMappings);
-//    inputState = new HrvCalculator().calculate(inputState);
-//
-//    HabStateFactory.writeState(_items.gOutputs(), events, inputState);
+    var inputState = HabStateFactory.of(items, itemMappings);
+    inputState = new HrvCalculator().calculate(inputState);
+
+    HabStateFactory.writeState(_items.gOutputs(), events, inputState);
   }
 
   @Rule(name = "manual.power.changed", description = "Handle manual power changes")

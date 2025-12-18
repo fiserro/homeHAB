@@ -33,7 +33,7 @@ public class HrvCalculator implements Calculator {
             return HabState.POWER_OFF;
         }
 
-        if (habState.humidity() >= habState.humidityThreshold()) {
+        if (habState.airHumidity() >= habState.humidityThreshold()) {
             return habState.powerHigh();
         }
 
