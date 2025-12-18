@@ -26,7 +26,7 @@ public record HabState(
     @NumAgg(NumericAggregation.MAX) @MqttItem int co2,
     @NumAgg(NumericAggregation.AVG) @MqttItem({"aqara*Temperature", "soil*Temperature"}) int temperature,
     @NumAgg(NumericAggregation.AVG) @MqttItem("aqara*Pressure") int pressure,
-    @BoolAgg(BooleanAggregation.OR) @MqttItem("smoke*Smoke") boolean smoke,
+    @BoolAgg(BooleanAggregation.OR) @MqttItem("fire*Smoke") boolean smoke,
     @BoolAgg(BooleanAggregation.OR) @MqttItem boolean gas,
     @With @OutputItem int hrvOutputPower) {
 

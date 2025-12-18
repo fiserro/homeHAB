@@ -9,19 +9,23 @@ Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c13856c27757e5 "relay1" (mqtt:broker:zig
     Channels:
         Type number : countdown "Countdown" [
             stateTopic="zigbee2mqtt/relay1",
-            transformationPattern="JSONPATH:$.countdown"
+            transformationPattern="JSONPATH:$.countdown",
+            retained=true
         ]
         Type string : power_on_behavior "Power on behavior" [
             stateTopic="zigbee2mqtt/relay1",
-            transformationPattern="JSONPATH:$.power_on_behavior"
+            transformationPattern="JSONPATH:$.power_on_behavior",
+            retained=true
         ]
         Type string : switch_type "Switch type" [
             stateTopic="zigbee2mqtt/relay1",
-            transformationPattern="JSONPATH:$.switch_type"
+            transformationPattern="JSONPATH:$.switch_type",
+            retained=true
         ]
         Type number : linkquality "Linkquality" [
             stateTopic="zigbee2mqtt/relay1",
-            transformationPattern="JSONPATH:$.linkquality"
+            transformationPattern="JSONPATH:$.linkquality",
+            retained=true
         ]
 }
 
@@ -32,66 +36,79 @@ Thing mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb "aqara1" (mqtt:broker:zig
     Channels:
         Type number : battery "Battery" [
             stateTopic="zigbee2mqtt/aqara1",
-            transformationPattern="JSONPATH:$.battery"
+            transformationPattern="JSONPATH:$.battery",
+            retained=true
         ]
         Type number : temperature "Temperature" [
             stateTopic="zigbee2mqtt/aqara1",
-            transformationPattern="JSONPATH:$.temperature"
+            transformationPattern="JSONPATH:$.temperature",
+            retained=true
         ]
         Type number : humidity "Humidity" [
             stateTopic="zigbee2mqtt/aqara1",
-            transformationPattern="JSONPATH:$.humidity"
+            transformationPattern="JSONPATH:$.humidity",
+            retained=true
         ]
         Type number : pressure "Pressure" [
             stateTopic="zigbee2mqtt/aqara1",
-            transformationPattern="JSONPATH:$.pressure"
+            transformationPattern="JSONPATH:$.pressure",
+            retained=true
         ]
         Type number : voltage "Voltage" [
             stateTopic="zigbee2mqtt/aqara1",
-            transformationPattern="JSONPATH:$.voltage"
+            transformationPattern="JSONPATH:$.voltage",
+            retained=true
         ]
         Type number : linkquality "Linkquality" [
             stateTopic="zigbee2mqtt/aqara1",
-            transformationPattern="JSONPATH:$.linkquality"
+            transformationPattern="JSONPATH:$.linkquality",
+            retained=true
         ]
 }
 
-Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c138aa8b540e22 "smoke1" (mqtt:broker:zigbee2mqtt) [
-    stateTopic="zigbee2mqtt/smoke1",
-    commandTopic="zigbee2mqtt/smoke1/set"
+Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c138aa8b540e22 "fire1" (mqtt:broker:zigbee2mqtt) [
+    stateTopic="zigbee2mqtt/fire1",
+    commandTopic="zigbee2mqtt/fire1/set"
 ] {
     Channels:
         Type switch : smoke "Smoke" [
-            stateTopic="zigbee2mqtt/smoke1",
-            transformationPattern="JSONPATH:$.smoke",
-            on="true",
-            off="false"
+            stateTopic="zigbee2mqtt/fire1",
+            transformationPattern="JSONPATH:$.smoke_state",
+            retained=true,
+            on="alarm",
+            off="normal"
         ]
         Type number : battery "Battery" [
-            stateTopic="zigbee2mqtt/smoke1",
-            transformationPattern="JSONPATH:$.battery"
+            stateTopic="zigbee2mqtt/fire1",
+            transformationPattern="JSONPATH:$.battery",
+            retained=true
         ]
         Type switch : silence "Silence" [
-            stateTopic="zigbee2mqtt/smoke1",
+            stateTopic="zigbee2mqtt/fire1",
             transformationPattern="JSONPATH:$.silence",
+            retained=true,
             on="true",
             off="false"
         ]
         Type string : self_test_result "Self test result" [
-            stateTopic="zigbee2mqtt/smoke1",
-            transformationPattern="JSONPATH:$.self_test_result"
+            stateTopic="zigbee2mqtt/fire1",
+            transformationPattern="JSONPATH:$.self_test_result",
+            retained=true
         ]
         Type string : smoke_state "Smoke state" [
-            stateTopic="zigbee2mqtt/smoke1",
-            transformationPattern="JSONPATH:$.smoke_state"
+            stateTopic="zigbee2mqtt/fire1",
+            transformationPattern="JSONPATH:$.smoke_state",
+            retained=true
         ]
         Type string : sensitivity "Sensitivity" [
-            stateTopic="zigbee2mqtt/smoke1",
-            transformationPattern="JSONPATH:$.sensitivity"
+            stateTopic="zigbee2mqtt/fire1",
+            transformationPattern="JSONPATH:$.sensitivity",
+            retained=true
         ]
         Type number : linkquality "Linkquality" [
-            stateTopic="zigbee2mqtt/smoke1",
-            transformationPattern="JSONPATH:$.linkquality"
+            stateTopic="zigbee2mqtt/fire1",
+            transformationPattern="JSONPATH:$.linkquality",
+            retained=true
         ]
 }
 
@@ -103,56 +120,69 @@ Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c1387eee7fa96f "soil1" (mqtt:broker:zigb
         Type switch : dry "Dry" [
             stateTopic="zigbee2mqtt/soil1",
             transformationPattern="JSONPATH:$.dry",
+            retained=true,
             on="true",
             off="false"
         ]
         Type number : temperature "Temperature" [
             stateTopic="zigbee2mqtt/soil1",
-            transformationPattern="JSONPATH:$.temperature"
+            transformationPattern="JSONPATH:$.temperature",
+            retained=true
         ]
         Type number : humidity "Humidity" [
             stateTopic="zigbee2mqtt/soil1",
-            transformationPattern="JSONPATH:$.humidity"
+            transformationPattern="JSONPATH:$.humidity",
+            retained=true
         ]
         Type number : soil_moisture "Soil moisture" [
             stateTopic="zigbee2mqtt/soil1",
-            transformationPattern="JSONPATH:$.soil_moisture"
+            transformationPattern="JSONPATH:$.soil_moisture",
+            retained=true
         ]
         Type string : temperature_unit "Temperature unit" [
             stateTopic="zigbee2mqtt/soil1",
-            transformationPattern="JSONPATH:$.temperature_unit"
+            transformationPattern="JSONPATH:$.temperature_unit",
+            retained=true
         ]
         Type number : temperature_calibration "Temperature calibration" [
             stateTopic="zigbee2mqtt/soil1",
-            transformationPattern="JSONPATH:$.temperature_calibration"
+            transformationPattern="JSONPATH:$.temperature_calibration",
+            retained=true
         ]
         Type number : humidity_calibration "Humidity calibration" [
             stateTopic="zigbee2mqtt/soil1",
-            transformationPattern="JSONPATH:$.humidity_calibration"
+            transformationPattern="JSONPATH:$.humidity_calibration",
+            retained=true
         ]
         Type number : soil_calibration "Soil calibration" [
             stateTopic="zigbee2mqtt/soil1",
-            transformationPattern="JSONPATH:$.soil_calibration"
+            transformationPattern="JSONPATH:$.soil_calibration",
+            retained=true
         ]
         Type number : temperature_sampling "Temperature sampling" [
             stateTopic="zigbee2mqtt/soil1",
-            transformationPattern="JSONPATH:$.temperature_sampling"
+            transformationPattern="JSONPATH:$.temperature_sampling",
+            retained=true
         ]
         Type number : soil_sampling "Soil sampling" [
             stateTopic="zigbee2mqtt/soil1",
-            transformationPattern="JSONPATH:$.soil_sampling"
+            transformationPattern="JSONPATH:$.soil_sampling",
+            retained=true
         ]
         Type number : soil_warning "Soil warning" [
             stateTopic="zigbee2mqtt/soil1",
-            transformationPattern="JSONPATH:$.soil_warning"
+            transformationPattern="JSONPATH:$.soil_warning",
+            retained=true
         ]
         Type number : battery "Battery" [
             stateTopic="zigbee2mqtt/soil1",
-            transformationPattern="JSONPATH:$.battery"
+            transformationPattern="JSONPATH:$.battery",
+            retained=true
         ]
         Type number : linkquality "Linkquality" [
             stateTopic="zigbee2mqtt/soil1",
-            transformationPattern="JSONPATH:$.linkquality"
+            transformationPattern="JSONPATH:$.linkquality",
+            retained=true
         ]
 }
 
@@ -164,56 +194,69 @@ Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c138df52a26212 "soil2" (mqtt:broker:zigb
         Type switch : dry "Dry" [
             stateTopic="zigbee2mqtt/soil2",
             transformationPattern="JSONPATH:$.dry",
+            retained=true,
             on="true",
             off="false"
         ]
         Type number : temperature "Temperature" [
             stateTopic="zigbee2mqtt/soil2",
-            transformationPattern="JSONPATH:$.temperature"
+            transformationPattern="JSONPATH:$.temperature",
+            retained=true
         ]
         Type number : humidity "Humidity" [
             stateTopic="zigbee2mqtt/soil2",
-            transformationPattern="JSONPATH:$.humidity"
+            transformationPattern="JSONPATH:$.humidity",
+            retained=true
         ]
         Type number : soil_moisture "Soil moisture" [
             stateTopic="zigbee2mqtt/soil2",
-            transformationPattern="JSONPATH:$.soil_moisture"
+            transformationPattern="JSONPATH:$.soil_moisture",
+            retained=true
         ]
         Type string : temperature_unit "Temperature unit" [
             stateTopic="zigbee2mqtt/soil2",
-            transformationPattern="JSONPATH:$.temperature_unit"
+            transformationPattern="JSONPATH:$.temperature_unit",
+            retained=true
         ]
         Type number : temperature_calibration "Temperature calibration" [
             stateTopic="zigbee2mqtt/soil2",
-            transformationPattern="JSONPATH:$.temperature_calibration"
+            transformationPattern="JSONPATH:$.temperature_calibration",
+            retained=true
         ]
         Type number : humidity_calibration "Humidity calibration" [
             stateTopic="zigbee2mqtt/soil2",
-            transformationPattern="JSONPATH:$.humidity_calibration"
+            transformationPattern="JSONPATH:$.humidity_calibration",
+            retained=true
         ]
         Type number : soil_calibration "Soil calibration" [
             stateTopic="zigbee2mqtt/soil2",
-            transformationPattern="JSONPATH:$.soil_calibration"
+            transformationPattern="JSONPATH:$.soil_calibration",
+            retained=true
         ]
         Type number : temperature_sampling "Temperature sampling" [
             stateTopic="zigbee2mqtt/soil2",
-            transformationPattern="JSONPATH:$.temperature_sampling"
+            transformationPattern="JSONPATH:$.temperature_sampling",
+            retained=true
         ]
         Type number : soil_sampling "Soil sampling" [
             stateTopic="zigbee2mqtt/soil2",
-            transformationPattern="JSONPATH:$.soil_sampling"
+            transformationPattern="JSONPATH:$.soil_sampling",
+            retained=true
         ]
         Type number : soil_warning "Soil warning" [
             stateTopic="zigbee2mqtt/soil2",
-            transformationPattern="JSONPATH:$.soil_warning"
+            transformationPattern="JSONPATH:$.soil_warning",
+            retained=true
         ]
         Type number : battery "Battery" [
             stateTopic="zigbee2mqtt/soil2",
-            transformationPattern="JSONPATH:$.battery"
+            transformationPattern="JSONPATH:$.battery",
+            retained=true
         ]
         Type number : linkquality "Linkquality" [
             stateTopic="zigbee2mqtt/soil2",
-            transformationPattern="JSONPATH:$.linkquality"
+            transformationPattern="JSONPATH:$.linkquality",
+            retained=true
         ]
 }
 
@@ -225,56 +268,69 @@ Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c1384a743fbde0 "soil3" (mqtt:broker:zigb
         Type switch : dry "Dry" [
             stateTopic="zigbee2mqtt/soil3",
             transformationPattern="JSONPATH:$.dry",
+            retained=true,
             on="true",
             off="false"
         ]
         Type number : temperature "Temperature" [
             stateTopic="zigbee2mqtt/soil3",
-            transformationPattern="JSONPATH:$.temperature"
+            transformationPattern="JSONPATH:$.temperature",
+            retained=true
         ]
         Type number : humidity "Humidity" [
             stateTopic="zigbee2mqtt/soil3",
-            transformationPattern="JSONPATH:$.humidity"
+            transformationPattern="JSONPATH:$.humidity",
+            retained=true
         ]
         Type number : soil_moisture "Soil moisture" [
             stateTopic="zigbee2mqtt/soil3",
-            transformationPattern="JSONPATH:$.soil_moisture"
+            transformationPattern="JSONPATH:$.soil_moisture",
+            retained=true
         ]
         Type string : temperature_unit "Temperature unit" [
             stateTopic="zigbee2mqtt/soil3",
-            transformationPattern="JSONPATH:$.temperature_unit"
+            transformationPattern="JSONPATH:$.temperature_unit",
+            retained=true
         ]
         Type number : temperature_calibration "Temperature calibration" [
             stateTopic="zigbee2mqtt/soil3",
-            transformationPattern="JSONPATH:$.temperature_calibration"
+            transformationPattern="JSONPATH:$.temperature_calibration",
+            retained=true
         ]
         Type number : humidity_calibration "Humidity calibration" [
             stateTopic="zigbee2mqtt/soil3",
-            transformationPattern="JSONPATH:$.humidity_calibration"
+            transformationPattern="JSONPATH:$.humidity_calibration",
+            retained=true
         ]
         Type number : soil_calibration "Soil calibration" [
             stateTopic="zigbee2mqtt/soil3",
-            transformationPattern="JSONPATH:$.soil_calibration"
+            transformationPattern="JSONPATH:$.soil_calibration",
+            retained=true
         ]
         Type number : temperature_sampling "Temperature sampling" [
             stateTopic="zigbee2mqtt/soil3",
-            transformationPattern="JSONPATH:$.temperature_sampling"
+            transformationPattern="JSONPATH:$.temperature_sampling",
+            retained=true
         ]
         Type number : soil_sampling "Soil sampling" [
             stateTopic="zigbee2mqtt/soil3",
-            transformationPattern="JSONPATH:$.soil_sampling"
+            transformationPattern="JSONPATH:$.soil_sampling",
+            retained=true
         ]
         Type number : soil_warning "Soil warning" [
             stateTopic="zigbee2mqtt/soil3",
-            transformationPattern="JSONPATH:$.soil_warning"
+            transformationPattern="JSONPATH:$.soil_warning",
+            retained=true
         ]
         Type number : battery "Battery" [
             stateTopic="zigbee2mqtt/soil3",
-            transformationPattern="JSONPATH:$.battery"
+            transformationPattern="JSONPATH:$.battery",
+            retained=true
         ]
         Type number : linkquality "Linkquality" [
             stateTopic="zigbee2mqtt/soil3",
-            transformationPattern="JSONPATH:$.linkquality"
+            transformationPattern="JSONPATH:$.linkquality",
+            retained=true
         ]
 }
 
@@ -285,27 +341,33 @@ Thing mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c2d "aqara2" (mqtt:broker:zig
     Channels:
         Type number : battery "Battery" [
             stateTopic="zigbee2mqtt/aqara2",
-            transformationPattern="JSONPATH:$.battery"
+            transformationPattern="JSONPATH:$.battery",
+            retained=true
         ]
         Type number : temperature "Temperature" [
             stateTopic="zigbee2mqtt/aqara2",
-            transformationPattern="JSONPATH:$.temperature"
+            transformationPattern="JSONPATH:$.temperature",
+            retained=true
         ]
         Type number : humidity "Humidity" [
             stateTopic="zigbee2mqtt/aqara2",
-            transformationPattern="JSONPATH:$.humidity"
+            transformationPattern="JSONPATH:$.humidity",
+            retained=true
         ]
         Type number : pressure "Pressure" [
             stateTopic="zigbee2mqtt/aqara2",
-            transformationPattern="JSONPATH:$.pressure"
+            transformationPattern="JSONPATH:$.pressure",
+            retained=true
         ]
         Type number : voltage "Voltage" [
             stateTopic="zigbee2mqtt/aqara2",
-            transformationPattern="JSONPATH:$.voltage"
+            transformationPattern="JSONPATH:$.voltage",
+            retained=true
         ]
         Type number : linkquality "Linkquality" [
             stateTopic="zigbee2mqtt/aqara2",
-            transformationPattern="JSONPATH:$.linkquality"
+            transformationPattern="JSONPATH:$.linkquality",
+            retained=true
         ]
 }
 
@@ -316,105 +378,125 @@ Thing mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c50 "aqara3" (mqtt:broker:zig
     Channels:
         Type number : battery "Battery" [
             stateTopic="zigbee2mqtt/aqara3",
-            transformationPattern="JSONPATH:$.battery"
+            transformationPattern="JSONPATH:$.battery",
+            retained=true
         ]
         Type number : temperature "Temperature" [
             stateTopic="zigbee2mqtt/aqara3",
-            transformationPattern="JSONPATH:$.temperature"
+            transformationPattern="JSONPATH:$.temperature",
+            retained=true
         ]
         Type number : humidity "Humidity" [
             stateTopic="zigbee2mqtt/aqara3",
-            transformationPattern="JSONPATH:$.humidity"
+            transformationPattern="JSONPATH:$.humidity",
+            retained=true
         ]
         Type number : pressure "Pressure" [
             stateTopic="zigbee2mqtt/aqara3",
-            transformationPattern="JSONPATH:$.pressure"
+            transformationPattern="JSONPATH:$.pressure",
+            retained=true
         ]
         Type number : voltage "Voltage" [
             stateTopic="zigbee2mqtt/aqara3",
-            transformationPattern="JSONPATH:$.voltage"
+            transformationPattern="JSONPATH:$.voltage",
+            retained=true
         ]
         Type number : linkquality "Linkquality" [
             stateTopic="zigbee2mqtt/aqara3",
-            transformationPattern="JSONPATH:$.linkquality"
+            transformationPattern="JSONPATH:$.linkquality",
+            retained=true
         ]
 }
 
-Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c138085ad275de "smoke2" (mqtt:broker:zigbee2mqtt) [
-    stateTopic="zigbee2mqtt/smoke2",
-    commandTopic="zigbee2mqtt/smoke2/set"
+Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c138085ad275de "fire2" (mqtt:broker:zigbee2mqtt) [
+    stateTopic="zigbee2mqtt/fire2",
+    commandTopic="zigbee2mqtt/fire2/set"
 ] {
     Channels:
         Type switch : smoke "Smoke" [
-            stateTopic="zigbee2mqtt/smoke2",
-            transformationPattern="JSONPATH:$.smoke",
-            on="true",
-            off="false"
+            stateTopic="zigbee2mqtt/fire2",
+            transformationPattern="JSONPATH:$.smoke_state",
+            retained=true,
+            on="alarm",
+            off="normal"
         ]
         Type number : battery "Battery" [
-            stateTopic="zigbee2mqtt/smoke2",
-            transformationPattern="JSONPATH:$.battery"
+            stateTopic="zigbee2mqtt/fire2",
+            transformationPattern="JSONPATH:$.battery",
+            retained=true
         ]
         Type switch : silence "Silence" [
-            stateTopic="zigbee2mqtt/smoke2",
+            stateTopic="zigbee2mqtt/fire2",
             transformationPattern="JSONPATH:$.silence",
+            retained=true,
             on="true",
             off="false"
         ]
         Type string : self_test_result "Self test result" [
-            stateTopic="zigbee2mqtt/smoke2",
-            transformationPattern="JSONPATH:$.self_test_result"
+            stateTopic="zigbee2mqtt/fire2",
+            transformationPattern="JSONPATH:$.self_test_result",
+            retained=true
         ]
         Type string : smoke_state "Smoke state" [
-            stateTopic="zigbee2mqtt/smoke2",
-            transformationPattern="JSONPATH:$.smoke_state"
+            stateTopic="zigbee2mqtt/fire2",
+            transformationPattern="JSONPATH:$.smoke_state",
+            retained=true
         ]
         Type string : sensitivity "Sensitivity" [
-            stateTopic="zigbee2mqtt/smoke2",
-            transformationPattern="JSONPATH:$.sensitivity"
+            stateTopic="zigbee2mqtt/fire2",
+            transformationPattern="JSONPATH:$.sensitivity",
+            retained=true
         ]
         Type number : linkquality "Linkquality" [
-            stateTopic="zigbee2mqtt/smoke2",
-            transformationPattern="JSONPATH:$.linkquality"
+            stateTopic="zigbee2mqtt/fire2",
+            transformationPattern="JSONPATH:$.linkquality",
+            retained=true
         ]
 }
 
-Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c138944e997eec "smoke3" (mqtt:broker:zigbee2mqtt) [
-    stateTopic="zigbee2mqtt/smoke3",
-    commandTopic="zigbee2mqtt/smoke3/set"
+Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c138944e997eec "fire3" (mqtt:broker:zigbee2mqtt) [
+    stateTopic="zigbee2mqtt/fire3",
+    commandTopic="zigbee2mqtt/fire3/set"
 ] {
     Channels:
         Type switch : smoke "Smoke" [
-            stateTopic="zigbee2mqtt/smoke3",
-            transformationPattern="JSONPATH:$.smoke",
-            on="true",
-            off="false"
+            stateTopic="zigbee2mqtt/fire3",
+            transformationPattern="JSONPATH:$.smoke_state",
+            retained=true,
+            on="alarm",
+            off="normal"
         ]
         Type number : battery "Battery" [
-            stateTopic="zigbee2mqtt/smoke3",
-            transformationPattern="JSONPATH:$.battery"
+            stateTopic="zigbee2mqtt/fire3",
+            transformationPattern="JSONPATH:$.battery",
+            retained=true
         ]
         Type switch : silence "Silence" [
-            stateTopic="zigbee2mqtt/smoke3",
+            stateTopic="zigbee2mqtt/fire3",
             transformationPattern="JSONPATH:$.silence",
+            retained=true,
             on="true",
             off="false"
         ]
         Type string : self_test_result "Self test result" [
-            stateTopic="zigbee2mqtt/smoke3",
-            transformationPattern="JSONPATH:$.self_test_result"
+            stateTopic="zigbee2mqtt/fire3",
+            transformationPattern="JSONPATH:$.self_test_result",
+            retained=true
         ]
         Type string : smoke_state "Smoke state" [
-            stateTopic="zigbee2mqtt/smoke3",
-            transformationPattern="JSONPATH:$.smoke_state"
+            stateTopic="zigbee2mqtt/fire3",
+            transformationPattern="JSONPATH:$.smoke_state",
+            retained=true
         ]
         Type string : sensitivity "Sensitivity" [
-            stateTopic="zigbee2mqtt/smoke3",
-            transformationPattern="JSONPATH:$.sensitivity"
+            stateTopic="zigbee2mqtt/fire3",
+            transformationPattern="JSONPATH:$.sensitivity",
+            retained=true
         ]
         Type number : linkquality "Linkquality" [
-            stateTopic="zigbee2mqtt/smoke3",
-            transformationPattern="JSONPATH:$.linkquality"
+            stateTopic="zigbee2mqtt/fire3",
+            transformationPattern="JSONPATH:$.linkquality",
+            retained=true
         ]
 }
 

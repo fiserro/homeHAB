@@ -295,10 +295,19 @@ public class MqttGenerator {
     content.append(String.format("        Type %s : %s \"%s\" [\n",
         channelType, expProperty, getLabel(expProperty)));
     content.append(String.format("            stateTopic=\"%s\",\n", stateTopic));
-    content.append(String.format("            transformationPattern=\"JSONPATH:$.%s\"", expProperty));
-    // For switch types, add on/off value mappings (Zigbee2MQTT uses true/false)
-    if ("switch".equals(channelType)) {
-      content.append(",\n            on=\"true\",\n            off=\"false\"");
+    // Special handling for smoke - use smoke_state with alarm/normal mapping
+    if ("smoke".equals(expProperty)) {
+      content.append("            transformationPattern=\"JSONPATH:$.smoke_state\",\n");
+      content.append("            retained=true,\n");
+      content.append("            on=\"alarm\",\n");
+      content.append("            off=\"normal\"");
+    } else {
+      content.append(String.format("            transformationPattern=\"JSONPATH:$.%s\",\n", expProperty));
+      content.append("            retained=true");
+      // For switch types, add on/off value mappings (Zigbee2MQTT uses true/false)
+      if ("switch".equals(channelType)) {
+        content.append(",\n            on=\"true\",\n            off=\"false\"");
+      }
     }
     content.append("\n        ]\n");
   }
