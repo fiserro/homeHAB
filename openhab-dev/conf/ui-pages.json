@@ -69,7 +69,7 @@
                               "component": "oh-label-card",
                               "config": {
                                 "title": "Humidity",
-                                "item": "humidity",
+                                "item": "gZigbeeHumidity",
                                 "icon": "f7:drop",
                                 "iconColor": "blue"
                               }
@@ -90,9 +90,9 @@
                               "component": "oh-label-card",
                               "config": {
                                 "title": "CO2",
-                                "item": "co2",
+                                "item": "gZigbeeCo2",
                                 "icon": "f7:wind",
-                                "iconColor": "=items.co2.state > 900 ? 'red' : (items.co2.state > 700 ? 'orange' : 'green')"
+                                "iconColor": "=items.gZigbeeCo2.state > 900 ? 'red' : (items.gZigbeeCo2.state > 700 ? 'orange' : 'green')"
                               }
                             }
                           ]
@@ -111,7 +111,7 @@
                               "component": "oh-label-card",
                               "config": {
                                 "title": "Temperature",
-                                "item": "temperature",
+                                "item": "gZigbeeTemperature",
                                 "icon": "f7:thermometer",
                                 "iconColor": "orange"
                               }
@@ -132,7 +132,7 @@
                               "component": "oh-label-card",
                               "config": {
                                 "title": "Pressure",
-                                "item": "pressure",
+                                "item": "gZigbeePressure",
                                 "icon": "f7:gauge",
                                 "iconColor": "gray"
                               }
@@ -235,10 +235,10 @@
                               "component": "oh-label-card",
                               "config": {
                                 "title": "Smoke Detector",
-                                "item": "smoke",
+                                "item": "gZigbeeSmoke",
                                 "icon": "f7:flame",
-                                "iconColor": "=items.smoke.state === 'ON' ? 'red' : 'green'",
-                                "label": "=items.smoke.state === 'ON' ? 'ALARM!' : 'OK'"
+                                "iconColor": "=items.gZigbeeSmoke.state === 'ON' ? 'red' : 'green'",
+                                "label": "=items.gZigbeeSmoke.state === 'ON' ? 'ALARM!' : 'OK'"
                               }
                             }
                           ]

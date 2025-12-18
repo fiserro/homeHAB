@@ -1,7 +1,7 @@
 // Auto-generated Zigbee Items configuration
 // DO NOT EDIT - changes will be overwritten
 
-Group gZigbeeSmoke "Smoke"
+Group:Switch:OR(ON,OFF) gZigbeeSmoke "Smoke"
 
 Switch mqttZigbeeSmoke_0xa4c138aa8b540e22 "Smoke" <smoke> (gZigbeeSmoke) { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c138aa8b540e22:smoke" }
 String mqttZigbeeSmoke_0xa4c138aa8b540e22 "Smoke state" <smoke> (gZigbeeSmoke) { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c138aa8b540e22:smoke_state" }
@@ -10,7 +10,7 @@ Group gZigbeeCountdown "Countdown"
 
 Number mqttZigbeeCountdown_0xa4c13856c27757e5 "Countdown" <none> (gZigbeeCountdown) { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c13856c27757e5:countdown" }
 
-Group gZigbeePressure "Pressure"
+Group:Number:AVG gZigbeePressure "Pressure"
 
 Number mqttZigbeePressure_0x00158d008b8b7beb "Pressure" <pressure> (gZigbeePressure) { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb:pressure" }
 
@@ -33,7 +33,7 @@ Number mqttZigbeeLinkquality_0xa4c13856c27757e5 "Linkquality" <network> (gZigbee
 Number mqttZigbeeLinkquality_0x00158d008b8b7beb "Linkquality" <network> (gZigbeeLinkquality) { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb:linkquality" }
 Number mqttZigbeeLinkquality_0xa4c138aa8b540e22 "Linkquality" <network> (gZigbeeLinkquality) { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c138aa8b540e22:linkquality" }
 
-Group gZigbeeTemperature "Temperature"
+Group:Number:AVG gZigbeeTemperature "Temperature"
 
 Number mqttZigbeeTemperature_0x00158d008b8b7beb "Temperature" <temperature> (gZigbeeTemperature) { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb:temperature" }
 
@@ -41,7 +41,7 @@ Group gZigbeePower_on_behavior "Power_on_behavior"
 
 String mqttZigbeePower_on_behavior_0xa4c13856c27757e5 "Power on behavior" <none> (gZigbeePower_on_behavior) { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c13856c27757e5:power_on_behavior" }
 
-Group gZigbeeHumidity "Humidity"
+Group:Number:MAX gZigbeeHumidity "Humidity"
 
 Number mqttZigbeeHumidity_0x00158d008b8b7beb "Humidity" <humidity> (gZigbeeHumidity) { channel="mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb:humidity" }
 

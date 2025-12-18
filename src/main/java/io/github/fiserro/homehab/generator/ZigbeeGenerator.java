@@ -2,7 +2,12 @@ package io.github.fiserro.homehab.generator;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.fiserro.homehab.Aggregate;
+import io.github.fiserro.homehab.AggregationType;
+import io.github.fiserro.homehab.HabState;
+import io.github.fiserro.homehab.MqttItem;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -272,8 +277,11 @@ public class ZigbeeGenerator {
     // Write groups and items organized by category
     for (Map.Entry<String, List<String>> entry : itemsByCategory.entrySet()) {
       String category = entry.getKey();
-      content.append(String.format("Group gZigbee%s \"%s\"\n\n",
-          capitalize(category), capitalize(category)));
+      // Determine item type from first item definition
+      String firstItem = entry.getValue().isEmpty() ? "" : entry.getValue().get(0);
+      String itemType = firstItem.startsWith("Switch") ? "Switch" : "Number";
+
+      content.append(generateGroupDefinition(category, itemType)).append("\n\n");
 
       for (String itemDef : entry.getValue()) {
         content.append(itemDef).append("\n");
@@ -362,5 +370,50 @@ public class ZigbeeGenerator {
       return str;
     }
     return str.substring(0, 1).toUpperCase() + str.substring(1);
+  }
+
+  /**
+   * Builds a map of category name -> aggregation type from HabState @MqttItem fields.
+   */
+  private Map<String, AggregationType> getAggregationMap() {
+    Map<String, AggregationType> aggregationMap = new HashMap<>();
+
+    for (Field field : HabState.class.getDeclaredFields()) {
+      if (field.isAnnotationPresent(MqttItem.class)) {
+        Aggregate aggregate = field.getAnnotation(Aggregate.class);
+        if (aggregate != null) {
+          // Map field name to category (e.g., "humidity" -> "humidity", "co2" -> "co2")
+          String category = field.getName().toLowerCase();
+          aggregationMap.put(category, aggregate.value());
+        }
+      }
+    }
+
+    return aggregationMap;
+  }
+
+  /**
+   * Generates OpenHAB Group definition with aggregation function.
+   */
+  private String generateGroupDefinition(String category, String itemType) {
+    Map<String, AggregationType> aggregationMap = getAggregationMap();
+    AggregationType aggregation = aggregationMap.get(category.toLowerCase());
+
+    String groupName = "gZigbee" + capitalize(category);
+    String label = capitalize(category);
+
+    if (aggregation != null) {
+      String aggFunc = switch (aggregation) {
+        case MAX -> itemType.equals("Switch") ? "OR(ON,OFF)" : "MAX";
+        case MIN -> "MIN";
+        case AVG -> "AVG";
+        case SUM -> "SUM";
+        case COUNT -> "COUNT";
+      };
+      return String.format("Group:%s:%s %s \"%s\"", itemType, aggFunc, groupName, label);
+    } else {
+      // No aggregation defined, create simple group
+      return String.format("Group %s \"%s\"", groupName, label);
+    }
   }
 }

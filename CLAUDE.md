@@ -486,6 +486,67 @@ public void onSmokeDetectorChanged(ItemStateChange eventInfo) {
 - Wildcard triggers work with consistent naming prefixes
 - Ignore output items in handlers to prevent feedback loops
 
+## OpenHAB Group Aggregation
+
+OpenHAB Groups can automatically aggregate values from their member items. This is configured in the Group definition syntax.
+
+### Syntax
+
+```
+Group:BaseType:AggregationFunction groupName "Label"
+```
+
+Example:
+```
+Group:Number:MAX gZigbeeHumidity "Humidity"
+Group:Number:AVG gZigbeeTemperature "Temperature"
+Group:Switch:OR(ON,OFF) gZigbeeSmoke "Smoke"
+```
+
+### How It Works
+
+When member items change, OpenHAB runtime **automatically** recalculates the Group's state:
+
+```
+Group:Number:MAX gZigbeeHumidity "Humidity"
+
+Number mqttZigbeeHumidity_sensorA (gZigbeeHumidity)  // state: 45
+Number mqttZigbeeHumidity_sensorB (gZigbeeHumidity)  // state: 52
+
+// gZigbeeHumidity.state = MAX(45, 52) = 52
+```
+
+### Available Aggregation Functions
+
+| Function | Type | Description |
+|----------|------|-------------|
+| `AVG` | Number | Average of all member values |
+| `MAX` | Number | Maximum value |
+| `MIN` | Number | Minimum value |
+| `SUM` | Number | Sum of all values |
+| `COUNT` | Number | Number of members |
+| `OR(ON,OFF)` | Switch | ON if any member is ON |
+| `AND(ON,OFF)` | Switch | ON only if all members are ON |
+| `NAND(ON,OFF)` | Switch | ON if any member is OFF |
+| `NOR(ON,OFF)` | Switch | ON only if all members are OFF |
+
+### Without Aggregation
+
+A Group without aggregation function has `NULL` state:
+```
+Group gZigbeeHumidity "Humidity"  // state: NULL (no aggregation)
+```
+
+### Usage in This Project
+
+The `ZigbeeGenerator` creates Groups with aggregation functions based on `@Aggregate` annotations in `HabState.java`:
+
+- `@Aggregate(AggregationType.MAX)` → `Group:Number:MAX`
+- `@Aggregate(AggregationType.AVG)` → `Group:Number:AVG`
+- Boolean with MAX → `Group:Switch:OR(ON,OFF)`
+
+This allows UI pages to reference Group items (e.g., `gZigbeeHumidity`) and display aggregated sensor values automatically.
+
 ## Common Pitfalls
 
 ### Package Name: `helper.rules.annotations` (plural)
