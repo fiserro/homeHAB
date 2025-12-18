@@ -16,10 +16,8 @@ public class HrvControl extends Java223Script {
   @Rule(name = "item.changed", description = "Handle item changes")
   @ItemStateChangeTrigger(itemName = "*")
   public void onZigbeeItemChanged() {
-    var inputState = HabStateFactory.of(items);
-    inputState = new HrvCalculator().calculate(inputState);
-
-    HabStateFactory.writeState(events, inputState);
+    var state = new HrvCalculator().calculate(HabStateFactory.of(items));
+    events.sendCommand(_items.hrvOutputPower(), state.hrvOutputPower());
   }
 
   @Rule(name = "manual.power.changed", description = "Handle manual power changes")
@@ -54,6 +52,4 @@ public class HrvControl extends Java223Script {
       events.sendCommand(_items.temporaryManualMode(), OnOffType.OFF);
     }
   }
-
-
 }

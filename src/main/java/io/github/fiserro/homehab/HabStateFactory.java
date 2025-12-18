@@ -84,7 +84,8 @@ public class HabStateFactory {
       return Optional.empty();
     }
 
-    return Optional.of(convertStateValue(stateValue, field.getType()));
+    Object value = convertStateValue(stateValue, field.getType());
+    return Optional.ofNullable(value);
   }
 
   @SneakyThrows
@@ -100,11 +101,14 @@ public class HabStateFactory {
 
   private static Object convertStateValue(State stateValue, Class<?> fieldType) {
     if (fieldType == int.class) {
-      return stateValue.as(DecimalType.class).intValue();
+      DecimalType decimal = stateValue.as(DecimalType.class);
+      return decimal != null ? decimal.intValue() : null;
     } else if (fieldType == float.class) {
-      return stateValue.as(DecimalType.class).floatValue();
+      DecimalType decimal = stateValue.as(DecimalType.class);
+      return decimal != null ? decimal.floatValue() : null;
     } else if (fieldType == boolean.class) {
-      return stateValue.as(OnOffType.class) == OnOffType.ON;
+      OnOffType onOff = stateValue.as(OnOffType.class);
+      return onOff != null ? onOff == OnOffType.ON : null;
     } else {
       throw new IllegalArgumentException("Unsupported type: " + fieldType);
     }
