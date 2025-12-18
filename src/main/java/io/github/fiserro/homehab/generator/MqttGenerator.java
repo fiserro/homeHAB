@@ -144,7 +144,7 @@ public class MqttGenerator {
   private List<JsonNode> fetchDevices(GeneratorOptions options)
       throws IOException, InterruptedException {
     if (options.sshHost() != null && !options.sshHost().isEmpty()) {
-      return fetchDevicesViaSsh(options.sshHost());
+      return fetchDevicesViaSsh(options);
     } else if (options.mqttHost() != null && !options.mqttHost().isEmpty()) {
       return fetchDevicesViaMqtt(options.mqttHost());
     } else {
@@ -153,14 +153,26 @@ public class MqttGenerator {
     }
   }
 
-  private List<JsonNode> fetchDevicesViaSsh(String sshHost)
+  private List<JsonNode> fetchDevicesViaSsh(GeneratorOptions options)
       throws IOException, InterruptedException {
-    log.info("Fetching devices via SSH from {}...", sshHost);
+    String sshHost = options.sshHost();
+    String sshKey = options.sshKey();
+    log.info("Fetching devices via SSH from {} (key: {})...", sshHost, sshKey);
 
-    ProcessBuilder pb = new ProcessBuilder(
-        "ssh", "-o", "StrictHostKeyChecking=no", sshHost,
-        "mosquitto_sub -h localhost -t 'zigbee2mqtt/bridge/devices' -C 1"
-    );
+    List<String> command = new ArrayList<>();
+    command.add("ssh");
+    command.add("-o");
+    command.add("StrictHostKeyChecking=no");
+    command.add("-o");
+    command.add("BatchMode=yes");
+    if (sshKey != null && !sshKey.isEmpty()) {
+      command.add("-i");
+      command.add(sshKey);
+    }
+    command.add(sshHost);
+    command.add("mosquitto_sub -h localhost -t 'zigbee2mqtt/bridge/devices' -C 1");
+
+    ProcessBuilder pb = new ProcessBuilder(command);
     pb.redirectErrorStream(true);
     Process process = pb.start();
 
@@ -168,7 +180,7 @@ public class MqttGenerator {
     int exitCode = process.waitFor();
 
     if (exitCode != 0) {
-      throw new IOException("SSH command failed with exit code " + exitCode);
+      throw new IOException("SSH command failed with exit code " + exitCode + ". Output: " + json);
     }
 
     JsonNode devicesArray = objectMapper.readTree(json);

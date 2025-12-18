@@ -33,7 +33,11 @@ if [ "$ENV" != "dev" ] && [ "$ENV" != "prod" ]; then
 fi
 
 # Load environment configuration
-ENV_FILE=".env.${ENV}"
+# Use ENV_FILE if set, otherwise default to .env.${ENV}
+if [ -z "$ENV_FILE" ]; then
+    ENV_FILE=".env.${ENV}"
+fi
+
 if [ ! -f "$ENV_FILE" ]; then
     echo -e "${RED}Error: Configuration file not found: ${ENV_FILE}${NC}"
     echo ""
@@ -46,7 +50,9 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 echo -e "${BLUE}Loading config from: ${ENV_FILE}${NC}"
+set -a  # Auto-export all variables
 source "$ENV_FILE"
+set +a
 
 # Display environment info
 echo -e "${BLUE}Environment: ${YELLOW}${ENV}${NC}"
@@ -91,7 +97,18 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Step 2: Find the built shaded JAR (contains all dependencies)
+# Step 2: Run generator
+echo ""
+echo -e "${BLUE}Step 2: Running generator...${NC}"
+mvn exec:java -q -Dexec.mainClass="io.github.fiserro.homehab.generator.Generator"
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Generator failed!${NC}"
+    exit 1
+fi
+echo -e "${GREEN}✓ Generator completed${NC}"
+
+# Step 3: Find the built shaded JAR (contains all dependencies)
 JAR_FILE=$(find target -name "homeHAB-*-shaded.jar" | head -1)
 
 if [ -z "$JAR_FILE" ]; then
@@ -102,11 +119,11 @@ fi
 
 echo -e "${GREEN}✓ Built: $JAR_FILE${NC}"
 
-# Step 3: Deploy
+# Step 4: Deploy
 echo ""
 if [ "$REMOTE_DEPLOY" = true ]; then
     # Remote deployment via SCP
-    echo -e "${BLUE}Step 2: Deploying to remote OpenHAB server...${NC}"
+    echo -e "${BLUE}Step 4: Deploying to remote OpenHAB server...${NC}"
 
     REMOTE_LIB_DIR="$REMOTE_PATH/automation/lib/java"
     JAR_BASENAME=$(basename "$JAR_FILE")
@@ -137,9 +154,9 @@ if [ "$REMOTE_DEPLOY" = true ]; then
         exit 1
     fi
 
-    # Step 3: Deploy UI Pages to remote
+    # Step 5: Deploy UI Pages to remote
     echo ""
-    echo -e "${BLUE}Step 3: Deploying UI Pages...${NC}"
+    echo -e "${BLUE}Step 5: Deploying UI Pages...${NC}"
 
     PAGES_SOURCE="openhab-dev/conf/ui-pages.json"
     REMOTE_PAGES_DIR="$REMOTE_PATH/../userdata/jsondb"
@@ -173,7 +190,7 @@ if [ "$REMOTE_DEPLOY" = true ]; then
 
 else
     # Local deployment
-    echo -e "${BLUE}Step 2: Deploying to local OpenHAB...${NC}"
+    echo -e "${BLUE}Step 4: Deploying to local OpenHAB...${NC}"
 
     # Create automation/lib/java directory if it doesn't exist
     LIB_DIR="$OPENHAB_CONF/automation/lib/java"
@@ -199,9 +216,9 @@ else
         exit 1
     fi
 
-    # Step 3: Deploy UI Pages
+    # Step 5: Deploy UI Pages
     echo ""
-    echo -e "${BLUE}Step 3: Deploying UI Pages...${NC}"
+    echo -e "${BLUE}Step 5: Deploying UI Pages...${NC}"
 
     PAGES_SOURCE="$OPENHAB_CONF/ui-pages.json"
     PAGES_TARGET_DIR="$SCRIPT_DIR/openhab-dev/userdata/jsondb"

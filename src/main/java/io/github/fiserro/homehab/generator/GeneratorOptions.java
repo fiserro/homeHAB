@@ -3,10 +3,11 @@ package io.github.fiserro.homehab.generator;
 import io.github.fiserro.options.Option;
 import io.github.fiserro.options.Options;
 import io.github.fiserro.options.extension.ArgumentsEquals;
+import io.github.fiserro.options.extension.EnvironmentFile;
 import io.github.fiserro.options.extension.EnvironmentVariables;
 import io.github.fiserro.options.extension.OptionsExtensions;
 
-@OptionsExtensions({EnvironmentVariables.class, ArgumentsEquals.class})
+@OptionsExtensions({EnvironmentVariables.class, ArgumentsEquals.class, EnvironmentFile.class})
 public interface GeneratorOptions extends Options<GeneratorOptions> {
 
   @Option(description = "Base directory for the generated files")
@@ -36,6 +37,11 @@ public interface GeneratorOptions extends Options<GeneratorOptions> {
 
   @Option(description = "SSH host for fetching devices (e.g., user@host)")
   String sshHost();
+
+  @Option(description = "SSH private key path (default: ~/.ssh/id_rsa)")
+  default String sshKey() {
+    return System.getProperty("user.home") + "/.ssh/id_rsa";
+  }
 
   @Option(description = "MQTT host for fetching devices")
   String mqttHost();

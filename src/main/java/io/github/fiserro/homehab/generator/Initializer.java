@@ -30,7 +30,7 @@ public class Initializer {
   }
 
   public int initializeInputItems() throws Exception {
-    log.info("Initializing input items...");
+    log.info("Initializing input items (only if NULL/UNDEF)...");
     int count = 0;
     HabState defaultState = HabState.builder().build();
 
@@ -39,13 +39,18 @@ public class Initializer {
         field.setAccessible(true);
         Object value = field.get(defaultState);
         String itemName = field.getName();
-        String state = formatState(value);
+        String defaultValue = formatState(value);
 
-        if (updateItemState(itemName, state)) {
-          log.info("  ✓ {}: {}", itemName, state);
-          count++;
+        String currentState = getItemState(itemName);
+        if (needsInitialization(currentState)) {
+          if (updateItemState(itemName, defaultValue)) {
+            log.info("  ✓ {}: {} (was {})", itemName, defaultValue, currentState);
+            count++;
+          } else {
+            log.warn("  ✗ {}: failed", itemName);
+          }
         } else {
-          log.warn("  ✗ {}: failed", itemName);
+          log.debug("  - {}: keeping current value {}", itemName, currentState);
         }
       }
     }
@@ -53,7 +58,7 @@ public class Initializer {
   }
 
   public int initializeOutputItems() throws Exception {
-    log.info("Initializing output items...");
+    log.info("Initializing output items (only if NULL/UNDEF)...");
     int count = 0;
     HabState defaultState = HabState.builder().build();
 
@@ -62,17 +67,47 @@ public class Initializer {
         field.setAccessible(true);
         Object value = field.get(defaultState);
         String itemName = field.getName();
-        String state = formatState(value);
+        String defaultValue = formatState(value);
 
-        if (updateItemState(itemName, state)) {
-          log.info("  ✓ {}: {}", itemName, state);
-          count++;
+        String currentState = getItemState(itemName);
+        if (needsInitialization(currentState)) {
+          if (updateItemState(itemName, defaultValue)) {
+            log.info("  ✓ {}: {} (was {})", itemName, defaultValue, currentState);
+            count++;
+          } else {
+            log.warn("  ✗ {}: failed", itemName);
+          }
         } else {
-          log.warn("  ✗ {}: failed", itemName);
+          log.debug("  - {}: keeping current value {}", itemName, currentState);
         }
       }
     }
     return count;
+  }
+
+  private boolean needsInitialization(String currentState) {
+    return currentState == null || "NULL".equals(currentState) || "UNDEF".equals(currentState);
+  }
+
+  private String getItemState(String itemName) {
+    try {
+      HttpRequest request = HttpRequest.newBuilder()
+          .uri(URI.create(openhabUrl + "/rest/items/" + itemName + "/state"))
+          .header("Accept", "text/plain")
+          .GET()
+          .build();
+
+      HttpResponse<String> response = httpClient.send(request,
+          HttpResponse.BodyHandlers.ofString());
+
+      if (response.statusCode() == 200) {
+        return response.body();
+      }
+      return null;
+    } catch (Exception e) {
+      log.debug("Failed to get state for '{}': {}", itemName, e.getMessage());
+      return null;
+    }
   }
 
   private boolean updateItemState(String itemName, String state) {

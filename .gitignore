@@ -61,3 +61,4 @@ openhab-dev/conf/automation/lib/java/helper/
 *.zip
 *.tar.gz
 *.rar
+.env.dev
