@@ -32,9 +32,7 @@
                       {
                         "component": "oh-grid-col",
                         "config": {
-                          "width": "100",
-                          "medium": "50",
-                          "large": "33"
+                          "width": "100"
                         },
                         "slots": {
                           "default": [
@@ -46,8 +44,8 @@
                                 "min": 0,
                                 "max": 100,
                                 "type": "semicircle",
-                                "size": 200,
-                                "borderWidth": 15,
+                                "size": 250,
+                                "borderWidth": 20,
                                 "valueTextColor": "white",
                                 "borderBgColor": "#333",
                                 "borderColor": "=items.hrvOutputPower.state > 80 ? 'red' : (items.hrvOutputPower.state > 50 ? 'orange' : 'green')"
@@ -55,13 +53,20 @@
                             }
                           ]
                         }
-                      },
+                      }
+                    ]
+                  }
+                },
+                {
+                  "component": "oh-grid-row",
+                  "config": {},
+                  "slots": {
+                    "default": [
                       {
                         "component": "oh-grid-col",
                         "config": {
                           "width": "50",
-                          "medium": "25",
-                          "large": "16"
+                          "medium": "25"
                         },
                         "slots": {
                           "default": [
@@ -81,8 +86,7 @@
                         "component": "oh-grid-col",
                         "config": {
                           "width": "50",
-                          "medium": "25",
-                          "large": "16"
+                          "medium": "25"
                         },
                         "slots": {
                           "default": [
@@ -102,8 +106,7 @@
                         "component": "oh-grid-col",
                         "config": {
                           "width": "50",
-                          "medium": "25",
-                          "large": "16"
+                          "medium": "25"
                         },
                         "slots": {
                           "default": [
@@ -123,8 +126,7 @@
                         "component": "oh-grid-col",
                         "config": {
                           "width": "50",
-                          "medium": "25",
-                          "large": "16"
+                          "medium": "25"
                         },
                         "slots": {
                           "default": [
