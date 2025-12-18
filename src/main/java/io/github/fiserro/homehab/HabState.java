@@ -20,7 +20,7 @@ public record HabState(
     @InputItem int powerLow,
     @InputItem int powerMid,
     @InputItem int powerHigh,
-    @NumAgg(NumericAggregation.AVG) @MqttItem float openWindows,
+    @NumAgg(NumericAggregation.SUM) @MqttItem int openWindows,
     @NumAgg(NumericAggregation.MAX) @MqttItem({"aqara*Humidity"}) int airHumidity,
     @NumAgg(NumericAggregation.MIN) @MqttItem("soil*Humidity") int soilHumidity,
     @NumAgg(NumericAggregation.MAX) @MqttItem int co2,

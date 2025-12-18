@@ -66,14 +66,14 @@
                         "component": "oh-grid-col",
                         "config": {
                           "width": "50",
-                          "medium": "25"
+                          "medium": "20"
                         },
                         "slots": {
                           "default": [
                             {
                               "component": "oh-label-card",
                               "config": {
-                                "title": "Humidity",
+                                "title": "Air Humidity",
                                 "item": "airHumidity",
                                 "icon": "f7:drop",
                                 "iconColor": "blue"
@@ -86,7 +86,27 @@
                         "component": "oh-grid-col",
                         "config": {
                           "width": "50",
-                          "medium": "25"
+                          "medium": "20"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-label-card",
+                              "config": {
+                                "title": "Soil Humidity",
+                                "item": "soilHumidity",
+                                "icon": "f7:drop_fill",
+                                "iconColor": "brown"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "50",
+                          "medium": "20"
                         },
                         "slots": {
                           "default": [
@@ -106,7 +126,7 @@
                         "component": "oh-grid-col",
                         "config": {
                           "width": "50",
-                          "medium": "25"
+                          "medium": "20"
                         },
                         "slots": {
                           "default": [
@@ -126,7 +146,7 @@
                         "component": "oh-grid-col",
                         "config": {
                           "width": "50",
-                          "medium": "25"
+                          "medium": "20"
                         },
                         "slots": {
                           "default": [
@@ -607,6 +627,253 @@
                                     }
                                   }
                                 ]
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "batteries": {
+    "class": "org.openhab.core.ui.components.RootUIComponent",
+    "value": {
+      "uid": "batteries",
+      "tags": [],
+      "props": {
+        "parameters": [],
+        "parameterGroups": []
+      },
+      "component": "oh-layout-page",
+      "config": {
+        "label": "Batteries",
+        "sidebar": true,
+        "order": 20,
+        "icon": "f7:battery_100"
+      },
+      "slots": {
+        "default": [
+          {
+            "component": "oh-block",
+            "config": {
+              "title": "Fire Detectors"
+            },
+            "slots": {
+              "default": [
+                {
+                  "component": "oh-grid-row",
+                  "config": {},
+                  "slots": {
+                    "default": [
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "33"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-label-card",
+                              "config": {
+                                "title": "Fire 1",
+                                "item": "fire1Battery",
+                                "icon": "f7:battery_100",
+                                "iconColor": "=items.fire1Battery.state < 20 ? 'red' : (items.fire1Battery.state < 50 ? 'orange' : 'green')"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "33"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-label-card",
+                              "config": {
+                                "title": "Fire 2",
+                                "item": "fire2Battery",
+                                "icon": "f7:battery_100",
+                                "iconColor": "=items.fire2Battery.state < 20 ? 'red' : (items.fire2Battery.state < 50 ? 'orange' : 'green')"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "33"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-label-card",
+                              "config": {
+                                "title": "Fire 3",
+                                "item": "fire3Battery",
+                                "icon": "f7:battery_100",
+                                "iconColor": "=items.fire3Battery.state < 20 ? 'red' : (items.fire3Battery.state < 50 ? 'orange' : 'green')"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "component": "oh-block",
+            "config": {
+              "title": "Aqara Sensors"
+            },
+            "slots": {
+              "default": [
+                {
+                  "component": "oh-grid-row",
+                  "config": {},
+                  "slots": {
+                    "default": [
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "33"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-label-card",
+                              "config": {
+                                "title": "Aqara 1",
+                                "item": "aqara1Battery",
+                                "icon": "f7:battery_100",
+                                "iconColor": "=items.aqara1Battery.state < 20 ? 'red' : (items.aqara1Battery.state < 50 ? 'orange' : 'green')"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "33"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-label-card",
+                              "config": {
+                                "title": "Aqara 2",
+                                "item": "aqara2Battery",
+                                "icon": "f7:battery_100",
+                                "iconColor": "=items.aqara2Battery.state < 20 ? 'red' : (items.aqara2Battery.state < 50 ? 'orange' : 'green')"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "33"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-label-card",
+                              "config": {
+                                "title": "Aqara 3",
+                                "item": "aqara3Battery",
+                                "icon": "f7:battery_100",
+                                "iconColor": "=items.aqara3Battery.state < 20 ? 'red' : (items.aqara3Battery.state < 50 ? 'orange' : 'green')"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "component": "oh-block",
+            "config": {
+              "title": "Soil Sensors"
+            },
+            "slots": {
+              "default": [
+                {
+                  "component": "oh-grid-row",
+                  "config": {},
+                  "slots": {
+                    "default": [
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "33"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-label-card",
+                              "config": {
+                                "title": "Soil 1",
+                                "item": "soil1Battery",
+                                "icon": "f7:battery_100",
+                                "iconColor": "=items.soil1Battery.state < 20 ? 'red' : (items.soil1Battery.state < 50 ? 'orange' : 'green')"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "33"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-label-card",
+                              "config": {
+                                "title": "Soil 2",
+                                "item": "soil2Battery",
+                                "icon": "f7:battery_100",
+                                "iconColor": "=items.soil2Battery.state < 20 ? 'red' : (items.soil2Battery.state < 50 ? 'orange' : 'green')"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "33"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-label-card",
+                              "config": {
+                                "title": "Soil 3",
+                                "item": "soil3Battery",
+                                "icon": "f7:battery_100",
+                                "iconColor": "=items.soil3Battery.state < 20 ? 'red' : (items.soil3Battery.state < 50 ? 'orange' : 'green')"
                               }
                             }
                           ]
