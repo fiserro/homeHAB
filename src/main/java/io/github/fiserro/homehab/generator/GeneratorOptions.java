@@ -24,11 +24,6 @@ public interface GeneratorOptions extends Options<GeneratorOptions> {
     return true;
   }
 
-  @Option(description = "Enables output items generation")
-  default boolean outputEnabled() {
-    return true;
-  }
-
   @Option(description = "OpenHAB URL")
   default String openhabUrl() {
     return "http://localhost:8888";
@@ -45,8 +40,8 @@ public interface GeneratorOptions extends Options<GeneratorOptions> {
   @Option(description = "MQTT host for fetching devices")
   String mqttHost();
 
-  @Option(description = "Enables Zigbee configuration generation")
-  default boolean zigbeeEnabled() {
+  @Option(description = "Enables MQTT/Zigbee configuration generation")
+  default boolean mqttEnabled() {
     return true;
   }
 

@@ -312,27 +312,26 @@ All configuration is generated using a unified Java-based generator system. The 
 ### Running the Generator
 
 ```bash
-# Generate all configuration (items + Zigbee)
+# Generate all configuration (items + MQTT/Zigbee)
 mvn exec:java -Dexec.mainClass="io.github.fiserro.homehab.generator.Generator" \
   -Dexec.args="--sshHost=user@zigbee.home"
 
-# Generate only items (no Zigbee)
+# Generate only items (no MQTT/Zigbee)
 mvn exec:java -Dexec.mainClass="io.github.fiserro.homehab.generator.Generator" \
-  -Dexec.args="--zigbeeEnabled=false"
+  -Dexec.args="--mqttEnabled=false"
 
 # Initialize items with default values (after OpenHAB restart)
 mvn exec:java -Dexec.mainClass="io.github.fiserro.homehab.generator.Generator" \
-  -Dexec.args="--initEnabled=true --habStateEnabled=false --outputEnabled=false --zigbeeEnabled=false"
+  -Dexec.args="--initEnabled=true --habStateEnabled=false --mqttEnabled=false"
 ```
 
 ### Generator Options
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--habStateEnabled` | `true` | Generate HabState items (input items + aggregation groups) |
-| `--outputEnabled` | `true` | Generate output items |
+| `--habStateEnabled` | `true` | Generate HabState items (input, output, aggregation groups) |
 | `--initEnabled` | `false` | Initialize items with default values via REST API |
-| `--zigbeeEnabled` | `true` | Generate Zigbee Things and Items |
+| `--mqttEnabled` | `true` | Generate MQTT/Zigbee Things and Items |
 | `--sshHost` | - | SSH host for fetching Zigbee2MQTT devices (e.g., `user@host`) |
 | `--mqttHost` | - | Direct MQTT host for fetching devices (alternative to SSH) |
 | `--openhabUrl` | `http://localhost:8888` | OpenHAB REST API URL |
@@ -340,7 +339,7 @@ mvn exec:java -Dexec.mainClass="io.github.fiserro.homehab.generator.Generator" \
 
 ### Fetching Zigbee Devices
 
-The `ZigbeeGenerator` needs to fetch the device list from Zigbee2MQTT. There are two methods:
+The `MqttGenerator` needs to fetch the device list from Zigbee2MQTT. There are two methods:
 
 **1. Via SSH (recommended):**
 ```bash
@@ -366,32 +365,28 @@ Generates OpenHAB items from `HabState.java` field annotations.
 
 **What it does:**
 - Generates **input items** from `@InputItem` annotated fields (HRV control parameters)
+- Generates **output items** from `@OutputItem` annotated fields (HRV outputs)
 - Generates **aggregation groups** from `@NumAgg` and `@BoolAgg` annotated fields
-- Maps Java types to OpenHAB types (boolean → Switch, int → Number)
+- Maps Java types to OpenHAB types (boolean → Switch, int → Number/Dimmer)
 - Determines icons based on field names
 - Input items belong to `gHrvInputs` group
+- Output items belong to `gHrvOutputs` group
 - Aggregation groups are empty - Zigbee items should be manually assigned to them
 
-### Output Items Generator (`OutputItemsGenerator`)
+### MQTT Generator (`MqttGenerator`)
 
-Generates output items from `HabState.java` fields annotated with `@OutputItem`.
-
-**Generated file:** `openhab-dev/conf/items/output-items.items`
-
-### Zigbee Generator (`ZigbeeGenerator`)
-
-Generates OpenHAB Things and Items from Zigbee2MQTT devices.
+Generates OpenHAB MQTT Things and Items from Zigbee2MQTT devices.
 
 **Generated files:**
 - `openhab-dev/conf/things/mqtt.things` - MQTT broker configuration
-- `openhab-dev/conf/things/zigbee-devices.things` - Thing definitions for each Zigbee device
-- `openhab-dev/conf/items/zigbee-devices.items` - Items for all Zigbee device metrics
+- `openhab-dev/conf/things/mqtt-devices.things` - Thing definitions for each Zigbee device
+- `openhab-dev/conf/items/mqtt-devices.items` - Items for all Zigbee device metrics
 
-**Important:** Zigbee items are generated **without group assignments**. Users should manually assign items to aggregation groups defined in `habstate-items.items` based on their specific needs.
+**Important:** MQTT/Zigbee items are generated **without group assignments**. Users should manually assign items to aggregation groups defined in `habstate-items.items` based on their specific needs.
 
 **Naming conventions:**
 - **Things UID:** `mqtt:topic:zigbee2mqtt:zigbee_<ieee>`
-- **Item name:** `mqttZigbee<Category>_<ieee>` (e.g., `mqttZigbeeHumidity_0x00158d008b8b7beb`)
+- **Item name:** `mqtt<Category>_<ieee>` (e.g., `mqttHumidity_0x00158d008b8b7beb`)
 
 ### Items Initializer (`Initializer`)
 
@@ -401,7 +396,7 @@ Initializes OpenHAB items with default values from `HabState.builder().build()` 
 ```bash
 # After generating items and restarting OpenHAB:
 mvn exec:java -Dexec.mainClass="io.github.fiserro.homehab.generator.Generator" \
-  -Dexec.args="--initEnabled=true --uiEnabled=false --outputEnabled=false --zigbeeEnabled=false"
+  -Dexec.args="--initEnabled=true --habStateEnabled=false --mqttEnabled=false"
 ```
 
 **What it does:**
@@ -419,14 +414,14 @@ mvn exec:java -Dexec.mainClass="io.github.fiserro.homehab.generator.Generator" \
 
 The project uses specific naming conventions for different types of items:
 
-### Zigbee Items
+### MQTT/Zigbee Items
 
-Generated by `ZigbeeGenerator.java`:
+Generated by `MqttGenerator.java`:
 
 - **Things UID:** `mqtt:topic:zigbee2mqtt:zigbee_<ieee>`
   - Example: `mqtt:topic:zigbee2mqtt:zigbee_0xa4c138aa8b540e22`
-- **Item name:** `mqttZigbee<Category>_<ieee>`
-  - Example: `mqttZigbeeSmoke_0xa4c138aa8b540e22`, `mqttZigbeeHumidity_0x00158d008b8b7beb`
+- **Item name:** `mqtt<Category>_<ieee>`
+  - Example: `mqttSmoke_0xa4c138aa8b540e22`, `mqttHumidity_0x00158d008b8b7beb`
 - **Group assignment:** Items are generated without groups - manually assign to groups from `habstate-items.items`
 
 ### Input Items
@@ -439,34 +434,30 @@ Generated by `HabStateItemsGenerator.java`:
 
 ### Items File Structure
 
-The project uses **three auto-generated items files**:
+The project uses **two auto-generated items files**:
 
 1. **`openhab-dev/conf/items/habstate-items.items`**
    - Input configuration parameters from `@InputItem` annotations
+   - Output items from `@OutputItem` annotations
    - Aggregation groups from `@NumAgg` and `@BoolAgg` annotations
    - Auto-generated by `HabStateItemsGenerator.java`
-   - Contains items like: `manualMode`, `humidityThreshold`, `powerLow`
+   - Contains items like: `manualMode`, `humidityThreshold`, `powerLow`, `hrvOutputPower`
    - Contains groups like: `humidity`, `smoke`, `temperature`
-   - All input items belong to `gHrvInputs` group
+   - Input items belong to `gHrvInputs` group
+   - Output items belong to `gHrvOutputs` group
 
-2. **`openhab-dev/conf/items/zigbee-devices.items`**
-   - ALL Zigbee device items organized by device
-   - Auto-generated by `ZigbeeGenerator.java`
+2. **`openhab-dev/conf/items/mqtt-devices.items`**
+   - ALL MQTT/Zigbee device items organized by device
+   - Auto-generated by `MqttGenerator.java`
    - Items are NOT automatically assigned to groups
-   - Contains items like: `mqttZigbeeSmoke_0xa4c138aa8b540e22`, `mqttZigbeeHumidity_0x00158d008b8b7beb`
+   - Contains items like: `mqttSmoke_0xa4c138aa8b540e22`, `mqttHumidity_0x00158d008b8b7beb`
    - Manually assign items to groups from `habstate-items.items` as needed
-
-3. **`openhab-dev/conf/items/output-items.items`**
-   - Output items from `HabState.java`
-   - Auto-generated by `OutputItemsGenerator.java` from `HabState.java` `@OutputItem` fields
-   - Contains items like: `hrvOutputPower`
-   - All items belong to `gOutputs` group
 
 **Important:**
 - All files are auto-generated - do NOT edit manually
 - Scripts generate on a clean slate - removed devices will be automatically removed
 - Re-run generators after modifying `HabState.java` (adding/removing `@InputItem`, `@OutputItem`, `@NumAgg`, or `@BoolAgg` fields) or Zigbee devices
-- Manually edit Zigbee items to assign them to aggregation groups
+- Manually edit MQTT items to assign them to aggregation groups
 
 ### OpenHAB Item Naming Rules
 
@@ -523,9 +514,9 @@ Group:BaseType:AggregationFunction groupName "Label"
 
 Example:
 ```
-Group:Number:MAX gZigbeeHumidity "Humidity"
-Group:Number:AVG gZigbeeTemperature "Temperature"
-Group:Switch:OR(ON,OFF) gZigbeeSmoke "Smoke"
+Group:Number:MAX humidity "Humidity"
+Group:Number:AVG temperature "Temperature"
+Group:Switch:OR(ON,OFF) smoke "Smoke"
 ```
 
 ### How It Works
@@ -533,12 +524,12 @@ Group:Switch:OR(ON,OFF) gZigbeeSmoke "Smoke"
 When member items change, OpenHAB runtime **automatically** recalculates the Group's state:
 
 ```
-Group:Number:MAX gZigbeeHumidity "Humidity"
+Group:Number:MAX humidity "Humidity"
 
-Number mqttZigbeeHumidity_sensorA (gZigbeeHumidity)  // state: 45
-Number mqttZigbeeHumidity_sensorB (gZigbeeHumidity)  // state: 52
+Number mqttHumidity_sensorA (humidity)  // state: 45
+Number mqttHumidity_sensorB (humidity)  // state: 52
 
-// gZigbeeHumidity.state = MAX(45, 52) = 52
+// humidity.state = MAX(45, 52) = 52
 ```
 
 ### Available Aggregation Functions
@@ -559,7 +550,7 @@ Number mqttZigbeeHumidity_sensorB (gZigbeeHumidity)  // state: 52
 
 A Group without aggregation function has `NULL` state:
 ```
-Group gZigbeeHumidity "Humidity"  // state: NULL (no aggregation)
+Group humidity "Humidity"  // state: NULL (no aggregation)
 ```
 
 ### Usage in This Project
@@ -572,14 +563,14 @@ The `HabStateItemsGenerator` creates Groups with aggregation functions based on 
 
 Groups are named after the field name in `HabState.java` (e.g., `humidity`, `smoke`, `temperature`).
 
-**Manual group assignment:** After generating Zigbee items, manually edit `zigbee-devices.items` to assign specific items to aggregation groups:
+**Manual group assignment:** After generating MQTT items, manually edit `mqtt-devices.items` to assign specific items to aggregation groups:
 
 ```
 // Before (auto-generated):
-Number mqttZigbeeHumidity_0x00158d008b8b7beb "Humidity" <humidity> { channel="..." }
+Number mqttHumidity_0x00158d008b8b7beb "Humidity" <humidity> { channel="..." }
 
 // After (manually edited):
-Number mqttZigbeeHumidity_0x00158d008b8b7beb "Humidity" <humidity> (humidity) { channel="..." }
+Number mqttHumidity_0x00158d008b8b7beb "Humidity" <humidity> (humidity) { channel="..." }
 ```
 
 This allows UI pages to reference Group items (e.g., `humidity`) and display aggregated sensor values automatically.

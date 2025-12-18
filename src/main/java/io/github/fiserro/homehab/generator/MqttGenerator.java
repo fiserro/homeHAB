@@ -12,26 +12,39 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Generates OpenHAB Things and Items configuration from Zigbee2MQTT devices.
+ * Generates OpenHAB MQTT Things and Items configuration from Zigbee2MQTT devices.
+ *
+ * <p>This generator connects to a Zigbee2MQTT broker (via SSH or direct MQTT connection),
+ * fetches the device list, and generates:
+ * <ul>
+ *   <li>MQTT broker Thing configuration</li>
+ *   <li>Thing definitions for each Zigbee device</li>
+ *   <li>Item definitions for device metrics (temperature, humidity, smoke, etc.)</li>
+ * </ul>
+ *
+ * <p>Items are generated without group assignments - users should manually assign
+ * items to aggregation groups defined in {@code habstate-items.items}.
+ *
+ * @see HabStateItemsGenerator
  */
 @Slf4j
-public class ZigbeeGenerator {
+public class MqttGenerator {
 
   private final ObjectMapper objectMapper = new ObjectMapper();
   private final Path outputDir;
 
-  public ZigbeeGenerator(String outputDir) {
+  public MqttGenerator(String outputDir) {
     this.outputDir = Paths.get(outputDir);
   }
 
   public void generate(GeneratorOptions options) throws IOException, InterruptedException {
-    log.info("Generating Zigbee configuration...");
+    log.info("Generating MQTT/Zigbee configuration...");
 
     // Fetch devices
     List<JsonNode> devices = fetchDevices(options);
 
     if (devices.isEmpty()) {
-      log.info("No devices found, skipping Zigbee file generation");
+      log.info("No devices found, skipping MQTT file generation");
       return;
     }
 
@@ -43,16 +56,16 @@ public class ZigbeeGenerator {
     log.info("Generated MQTT Broker file: {}", mqttFile);
 
     // Generate Things file
-    Path thingsFile = outputDir.resolve("things/zigbee-devices.things");
+    Path thingsFile = outputDir.resolve("things/mqtt-devices.things");
     generateThingsFile(devices, thingsFile);
     log.info("Generated Things file: {}", thingsFile);
 
     // Generate Items file
-    Path itemsFile = outputDir.resolve("items/zigbee-devices.items");
+    Path itemsFile = outputDir.resolve("items/mqtt-devices.items");
     generateItemsFile(devices, itemsFile);
     log.info("Generated Items file: {}", itemsFile);
 
-    log.info("Zigbee configuration generated successfully");
+    log.info("MQTT/Zigbee configuration generated successfully");
   }
 
   private List<JsonNode> fetchDevices(GeneratorOptions options)
@@ -62,7 +75,7 @@ public class ZigbeeGenerator {
     } else if (options.mqttHost() != null && !options.mqttHost().isEmpty()) {
       return fetchDevicesViaMqtt(options.mqttHost());
     } else {
-      log.warn("Skipping Zigbee generation: neither sshHost nor mqttHost is provided");
+      log.warn("Skipping MQTT generation: neither sshHost nor mqttHost is provided");
       return List.of();
     }
   }
@@ -156,7 +169,7 @@ public class ZigbeeGenerator {
 
   private void generateThingsFile(List<JsonNode> devices, Path outputFile) throws IOException {
     StringBuilder content = new StringBuilder();
-    content.append("// Auto-generated Zigbee Things configuration\n");
+    content.append("// Auto-generated MQTT Things configuration\n");
     content.append("// DO NOT EDIT - changes will be overwritten\n");
     content.append("// These Things use the Bridge defined in mqtt.things\n\n");
 
@@ -243,9 +256,9 @@ public class ZigbeeGenerator {
 
   private void generateItemsFile(List<JsonNode> devices, Path outputFile) throws IOException {
     StringBuilder content = new StringBuilder();
-    content.append("// Auto-generated Zigbee Items configuration\n");
+    content.append("// Auto-generated MQTT Items configuration\n");
     content.append("// DO NOT EDIT - changes will be overwritten\n");
-    content.append("// Manually assign items to groups in HabState as needed\n\n");
+    content.append("// Manually assign items to groups in habstate-items.items as needed\n\n");
 
     // Generate items for all devices and their metrics (no automatic group assignment)
     for (JsonNode device : devices) {
@@ -289,7 +302,7 @@ public class ZigbeeGenerator {
       return null;
     }
 
-    String itemName = String.format("mqttZigbee%s_%s", capitalize(category), ieee.replace(":", ""));
+    String itemName = String.format("mqtt%s_%s", capitalize(category), ieee.replace(":", ""));
     String label = getLabel(property);
     String icon = getIconForCategory(category);
     String channel = String.format("mqtt:topic:zigbee2mqtt:%s:%s", thingId, property);
@@ -319,19 +332,19 @@ public class ZigbeeGenerator {
     String lower = property.toLowerCase();
     // Only exact matches - auxiliary properties like humidity_calibration are skipped
     Map<String, String> categoryMap = Map.ofEntries(
-        Map.entry("temperature", "temperature"),
-        Map.entry("humidity", "humidity"),
-        Map.entry("pressure", "pressure"),
-        Map.entry("co2", "co2"),
-        Map.entry("smoke", "smoke"),
-        Map.entry("gas", "gas"),
-        Map.entry("contact", "contact"),
-        Map.entry("occupancy", "occupancy"),
-        Map.entry("illuminance", "illuminance"),
-        Map.entry("battery", "battery"),
-        Map.entry("voltage", "voltage"),
-        Map.entry("linkquality", "linkquality"),
-        Map.entry("link_quality", "linkquality")
+        Map.entry("temperature", "Temperature"),
+        Map.entry("humidity", "Humidity"),
+        Map.entry("pressure", "Pressure"),
+        Map.entry("co2", "Co2"),
+        Map.entry("smoke", "Smoke"),
+        Map.entry("gas", "Gas"),
+        Map.entry("contact", "Contact"),
+        Map.entry("occupancy", "Occupancy"),
+        Map.entry("illuminance", "Illuminance"),
+        Map.entry("battery", "Battery"),
+        Map.entry("voltage", "Voltage"),
+        Map.entry("linkquality", "Linkquality"),
+        Map.entry("link_quality", "Linkquality")
     );
 
     return categoryMap.get(lower); // Returns null if not found (property will be skipped)
@@ -339,17 +352,18 @@ public class ZigbeeGenerator {
 
   private String getIconForCategory(String category) {
     return switch (category) {
-      case "temperature" -> "temperature";
-      case "humidity" -> "humidity";
-      case "pressure" -> "pressure";
-      case "co2" -> "carbondioxide";
-      case "smoke" -> "smoke";
-      case "contact" -> "contact";
-      case "occupancy" -> "motion";
-      case "illuminance" -> "light";
-      case "battery" -> "battery";
-      case "voltage" -> "energy";
-      case "linkquality" -> "network";
+      case "Temperature" -> "temperature";
+      case "Humidity" -> "humidity";
+      case "Pressure" -> "pressure";
+      case "Co2" -> "carbondioxide";
+      case "Smoke" -> "smoke";
+      case "Gas" -> "gas";
+      case "Contact" -> "contact";
+      case "Occupancy" -> "motion";
+      case "Illuminance" -> "light";
+      case "Battery" -> "battery";
+      case "Voltage" -> "energy";
+      case "Linkquality" -> "network";
       default -> "none";
     };
   }

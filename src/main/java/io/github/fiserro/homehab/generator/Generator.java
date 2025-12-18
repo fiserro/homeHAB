@@ -14,18 +14,18 @@ public class Generator {
     try {
       log.info("Generating all OpenHAB configuration...");
 
-      // Generate HabState items (input items + aggregation groups)
+      // Generate MQTT/Zigbee configuration
+      if (options.mqttEnabled()) {
+        log.info("Generating MQTT/Zigbee configuration...");
+        new MqttGenerator(options.outputDir()).generate(options);
+        log.info("Generated MQTT/Zigbee configuration");
+      }
+
+      // Generate HabState items (input items, output items, aggregation groups)
       if (options.habStateEnabled()) {
         log.info("Generating HabState items...");
         new HabStateItemsGenerator().generate(options);
         log.info("Generated HabState items");
-      }
-
-      // Generate output items
-      if (options.outputEnabled()) {
-        log.info("Generating output items...");
-        new OutputItemsGenerator().generate(options);
-        log.info("Generated output items");
       }
 
       // Initialize
@@ -33,13 +33,6 @@ public class Generator {
         log.info("Initializing all items with default values...");
         new Initializer().initialize(options);
         log.info("Initialized all items");
-      }
-
-      // Generate Zigbee configuration
-      if (options.zigbeeEnabled()) {
-        log.info("Generating Zigbee configuration...");
-        new ZigbeeGenerator(options.outputDir()).generate(options);
-        log.info("Generated Zigbee configuration");
       }
 
       log.info("All configuration files generated successfully!");

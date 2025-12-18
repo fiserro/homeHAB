@@ -6,6 +6,7 @@ import io.github.fiserro.homehab.HabState;
 import io.github.fiserro.homehab.InputItem;
 import io.github.fiserro.homehab.NumAgg;
 import io.github.fiserro.homehab.NumericAggregation;
+import io.github.fiserro.homehab.OutputItem;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
@@ -20,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <ul>
  *   <li>{@link InputItem} - generates input items (switches, numbers) for HRV control parameters
+ *   <li>{@link OutputItem} - generates output items (dimmer, switch) for HRV outputs
  *   <li>{@link NumAgg} - generates aggregation groups for numeric values (e.g., humidity, temperature)
  *   <li>{@link BoolAgg} - generates aggregation groups for boolean values (e.g., smoke detectors)
  * </ul>
@@ -31,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
  *
  * @see HabState
  * @see InputItem
+ * @see OutputItem
  * @see NumAgg
  * @see BoolAgg
  */
@@ -43,11 +46,13 @@ public class HabStateItemsGenerator {
       //
       // This file contains:
       // - Input items from @InputItem annotations (HRV control parameters)
+      // - Output items from @OutputItem annotations (HRV outputs)
       // - Aggregation groups from @NumAgg and @BoolAgg annotations
       //
       // Assign Zigbee device items to these groups manually.
 
       Group gHrvInputs "HRV Inputs"
+      Group gHrvOutputs "HRV Outputs"
 
       """;
 
@@ -65,7 +70,15 @@ public class HabStateItemsGenerator {
     content.append("// Input items from @InputItem annotations\n");
     for (Field field : HabState.class.getDeclaredFields()) {
       if (field.isAnnotationPresent(InputItem.class)) {
-        content.append(generateItem(field));
+        content.append(generateInputItem(field));
+      }
+    }
+
+    // Generate output items
+    content.append("\n// Output items from @OutputItem annotations\n");
+    for (Field field : HabState.class.getDeclaredFields()) {
+      if (field.isAnnotationPresent(OutputItem.class)) {
+        content.append(generateOutputItem(field));
       }
     }
 
@@ -124,24 +137,45 @@ public class HabStateItemsGenerator {
     return "none";
   }
 
-  private static String generateItem(Field field) {
+  private static String generateInputItem(Field field) {
     String itemName = field.getName();
-    String itemType = getItemType(field.getType());
+    String itemType = getInputItemType(field.getType());
     String label = formatLabel(itemName);
-    String icon = getIcon(itemName);
+    String icon = getInputIcon(itemName);
     String defaultValue = getDefaultValue(field);
 
     return String.format("%s %s \"HRV - %s\" <%s> (gHrvInputs)  // default: %s%n",
         itemType, itemName, label, icon, defaultValue);
   }
 
-  private static String getItemType(Class<?> type) {
+  private static String generateOutputItem(Field field) {
+    String itemName = field.getName();
+    String itemType = getOutputItemType(field.getType());
+    String label = formatLabel(itemName);
+    String icon = getOutputIcon(itemName);
+
+    return String.format("%s %s \"HRV - %s\" <%s> (gHrvOutputs)%n",
+        itemType, itemName, label, icon);
+  }
+
+  private static String getInputItemType(Class<?> type) {
     if (type == boolean.class) {
       return "Switch";
     } else if (type == int.class || type == float.class) {
       return "Number";
     }
-    throw new IllegalArgumentException("Unsupported type: " + type);
+    throw new IllegalArgumentException("Unsupported input type: " + type);
+  }
+
+  private static String getOutputItemType(Class<?> type) {
+    if (type == boolean.class) {
+      return "Switch";
+    } else if (type == int.class) {
+      return "Dimmer";
+    } else if (type == float.class) {
+      return "Number";
+    }
+    throw new IllegalArgumentException("Unsupported output type: " + type);
   }
 
   private static String formatLabel(String fieldName) {
@@ -160,7 +194,7 @@ public class HabStateItemsGenerator {
     return label.toString();
   }
 
-  private static String getIcon(String fieldName) {
+  private static String getInputIcon(String fieldName) {
     String lower = fieldName.toLowerCase();
     if (lower.contains("mode")) {
       return "switch";
@@ -170,6 +204,16 @@ public class HabStateItemsGenerator {
       return "time";
     } else if (lower.contains("co2") || lower.contains("humidity")) {
       return "line";
+    }
+    return "settings";
+  }
+
+  private static String getOutputIcon(String fieldName) {
+    String lower = fieldName.toLowerCase();
+    if (lower.contains("power")) {
+      return "energy";
+    } else if (lower.contains("fan")) {
+      return "fan";
     }
     return "settings";
   }
