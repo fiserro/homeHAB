@@ -1,5 +1,7 @@
 package io.github.fiserro.homehab;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.Builder;
 import lombok.With;
 import lombok.experimental.FieldNameConstants;
@@ -9,20 +11,24 @@ import lombok.experimental.FieldNameConstants;
 public record HabState(
     @InputItem boolean manualMode,
     @With @InputItem boolean temporaryManualMode,
+    @Max(value = 43200)
+    @Min(value = 3600)
     @InputItem int temporaryManualModeDurationSec,
     @InputItem boolean temporaryBoostMode,
+    @Max(value = 3600)
+    @Min(value = 300)
     @InputItem int temporaryBoostModeDurationSec,
     @ReadOnlyItem long temporaryManualModeOffTime,
     @ReadOnlyItem long temporaryBoostModeOffTime,
     @ReadOnlyItem int tickSecond,
-    @InputItem int humidityThreshold,
-    @InputItem int co2ThresholdLow,
-    @InputItem int co2ThresholdMid,
-    @InputItem int co2ThresholdHigh,
-    @InputItem int manualPower,
-    @InputItem int powerLow,
-    @InputItem int powerMid,
-    @InputItem int powerHigh,
+    @Min(40) @Max(80) @InputItem int humidityThreshold,
+    @Min(400) @Max(800) @InputItem int co2ThresholdLow,
+    @Min(600) @Max(1000) @InputItem int co2ThresholdMid,
+    @Min(800) @Max(1500) @InputItem int co2ThresholdHigh,
+    @Min(0) @Max(100) @InputItem int manualPower,
+    @Min(0) @Max(100) @InputItem int powerLow,
+    @Min(0) @Max(100) @InputItem int powerMid,
+    @Min(0) @Max(100) @InputItem int powerHigh,
     @NumAgg(NumericAggregation.SUM) @MqttItem int openWindows,
     @NumAgg(NumericAggregation.MAX) @MqttItem({"aqara*Humidity"}) int airHumidity,
     @NumAgg(NumericAggregation.MIN) @MqttItem("soil*Humidity") int soilHumidity,

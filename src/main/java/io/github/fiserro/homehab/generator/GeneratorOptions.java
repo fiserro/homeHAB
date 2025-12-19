@@ -51,6 +51,11 @@ public interface GeneratorOptions extends Options<GeneratorOptions> {
     return true;
   }
 
+  @Option(description = "Enables UI pages generation/update with constraints from annotations")
+  default boolean uiPagesEnabled() {
+    return true;
+  }
+
   @Option(description = "MQTT broker host for Things configuration")
   default String mqttBrokerHost() {
     return "zigbee.home";

@@ -28,6 +28,13 @@ public class Generator {
         log.info("Generated HabState items");
       }
 
+      // Update UI pages with constraints from annotations
+      if (options.uiPagesEnabled()) {
+        log.info("Updating UI pages with constraints from annotations...");
+        new UiPagesGenerator().generate(options);
+        log.info("Updated UI pages");
+      }
+
       // Initialize
       if (options.initEnabled()) {
         log.info("Initializing all items with default values...");
