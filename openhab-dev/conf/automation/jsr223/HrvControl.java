@@ -44,10 +44,14 @@ public class HrvControl extends Java223Script {
     if (_items.temporaryManualMode().getStateAs(OnOffType.class) == OnOffType.ON) {
       events.sendCommand(_items.manualMode(), OnOffType.OFF);
       events.sendCommand(_items.temporaryBoostMode(), OnOffType.OFF);
-      // Set off time = now + duration
+      // Set off time = now + duration, reset other mode's off time
       int durationSec = _items.temporaryManualModeDurationSec().getStateAs(DecimalType.class).intValue();
       long offTime = Instant.now().getEpochSecond() + durationSec;
       events.postUpdate(_items.temporaryManualModeOffTime(), (State) new DecimalType(offTime));
+      events.postUpdate(_items.temporaryBoostModeOffTime(), (State) new DecimalType(0));
+    } else {
+      // Mode turned OFF - reset off time
+      events.postUpdate(_items.temporaryManualModeOffTime(), (State) new DecimalType(0));
     }
   }
 
@@ -57,10 +61,14 @@ public class HrvControl extends Java223Script {
     if (_items.temporaryBoostMode().getStateAs(OnOffType.class) == OnOffType.ON) {
       events.sendCommand(_items.manualMode(), OnOffType.OFF);
       events.sendCommand(_items.temporaryManualMode(), OnOffType.OFF);
-      // Set off time = now + duration
+      // Set off time = now + duration, reset other mode's off time
       int durationSec = _items.temporaryBoostModeDurationSec().getStateAs(DecimalType.class).intValue();
       long offTime = Instant.now().getEpochSecond() + durationSec;
       events.postUpdate(_items.temporaryBoostModeOffTime(), (State) new DecimalType(offTime));
+      events.postUpdate(_items.temporaryManualModeOffTime(), (State) new DecimalType(0));
+    } else {
+      // Mode turned OFF - reset off time
+      events.postUpdate(_items.temporaryBoostModeOffTime(), (State) new DecimalType(0));
     }
   }
 }

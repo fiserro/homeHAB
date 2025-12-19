@@ -30,6 +30,7 @@ Dimmer hrvOutputPower "HRV - Hrv Output Power" <energy> ["computed"]
 // Read-only items from @ReadOnlyItem annotations (system-managed)
 Number temporaryManualModeOffTime "HRV - Temporary Manual Mode Off Time" <time> ["readonly", "computed"]
 Number temporaryBoostModeOffTime "HRV - Temporary Boost Mode Off Time" <time> ["readonly", "computed"]
+Number tickSecond "HRV - Tick Second" <none> ["readonly", "computed"]
 
 // Aggregation groups from @NumAgg and @BoolAgg annotations
 // Assign Zigbee items to these groups manually

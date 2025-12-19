@@ -32,7 +32,8 @@
                       {
                         "component": "oh-grid-col",
                         "config": {
-                          "width": "100"
+                          "width": "100",
+                          "medium": "70"
                         },
                         "slots": {
                           "default": [
@@ -49,6 +50,26 @@
                                 "valueTextColor": "white",
                                 "borderBgColor": "#333",
                                 "borderColor": "=items.hrvOutputPower.state > 80 ? 'red' : (items.hrvOutputPower.state > 50 ? 'orange' : 'green')"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "component": "oh-grid-col",
+                        "config": {
+                          "width": "100",
+                          "medium": "30"
+                        },
+                        "slots": {
+                          "default": [
+                            {
+                              "component": "oh-label-card",
+                              "config": {
+                                "title": "=items.temporaryManualMode.state == 'ON' ? 'Manual Mode' : (items.temporaryBoostMode.state == 'ON' ? 'Boost Mode' : 'Auto Mode')",
+                                "icon": "=items.temporaryManualMode.state == 'ON' ? 'f7:timer' : (items.temporaryBoostMode.state == 'ON' ? 'f7:bolt' : 'f7:checkmark_circle')",
+                                "iconColor": "=items.temporaryManualMode.state == 'ON' ? 'blue' : (items.temporaryBoostMode.state == 'ON' ? 'orange' : 'green')",
+                                "label": "=(items['tickSecond'].state >= 0 || true) && items['temporaryManualMode'].state == 'ON' && Number(items['temporaryManualModeOffTime'].state) > 0 ? (Math.floor((Number(items['temporaryManualModeOffTime'].state) - dayjs().unix()) / 3600) + ':' + ('0' + Math.floor(((Number(items['temporaryManualModeOffTime'].state) - dayjs().unix()) % 3600) / 60)).slice(-2) + ':' + ('0' + Math.floor((Number(items['temporaryManualModeOffTime'].state) - dayjs().unix()) % 60)).slice(-2)) : (items['temporaryBoostMode'].state == 'ON' && Number(items['temporaryBoostModeOffTime'].state) > 0 ? (Math.floor((Number(items['temporaryBoostModeOffTime'].state) - dayjs().unix()) / 3600) + ':' + ('0' + Math.floor(((Number(items['temporaryBoostModeOffTime'].state) - dayjs().unix()) % 3600) / 60)).slice(-2) + ':' + ('0' + Math.floor((Number(items['temporaryBoostModeOffTime'].state) - dayjs().unix()) % 60)).slice(-2)) : '')"
                               }
                             }
                           ]
