@@ -1,5 +1,7 @@
 package io.github.fiserro.homehab;
 
+import static io.github.fiserro.homehab.NumericAggregation.*;
+
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.Builder;
@@ -11,13 +13,9 @@ import lombok.experimental.FieldNameConstants;
 public record HabState(
     @InputItem boolean manualMode,
     @With @InputItem boolean temporaryManualMode,
-    @Max(value = 43200)
-    @Min(value = 3600)
-    @InputItem int temporaryManualModeDurationSec,
+    @Max(value = 43200) @Min(value = 3600) @InputItem int temporaryManualModeDurationSec,
     @InputItem boolean temporaryBoostMode,
-    @Max(value = 3600)
-    @Min(value = 300)
-    @InputItem int temporaryBoostModeDurationSec,
+    @Max(value = 3600) @Min(value = 300) @InputItem int temporaryBoostModeDurationSec,
     @ReadOnlyItem long temporaryManualModeOffTime,
     @ReadOnlyItem long temporaryBoostModeOffTime,
     @ReadOnlyItem int tickSecond,
@@ -29,12 +27,12 @@ public record HabState(
     @Min(0) @Max(100) @InputItem int powerLow,
     @Min(0) @Max(100) @InputItem int powerMid,
     @Min(0) @Max(100) @InputItem int powerHigh,
-    @NumAgg(NumericAggregation.SUM) @MqttItem int openWindows,
-    @NumAgg(NumericAggregation.MAX) @MqttItem({"aqara*Humidity"}) int airHumidity,
-    @NumAgg(NumericAggregation.MIN) @MqttItem("soil*Humidity") int soilHumidity,
-    @NumAgg(NumericAggregation.MAX) @MqttItem int co2,
-    @NumAgg(NumericAggregation.AVG) @MqttItem({"aqara*Temperature", "soil*Temperature"}) int temperature,
-    @NumAgg(NumericAggregation.AVG) @MqttItem("aqara*Pressure") int pressure,
+    @NumAgg(SUM) @MqttItem int openWindows,
+    @NumAgg(MAX) @MqttItem({"aqara*Humidity"}) int airHumidity,
+    @NumAgg(MIN) @MqttItem("soil*Humidity") int soilHumidity,
+    @NumAgg(MAX) @MqttItem int co2,
+    @NumAgg(AVG) @MqttItem({"aqara*Temperature", "soil*Temperature"}) int temperature,
+    @NumAgg(AVG) @MqttItem("aqara*Pressure") int pressure,
     @BoolAgg(BooleanAggregation.OR) @MqttItem("fire*Smoke") boolean smoke,
     @BoolAgg(BooleanAggregation.OR) @MqttItem boolean gas,
     @With @OutputItem int hrvOutputPower) {
@@ -44,9 +42,7 @@ public record HabState(
   @FieldNameConstants
   public static class HabStateBuilder {
 
-    /**
-     * Default values for the HAB state.
-     */
+    /** Default values for the HAB state. */
     public HabStateBuilder() {
       manualMode = false;
       temporaryManualMode = false;
