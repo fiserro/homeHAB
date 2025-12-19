@@ -1,7 +1,7 @@
 // Auto-generated MQTT Broker configuration
 // DO NOT EDIT - changes will be overwritten
 
-Thing mqtt:broker:zigbee2mqtt "Zigbee2MQTT Broker" [
+Thing mqtt:broker:mosquitto "MQTT Broker (Mosquitto)" [
     host="zigbee.home",
     port=1883,
     clientid="homehab-dev",

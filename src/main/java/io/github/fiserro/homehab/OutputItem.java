@@ -8,9 +8,10 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.FIELD})
 public @interface OutputItem {
-    String type() default "";
-    String dimension() default "";
-    String label() default "";
-    String icon() default "";
 
+    /**
+     * OpenHAB channel binding for this output item.
+     * Example: "mqtt:topic:dac:power"
+     */
+    String channel() default "";
 }

@@ -35,7 +35,7 @@ public record HabState(
     @NumAgg(AVG) @MqttItem("aqara*Pressure") int pressure,
     @BoolAgg(BooleanAggregation.OR) @MqttItem("fire*Smoke") boolean smoke,
     @BoolAgg(BooleanAggregation.OR) @MqttItem boolean gas,
-    @With @OutputItem int hrvOutputPower) {
+    @With @OutputItem(channel = "mqtt:topic:dac:power") int hrvOutputPower) {
 
   public static final int POWER_OFF = 0;
 

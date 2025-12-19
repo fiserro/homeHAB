@@ -1,0 +1,2 @@
+[console_scripts]
+dac-bridge = dac_bridge:main

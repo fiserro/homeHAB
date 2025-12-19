@@ -2,7 +2,7 @@
 // DO NOT EDIT - changes will be overwritten
 // These Things use the Bridge defined in mqtt.things
 
-Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c13856c27757e5 "relay1" (mqtt:broker:zigbee2mqtt) [
+Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c13856c27757e5 "relay1" (mqtt:broker:mosquitto) [
     stateTopic="zigbee2mqtt/relay1",
     commandTopic="zigbee2mqtt/relay1/set"
 ] {
@@ -29,7 +29,7 @@ Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c13856c27757e5 "relay1" (mqtt:broker:zig
         ]
 }
 
-Thing mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb "aqara1" (mqtt:broker:zigbee2mqtt) [
+Thing mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb "aqara1" (mqtt:broker:mosquitto) [
     stateTopic="zigbee2mqtt/aqara1",
     commandTopic="zigbee2mqtt/aqara1/set"
 ] {
@@ -66,7 +66,7 @@ Thing mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7beb "aqara1" (mqtt:broker:zig
         ]
 }
 
-Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c138aa8b540e22 "fire1" (mqtt:broker:zigbee2mqtt) [
+Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c138aa8b540e22 "fire1" (mqtt:broker:mosquitto) [
     stateTopic="zigbee2mqtt/fire1",
     commandTopic="zigbee2mqtt/fire1/set"
 ] {
@@ -112,7 +112,7 @@ Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c138aa8b540e22 "fire1" (mqtt:broker:zigb
         ]
 }
 
-Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c1387eee7fa96f "soil1" (mqtt:broker:zigbee2mqtt) [
+Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c1387eee7fa96f "soil1" (mqtt:broker:mosquitto) [
     stateTopic="zigbee2mqtt/soil1",
     commandTopic="zigbee2mqtt/soil1/set"
 ] {
@@ -186,7 +186,7 @@ Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c1387eee7fa96f "soil1" (mqtt:broker:zigb
         ]
 }
 
-Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c138df52a26212 "soil2" (mqtt:broker:zigbee2mqtt) [
+Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c138df52a26212 "soil2" (mqtt:broker:mosquitto) [
     stateTopic="zigbee2mqtt/soil2",
     commandTopic="zigbee2mqtt/soil2/set"
 ] {
@@ -260,7 +260,7 @@ Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c138df52a26212 "soil2" (mqtt:broker:zigb
         ]
 }
 
-Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c1384a743fbde0 "soil3" (mqtt:broker:zigbee2mqtt) [
+Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c1384a743fbde0 "soil3" (mqtt:broker:mosquitto) [
     stateTopic="zigbee2mqtt/soil3",
     commandTopic="zigbee2mqtt/soil3/set"
 ] {
@@ -334,7 +334,7 @@ Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c1384a743fbde0 "soil3" (mqtt:broker:zigb
         ]
 }
 
-Thing mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c2d "aqara2" (mqtt:broker:zigbee2mqtt) [
+Thing mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c2d "aqara2" (mqtt:broker:mosquitto) [
     stateTopic="zigbee2mqtt/aqara2",
     commandTopic="zigbee2mqtt/aqara2/set"
 ] {
@@ -371,7 +371,7 @@ Thing mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c2d "aqara2" (mqtt:broker:zig
         ]
 }
 
-Thing mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c50 "aqara3" (mqtt:broker:zigbee2mqtt) [
+Thing mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c50 "aqara3" (mqtt:broker:mosquitto) [
     stateTopic="zigbee2mqtt/aqara3",
     commandTopic="zigbee2mqtt/aqara3/set"
 ] {
@@ -408,7 +408,7 @@ Thing mqtt:topic:zigbee2mqtt:zigbee_0x00158d008b8b7c50 "aqara3" (mqtt:broker:zig
         ]
 }
 
-Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c138085ad275de "fire2" (mqtt:broker:zigbee2mqtt) [
+Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c138085ad275de "fire2" (mqtt:broker:mosquitto) [
     stateTopic="zigbee2mqtt/fire2",
     commandTopic="zigbee2mqtt/fire2/set"
 ] {
@@ -454,7 +454,7 @@ Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c138085ad275de "fire2" (mqtt:broker:zigb
         ]
 }
 
-Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c138944e997eec "fire3" (mqtt:broker:zigbee2mqtt) [
+Thing mqtt:topic:zigbee2mqtt:zigbee_0xa4c138944e997eec "fire3" (mqtt:broker:mosquitto) [
     stateTopic="zigbee2mqtt/fire3",
     commandTopic="zigbee2mqtt/fire3/set"
 ] {

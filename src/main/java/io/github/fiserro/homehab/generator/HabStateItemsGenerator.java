@@ -168,8 +168,12 @@ public class HabStateItemsGenerator {
     String label = formatLabel(itemName);
     String icon = getOutputIcon(itemName);
 
-    return String.format("%s %s \"HRV - %s\" <%s> %s%n",
-        itemType, itemName, label, icon, OUTPUT_TAGS);
+    OutputItem annotation = field.getAnnotation(OutputItem.class);
+    String channel = annotation.channel();
+    String channelBinding = channel.isEmpty() ? "" : String.format(" { channel=\"%s\" }", channel);
+
+    return String.format("%s %s \"HRV - %s\" <%s> %s%s%n",
+        itemType, itemName, label, icon, OUTPUT_TAGS, channelBinding);
   }
 
   private static String generateReadOnlyItem(Field field) {

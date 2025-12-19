@@ -1,0 +1,7 @@
+paho-mqtt<3.0.0,>=1.6.0
+spidev>=3.0
+lgpio>=0.2.0
+
+[dev]
+pytest>=7.0.0
+pytest-cov>=4.0.0

@@ -228,7 +228,7 @@ public class MqttGenerator {
     int mqttPort = options.mqttBrokerPort();
     String clientId = options.mqttClientId();
 
-    content.append("Thing mqtt:broker:zigbee2mqtt \"Zigbee2MQTT Broker\" [\n");
+    content.append("Thing mqtt:broker:mosquitto \"Zigbee2MQTT Broker\" [\n");
     content.append(String.format("    host=\"%s\",\n", mqttHost));
     content.append(String.format("    port=%d,\n", mqttPort));
     content.append(String.format("    clientid=\"%s\",\n", clientId));
@@ -267,7 +267,7 @@ public class MqttGenerator {
       String ieee = device.get("ieee_address").asText();
       String friendlyName = device.has("friendly_name") ? device.get("friendly_name").asText() : ieee;
 
-      content.append(String.format("Thing mqtt:topic:zigbee2mqtt:zigbee_%s \"%s\" (mqtt:broker:zigbee2mqtt) [\n",
+      content.append(String.format("Thing mqtt:topic:zigbee2mqtt:zigbee_%s \"%s\" (mqtt:broker:mosquitto) [\n",
           ieee.replace(":", ""), friendlyName));
       content.append(String.format("    stateTopic=\"zigbee2mqtt/%s\",\n", friendlyName));
       content.append(String.format("    commandTopic=\"zigbee2mqtt/%s/set\"\n", friendlyName));

@@ -1,0 +1,90 @@
+# DAC Bridge
+
+MQTT to DAC8532 bridge for HRV power output control on Raspberry Pi with Waveshare High-Precision AD/DA Board.
+
+## Overview
+
+This service subscribes to MQTT messages and converts them to analog voltage output:
+- **Input**: 0-100 (percentage from OpenHAB `hrvOutputPower`)
+- **Output**: 0-5V on DAC8532 channel A
+
+The Waveshare DAC8532 library is bundled - no external dependencies on the target system.
+
+## MQTT Topics
+
+| Topic | Direction | Description |
+|-------|-----------|-------------|
+| `homehab/dac/power/set` | Subscribe | Set power level (0-100) |
+| `homehab/dac/power/state` | Publish | Current power level |
+| `homehab/dac/voltage/state` | Publish | Current voltage (0-5V) |
+
+## Prerequisites
+
+On Raspberry Pi:
+1. Enable SPI via `sudo raspi-config` → Interface Options → SPI → Enable
+2. Reboot
+
+## Deployment
+
+From development machine:
+```bash
+cd src/main/python
+./deploy-dac-bridge.sh robertfiser@openhab.home
+```
+
+This will:
+1. Build Python wheel (includes Waveshare library)
+2. Copy to Raspberry Pi
+3. Install as systemd service (installs lgpio, spidev dependencies)
+4. Start the service
+
+## Package Structure
+
+```
+dac_bridge/
+├── __init__.py          # Main bridge code
+├── waveshare_config.py  # SPI/GPIO configuration (bundled)
+└── waveshare_dac8532.py # DAC8532 driver (bundled)
+```
+
+## Testing
+
+```bash
+# Set power to 50%
+mosquitto_pub -h openhab.home -t 'homehab/dac/power/set' -m '50'
+
+# Monitor state
+mosquitto_sub -h openhab.home -t 'homehab/dac/#' -v
+
+# Check service logs
+ssh openhab.home 'sudo journalctl -u dac-bridge -f'
+```
+
+## OpenHAB Integration
+
+Add MQTT Thing to `conf/things/mqtt-dac.things`:
+```
+Thing mqtt:topic:dac "DAC Bridge" (mqtt:broker:zigbee2mqtt) {
+    Channels:
+        Type dimmer : power "Power" [
+            commandTopic="homehab/dac/power/set",
+            stateTopic="homehab/dac/power/state",
+            min=0,
+            max=100
+        ]
+}
+```
+
+Then create a Link in OpenHAB UI between `hrvOutputPower` item and `mqtt:topic:dac:power` channel.
+
+## Service Management
+
+```bash
+ssh openhab.home 'sudo systemctl status dac-bridge'
+ssh openhab.home 'sudo systemctl restart dac-bridge'
+ssh openhab.home 'sudo journalctl -u dac-bridge -f'
+```
+
+## License
+
+Waveshare library files (`waveshare_*.py`) are MIT licensed - see file headers.
