@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """
-DAC Bridge - MQTT to DAC8532 bridge for HRV power output control.
+HRV Bridge - MQTT to PWM/DAC bridge for HRV power output control.
 
-Subscribes to MQTT topic and sets DAC output voltage based on received values.
+Subscribes to MQTT topic and controls HRV output based on received values.
 Input: 0-100 (percentage from OpenHAB hrvOutputPower)
-Output: 0-5V on DAC8532 channel A
+Output: PWM signal (default) or DAC voltage
+
+Modes:
+  - PWM mode (default): GPIO PWM → PWM-to-0-10V module → HRV
+  - DAC mode: Waveshare DAC8532 → 0-5V output
 
 Usage:
-    dac-bridge [--mqtt-host HOST] [--mqtt-port PORT] [--topic-prefix PREFIX]
+    hrv-bridge [--mqtt-host HOST] [--mode pwm|dac] [--pwm-pin PIN]
 """
 
 import argparse
@@ -16,27 +20,37 @@ import signal
 import sys
 import time
 
-# Import bundled Waveshare library
+import paho.mqtt.client as mqtt
+
+# Try to import lgpio for PWM
+try:
+    import lgpio
+    LGPIO_AVAILABLE = True
+except ImportError:
+    LGPIO_AVAILABLE = False
+
+# Try to import Waveshare library for DAC
 try:
     from . import waveshare_dac8532 as DAC8532
-    from . import waveshare_config as config
-    config.module_init()
+    from . import waveshare_config as waveshare_config
     DAC_AVAILABLE = True
-except ImportError as e:
+except ImportError:
     DAC_AVAILABLE = False
-    logging.warning(f"DAC8532 library not available - running in simulation mode: {e}")
 
-import paho.mqtt.client as mqtt
+# Import PWM calibration
+from .pwm_calibration import percent_to_pwm
 
 # Default configuration
 DEFAULT_MQTT_HOST = "localhost"
 DEFAULT_MQTT_PORT = 1883
-DEFAULT_TOPIC_PREFIX = "homehab/dac"
-DEFAULT_CLIENT_ID = "dac-bridge"
+DEFAULT_TOPIC_PREFIX = "homehab/hrv"
+DEFAULT_CLIENT_ID = "hrv-bridge"
+DEFAULT_MODE = "pwm"
+DEFAULT_PWM_PIN = 18  # GPIO 18 (hardware PWM capable)
+DEFAULT_PWM_FREQ = 2000  # 2 kHz (PWM module accepts 1-3 kHz)
 
-# DAC parameters
-V_MIN = 0.0
-V_MAX = 5.0
+
+# Output parameters
 PERCENT_MIN = 0
 PERCENT_MAX = 100
 
@@ -45,42 +59,107 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-log = logging.getLogger("dac-bridge")
+log = logging.getLogger("hrv-bridge")
 
 
-class DacBridge:
-    """MQTT to DAC8532 bridge."""
+class PwmOutput:
+    """PWM output driver using lgpio."""
 
-    def __init__(self, mqtt_host: str, mqtt_port: int, topic_prefix: str, client_id: str):
+    def __init__(self, pin: int = DEFAULT_PWM_PIN, freq: int = DEFAULT_PWM_FREQ):
+        self.pin = pin
+        self.freq = freq
+        self.handle = None
+        self.duty_cycle = 0
+
+        if not LGPIO_AVAILABLE:
+            raise RuntimeError("lgpio library not available")
+
+        self.handle = lgpio.gpiochip_open(0)
+        lgpio.gpio_claim_output(self.handle, self.pin)
+        log.info(f"PWM initialized on GPIO {self.pin} at {self.freq} Hz")
+
+    def set_duty_cycle(self, percent: float):
+        """Set PWM duty cycle using calibration table."""
+        percent = max(0, min(100, percent))
+        self.duty_cycle = percent
+        # Use calibration to find actual PWM duty for desired output
+        calibrated_duty = percent_to_pwm(percent)
+        lgpio.tx_pwm(self.handle, self.pin, self.freq, calibrated_duty)
+
+    def stop(self):
+        """Stop PWM and cleanup."""
+        if self.handle is not None:
+            lgpio.tx_pwm(self.handle, self.pin, self.freq, 0)
+            lgpio.gpiochip_close(self.handle)
+            self.handle = None
+
+
+class DacOutput:
+    """DAC output driver using Waveshare DAC8532."""
+
+    def __init__(self):
+        if not DAC_AVAILABLE:
+            raise RuntimeError("Waveshare DAC8532 library not available")
+
+        waveshare_config.module_init()
+        self.dac = DAC8532.DAC8532()
+        self.voltage = 0.0
+        self.v_max = 5.0
+        log.info("DAC8532 initialized")
+
+    def set_duty_cycle(self, percent: float):
+        """Set output voltage based on percentage (0-100% → 0-5V)."""
+        percent = max(0, min(100, percent))
+        self.voltage = (percent / 100.0) * self.v_max
+        self.dac.DAC8532_Out_Voltage(DAC8532.channel_A, self.voltage)
+
+    def stop(self):
+        """Set output to 0 and cleanup."""
+        self.dac.DAC8532_Out_Voltage(DAC8532.channel_A, 0.0)
+        try:
+            waveshare_config.module_exit()
+        except Exception:
+            pass
+
+
+class HrvBridge:
+    """MQTT to PWM/DAC bridge for HRV control."""
+
+    def __init__(self, mqtt_host: str, mqtt_port: int, topic_prefix: str,
+                 client_id: str, mode: str, pwm_pin: int, pwm_freq: int):
         self.mqtt_host = mqtt_host
         self.mqtt_port = mqtt_port
         self.topic_prefix = topic_prefix.rstrip('/')
         self.topic_set = f"{self.topic_prefix}/power/set"
         self.topic_state = f"{self.topic_prefix}/power/state"
-        self.topic_voltage = f"{self.topic_prefix}/voltage/state"
+        self.mode = mode
 
         self.client = mqtt.Client(client_id=client_id)
         self.client.on_connect = self._on_connect
         self.client.on_disconnect = self._on_disconnect
         self.client.on_message = self._on_message
 
-        self.dac = None
+        self.output = None
         self.running = False
         self.current_percent = 0
-        self.current_voltage = 0.0
 
-        if DAC_AVAILABLE:
-            self.dac = DAC8532.DAC8532()
-            log.info("DAC8532 initialized")
-        else:
-            log.warning("Running in simulation mode (no DAC hardware)")
+        # Initialize output driver
+        try:
+            if mode == "pwm":
+                self.output = PwmOutput(pin=pwm_pin, freq=pwm_freq)
+            elif mode == "dac":
+                self.output = DacOutput()
+            else:
+                raise ValueError(f"Unknown mode: {mode}")
+        except Exception as e:
+            log.warning(f"Output initialization failed: {e} - running in simulation mode")
+            self.output = None
 
     def _on_connect(self, client, userdata, flags, rc):
         if rc == 0:
             log.info(f"Connected to MQTT broker at {self.mqtt_host}:{self.mqtt_port}")
             client.subscribe(self.topic_set)
             log.info(f"Subscribed to {self.topic_set}")
-            # Publish initial state
             self._publish_state()
         else:
             log.error(f"Connection failed with code {rc}")
@@ -92,46 +171,32 @@ class DacBridge:
     def _on_message(self, client, userdata, msg):
         try:
             payload = msg.payload.decode("utf-8").strip()
-            # Handle both comma and dot as decimal separator
             payload = payload.replace(",", ".")
-
             percent = float(payload)
             self._set_power(percent)
-
         except ValueError as e:
             log.error(f"Invalid payload '{msg.payload}': {e}")
         except Exception as e:
             log.exception(f"Error processing message: {e}")
 
-    def _percent_to_voltage(self, percent: float) -> float:
-        """Convert percentage (0-100) to voltage (0-5V)."""
-        percent = max(PERCENT_MIN, min(PERCENT_MAX, percent))
-        return (percent / PERCENT_MAX) * V_MAX
-
     def _set_power(self, percent: float):
-        """Set DAC output based on percentage value."""
+        """Set output power level."""
         percent = max(PERCENT_MIN, min(PERCENT_MAX, percent))
-        voltage = self._percent_to_voltage(percent)
 
-        if self.dac:
-            self.dac.DAC8532_Out_Voltage(DAC8532.channel_A, voltage)
+        if self.output:
+            self.output.set_duty_cycle(percent)
 
         self.current_percent = percent
-        self.current_voltage = voltage
-
-        log.info(f"Power set: {percent:.1f}% -> {voltage:.3f}V")
+        log.info(f"Power set: {percent:.1f}% (mode: {self.mode})")
         self._publish_state()
 
     def _publish_state(self):
         """Publish current state to MQTT."""
         self.client.publish(self.topic_state, f"{self.current_percent:.1f}", retain=True)
-        self.client.publish(self.topic_voltage, f"{self.current_voltage:.3f}", retain=True)
 
     def start(self):
         """Start the bridge."""
         self.running = True
-
-        # Set initial output to 0
         self._set_power(0)
 
         log.info(f"Connecting to MQTT broker at {self.mqtt_host}:{self.mqtt_port}")
@@ -147,27 +212,19 @@ class DacBridge:
     def stop(self):
         """Stop the bridge and cleanup."""
         self.running = False
+        log.info("Shutting down - setting output to 0")
 
-        # Set output to 0 on shutdown
-        log.info("Shutting down - setting output to 0V")
-        if self.dac:
-            self.dac.DAC8532_Out_Voltage(DAC8532.channel_A, 0.0)
+        if self.output:
+            self.output.set_duty_cycle(0)
+            self.output.stop()
 
         self.client.disconnect()
-
-        # Cleanup Waveshare library
-        if DAC_AVAILABLE:
-            try:
-                config.module_exit()
-            except Exception:
-                pass
-
         log.info("Shutdown complete")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="DAC Bridge - MQTT to DAC8532 bridge for HRV power output"
+        description="HRV Bridge - MQTT to PWM/DAC bridge for HRV power output"
     )
     parser.add_argument(
         "--mqtt-host", "-H",
@@ -191,6 +248,24 @@ def main():
         help=f"MQTT client ID (default: {DEFAULT_CLIENT_ID})"
     )
     parser.add_argument(
+        "--mode", "-m",
+        choices=["pwm", "dac"],
+        default=DEFAULT_MODE,
+        help=f"Output mode: pwm or dac (default: {DEFAULT_MODE})"
+    )
+    parser.add_argument(
+        "--pwm-pin",
+        type=int,
+        default=DEFAULT_PWM_PIN,
+        help=f"GPIO pin for PWM output (default: {DEFAULT_PWM_PIN})"
+    )
+    parser.add_argument(
+        "--pwm-freq",
+        type=int,
+        default=DEFAULT_PWM_FREQ,
+        help=f"PWM frequency in Hz (default: {DEFAULT_PWM_FREQ})"
+    )
+    parser.add_argument(
         "--verbose", "-v",
         action="store_true",
         help="Enable verbose logging"
@@ -201,14 +276,16 @@ def main():
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    bridge = DacBridge(
+    bridge = HrvBridge(
         mqtt_host=args.mqtt_host,
         mqtt_port=args.mqtt_port,
         topic_prefix=args.topic_prefix,
-        client_id=args.client_id
+        client_id=args.client_id,
+        mode=args.mode,
+        pwm_pin=args.pwm_pin,
+        pwm_freq=args.pwm_freq
     )
 
-    # Handle signals
     def signal_handler(signum, frame):
         log.info(f"Received signal {signum}")
         bridge.stop()

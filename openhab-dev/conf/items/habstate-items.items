@@ -25,7 +25,7 @@ Number powerMid "HRV - Power Mid" <energy> ["user"]  // default: 50
 Number powerHigh "HRV - Power High" <energy> ["user"]  // default: 95
 
 // Output items from @OutputItem annotations
-Dimmer hrvOutputPower "HRV - Hrv Output Power" <energy> ["computed"] { channel="mqtt:topic:dac:power" }
+Dimmer hrvOutputPower "HRV - Hrv Output Power" <energy> ["computed"] { channel="mqtt:topic:hrv:power" }
 
 // Read-only items from @ReadOnlyItem annotations (system-managed)
 Number temporaryManualModeOffTime "HRV - Temporary Manual Mode Off Time" <time> ["readonly", "computed"]

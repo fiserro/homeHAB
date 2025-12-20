@@ -1,5 +1,5 @@
 [Unit]
-Description=DAC Bridge - MQTT to DAC8532 for HRV control
+Description=HRV Bridge - MQTT to PWM/DAC for HRV control
 After=network-online.target mosquitto.service
 Wants=network-online.target
 
@@ -7,17 +7,11 @@ Wants=network-online.target
 Type=simple
 User=root
 Group=root
-ExecStart=/usr/local/bin/dac-bridge --mqtt-host localhost --mqtt-port 1883
+ExecStart=/usr/local/bin/hrv-bridge --mqtt-host localhost --mode pwm --pwm-pin 18
 Restart=always
 RestartSec=10
 StandardOutput=journal
 StandardError=journal
-
-# Hardening
-ProtectSystem=strict
-ProtectHome=read-only
-PrivateTmp=true
-NoNewPrivileges=true
 
 [Install]
 WantedBy=multi-user.target

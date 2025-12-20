@@ -50,6 +50,11 @@ openhab-dev/conf/automation/lib/java/*.jar
 openhab-dev/conf/automation/lib/java/*.jar.backup.*
 openhab-dev/conf/automation/lib/java/helper/
 
+# Python build artifacts
+*.egg-info/
+__pycache__/
+*.pyc
+
 # Compiled class files
 *.class
 
