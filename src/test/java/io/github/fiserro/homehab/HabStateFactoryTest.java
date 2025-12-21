@@ -14,14 +14,14 @@ import org.openhab.core.types.State;
 class HabStateFactoryTest {
 
   @Test
-  void shouldCreateHabStateWithInputItems() {
+  void shouldCreateTestHabStateWithInputItems() {
     Map<String, State> itemStates = new HashMap<>();
     itemStates.put("manualMode", mockState(OnOffType.ON));
     itemStates.put("temporaryBoostMode", mockState(OnOffType.OFF));
     itemStates.put("humidityThreshold", mockState(new DecimalType(70)));
     itemStates.put("co2ThresholdLow", mockState(new DecimalType(600)));
 
-    HabState habState = HabStateFactory.of(itemStates);
+    TestHabState habState = HabStateFactory.of(TestHabState.class, itemStates);
 
     assertTrue(habState.manualMode());
     assertFalse(habState.temporaryBoostMode());
@@ -33,7 +33,7 @@ class HabStateFactoryTest {
   void shouldUseDefaultValuesForMissingInputItems() {
     Map<String, State> itemStates = new HashMap<>();
 
-    HabState habState = HabStateFactory.of(itemStates);
+    TestHabState habState = HabStateFactory.of(TestHabState.class, itemStates);
 
     assertFalse(habState.manualMode());
     assertFalse(habState.temporaryBoostMode());
@@ -49,7 +49,7 @@ class HabStateFactoryTest {
     Map<String, State> itemStates = new HashMap<>();
     itemStates.put("airHumidity", mockState(new DecimalType(65)));
 
-    HabState habState = HabStateFactory.of(itemStates);
+    TestHabState habState = HabStateFactory.of(TestHabState.class, itemStates);
 
     assertEquals(65, habState.airHumidity());
   }
@@ -62,7 +62,7 @@ class HabStateFactoryTest {
     itemStates.put("temperature", mockState(new DecimalType(21)));
     itemStates.put("smoke", mockState(OnOffType.ON));
 
-    HabState habState = HabStateFactory.of(itemStates);
+    TestHabState habState = HabStateFactory.of(TestHabState.class, itemStates);
 
     assertEquals(65, habState.airHumidity());
     assertEquals(800, habState.co2());
@@ -71,13 +71,13 @@ class HabStateFactoryTest {
   }
 
   @Test
-  void shouldLoadMqttFloatItem() {
+  void shouldLoadOpenWindowsItem() {
     Map<String, State> itemStates = new HashMap<>();
-    itemStates.put("openWindows", mockState(new DecimalType(50)));
+    itemStates.put("openWindows", mockState(new DecimalType(2)));
 
-    HabState habState = HabStateFactory.of(itemStates);
+    TestHabState habState = HabStateFactory.of(TestHabState.class, itemStates);
 
-    assertEquals(50.0f, habState.openWindows(), 0.01);
+    assertEquals(2, habState.openWindows());
   }
 
   @Test
@@ -90,7 +90,7 @@ class HabStateFactoryTest {
     itemStates.put("airHumidity", mockState(new DecimalType(65)));
     itemStates.put("co2", mockState(new DecimalType(700)));
 
-    HabState habState = HabStateFactory.of(itemStates);
+    TestHabState habState = HabStateFactory.of(TestHabState.class, itemStates);
 
     assertTrue(habState.manualMode());
     assertEquals(70, habState.humidityThreshold());
@@ -100,7 +100,10 @@ class HabStateFactoryTest {
 
   @Test
   void shouldWriteStateToOutputItems() {
-    HabState state = HabState.builder().hrvOutputPower(75).build();
+    Map<String, State> itemStates = new HashMap<>();
+    itemStates.put("hrvOutputPower", mockState(new DecimalType(75)));
+    TestHabState state = HabStateFactory.of(TestHabState.class, itemStates);
+    state = state.withValue("hrvOutputPower", 75);
     ScriptBusEvent events = mock(ScriptBusEvent.class);
 
     HabStateFactory.writeState(events, state);

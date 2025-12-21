@@ -10,7 +10,7 @@ import java.lang.annotation.Target;
  * These items are managed by the system and cannot be changed via UI.
  * Used for computed values like scheduled off-times for temporary modes.
  */
-@Target(ElementType.FIELD)
+@Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ReadOnlyItem {
 }

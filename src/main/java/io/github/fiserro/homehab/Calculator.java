@@ -1,12 +1,22 @@
 package io.github.fiserro.homehab;
 
+import io.github.fiserro.homehab.module.HrvModule;
 import java.util.function.Function;
 
-public interface Calculator extends Function<HabState, HabState> {
-  HabState calculate(HabState state);
+/**
+ * Generic calculator interface for HRV module.
+ * Extends Function to allow use in functional pipelines.
+ *
+ * <p>The type T extends HrvModule which already includes Options<T>.
+ *
+ * @param <T> the module type (extends HrvModule)
+ */
+public interface Calculator<T extends HrvModule<T>> extends Function<T, T> {
 
-  @Override
-  default HabState apply(HabState state) {
-    return calculate(state);
-  }
+    T calculate(T state);
+
+    @Override
+    default T apply(T state) {
+        return calculate(state);
+    }
 }

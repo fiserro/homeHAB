@@ -6,6 +6,7 @@ package io.github.fiserro.homehab;
  * systems in homeHAB.
  */
 public enum BooleanAggregation {
+  NONE,
   AND,
   OR
 }

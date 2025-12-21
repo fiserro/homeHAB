@@ -9,6 +9,7 @@ import lombok.val;
  * systems in homeHAB.
  */
 public enum NumericAggregation {
+  NONE,
   MIN,
   MAX,
   SUM,
@@ -44,6 +45,7 @@ public enum NumericAggregation {
         })
         .toList();
     return switch (this) {
+      case NONE -> null;
       case MIN -> min(numbers);
       case MAX -> max(numbers);
       case SUM -> sum(numbers);

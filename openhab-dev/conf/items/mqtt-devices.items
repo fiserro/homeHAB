@@ -1,6 +1,6 @@
 // Auto-generated MQTT Items configuration
 // DO NOT EDIT - changes will be overwritten
-// Manually assign items to groups in habstate-items.items as needed
+// Items are automatically assigned to groups based on @MqttItem patterns
 
 // relay1
 Number relay1Linkquality "Relay1 Linkquality" <network> ["0xa4c13856c27757e5", "mqtt", "zigbee"] { channel="mqtt:topic:zigbee2mqtt:zigbee_0xa4c13856c27757e5:linkquality" }

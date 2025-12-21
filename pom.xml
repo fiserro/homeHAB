@@ -71,7 +71,7 @@
         <dependency>
             <groupId>io.github.fiserro</groupId>
             <artifactId>options</artifactId>
-            <version>1.0.0-rc2</version>
+            <version>1.0.0-rc3</version>
         </dependency>
 
         <!-- SLF4J API (for logging) -->
@@ -152,6 +152,18 @@
                         <phase>generate-sources</phase>
                         <goals>
                             <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.basedir}/openhab-dev/conf/automation/lib/java</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>add-test-source</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>add-test-source</goal>
                         </goals>
                         <configuration>
                             <sources>

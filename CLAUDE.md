@@ -52,8 +52,6 @@ This creates two JARs in `target/`:
 
 ## Development Workflow
 
-**IMPORTANT**: This solution is currently a work in progress and not fully functional yet.
-
 The development workflow follows these steps:
 
 1. **Develop & Build** - Write code and build fat JAR with Maven
@@ -167,85 +165,140 @@ cp target/homeHAB-1.0-SNAPSHOT.jar /path/to/openhab/conf/automation/lib/java/
 
 ### Module Structure
 
-The project is organized into two main packages:
+The project uses a modular interface hierarchy based on the `io.github.fiserro:options` library:
 
-1. **Library Code** (`src/main/java/io/github/fiserro/homehab/`)
-   - `hrv/` - HRV (Heat Recovery Ventilator) control system
-   - Reusable components meant to be deployed to OpenHAB's `automation/lib/java/` directory
+```
+src/main/java/io/github/fiserro/homehab/
+├── module/
+│   ├── CommonModule.java          # Base module: temperature, pressure, tickSecond
+│   ├── HrvModule.java             # HRV control: modes, thresholds, power levels
+│   └── FlowerModule.java          # Plant care: soil humidity
+├── openhab/
+│   └── OpenHabItemsExtension.java # Custom OptionsExtension for ItemRegistry
+├── hrv/
+│   └── HrvCalculator.java         # HRV calculation logic
+├── HabStateFactory.java           # Factory for creating Options from OpenHAB items
+└── annotations/                   # @InputItem, @OutputItem, @MqttItem, etc.
 
-2. **OpenHAB Scripts** (`openhab-dev/conf/automation/jsr223/`)
-   - `HrvControlScript.java` - OpenHAB rule that instantiates and wires up HRV components
-   - These extend `Java223Script` and use `@Rule` annotations
-   - Deployed to OpenHAB's `automation/jsr223/` directory
+openhab-dev/conf/automation/
+├── lib/java/
+│   ├── HabState.java              # Interface extending all modules + MQTT specs
+│   └── homeHAB-*.jar              # Shaded JAR with library code
+└── jsr223/
+    └── HrvControl.java            # OpenHAB rule script
+```
+
+### HabState Interface Hierarchy
+
+HabState uses a modular design with self-referential type parameters:
+
+```java
+// Module interfaces in src/main/java (reusable library)
+public interface CommonModule<T extends CommonModule<T>> extends Options<T> {
+    @Option default int temperature() { return 20; }
+}
+
+public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
+    @InputItem @Option default boolean manualMode() { return false; }
+    @OutputItem @Option default int hrvOutputPower() { return 50; }
+}
+
+// Home-specific interface in openhab-dev (MQTT bindings)
+public interface HabState extends CommonModule<HabState>, HrvModule<HabState>, FlowerModule<HabState> {
+    @Override @MqttItem(value = {"aqara*Temperature"}, numAgg = NumericAggregation.AVG)
+    default int temperature() { return CommonModule.super.temperature(); }
+}
+```
+
+**Key design principles:**
+- **Modules are reusable** - `HrvModule` can be used in any home automation project
+- **MQTT bindings are home-specific** - `HabState` adds `@MqttItem` to specify device patterns
+- **Self-referential generics** - `withValue()` returns the correct type without casting
+- **Immutability** - All state changes create new instances
 
 ### HRV System Architecture
 
-The HRV system is designed as a layered architecture:
+The HRV system uses a functional data flow:
 
-**Input Layer → Aggregation → Calculation → Output**
+**OpenHAB Items → HabStateFactory → HrvCalculator → sendCommand**
 
-1. **HrvRule** (`HrvRule.java`)
-   - Entry point for OpenHAB integration
-   - Maps OpenHAB items to HRV input types using a fluent builder API
-   - Aggregates multiple sensors per input type (e.g., multiple CO2 sensors)
-   - Manages temporary mode timers (auto-off after configured timeout)
-   - Handles configuration reloading when OpenHAB items change
+1. **HabStateFactory** (`HabStateFactory.java`)
+   - Creates `HabState` instances from OpenHAB item states
+   - Uses `OpenHabItemsExtension` to load values
+   - Writes output values back via `writeState()`
 
-2. **HrvCalculator** (`HrvCalculator.java`)
+2. **OpenHabItemsExtension** (`OpenHabItemsExtension.java`)
+   - Custom `OptionsExtension` that reads from OpenHAB items
+   - Converts OpenHAB `State` to Java types (DecimalType → int, OnOffType → boolean)
+   - Skips values already set in builder (prevents overwriting `withValue()` calls)
+
+3. **HrvCalculator** (`HrvCalculator.java`)
+   - Generic calculator accepting any `HrvModule<T>` implementation
    - Pure calculation logic - no OpenHAB dependencies
    - Priority-based decision tree:
-     - Priority 1: Safety (smoke detector, window open)
-     - Priority 2: Manual modes (manual, temporary manual)
-     - Priority 3: Boost modes (boost, temporary boost)
-     - Priority 4: Exhaust hood
-     - Priority 5: Automatic mode (humidity/CO2 sensors)
+     - Priority 1: Manual modes (manual, temporary manual) → `manualPower`
+     - Priority 2: Boost mode (temporary boost) → `powerHigh`
+     - Priority 3: Gas detection → `powerHigh`
+     - Priority 4: Smoke detection → `POWER_OFF`
+     - Priority 5: Humidity threshold → `powerHigh`
+     - Priority 6: CO2 levels → `powerHigh/Mid/Low` based on thresholds
+     - Default: `powerLow`
 
-3. **HrvConfig** (`HrvConfig.java`)
-   - Immutable configuration record with defaults
-   - All thresholds and power levels are configurable
+4. **HrvControl.java** (OpenHAB Script)
+   - Triggers on item state changes
+   - Creates `HabState` from current items
+   - Calculates new output power
+   - Sends command to output item
 
-4. **HrvConfigLoader** (`HrvConfigLoader.java`)
-   - Loads configuration from OpenHAB items (prefix: `hrvConfig`)
-   - Falls back to defaults if items don't exist
-
-5. **HrvInputType** (`HrvInputType.java`)
-   - Enum defining all input types (sensors, modes)
-   - Each type has data type (Boolean/Number) and aggregation strategy (OR/MAX)
-
-6. **AggregationType** (`AggregationType.java`)
-   - Defines aggregation strategies for multiple sensors of same type
-   - OR: Any true → true (for booleans)
-   - MAX: Highest value wins (for numbers)
+```java
+// Example from HrvControl.java
+@Rule(name = "item.changed", description = "Handle item changes")
+@ItemStateChangeTrigger(itemName = "manualPower")
+public void onZigbeeItemChanged() {
+    HabState state = HabStateFactory.of(HabState.class, items);
+    HabState calculated = new HrvCalculator<HabState>().calculate(state);
+    events.sendCommand(_items.hrvOutputPower(), calculated.hrvOutputPower());
+}
+```
 
 ### Key Design Patterns
 
-**Builder Pattern for Rule Configuration:**
+**Options Library Pattern:**
 ```java
-HrvRule.builder()
-    .input(HrvInputType.MANUAL_MODE, "Hrv_Manual_Mode")
-    .input(HrvInputType.CO2, "Bedroom_CO2_Sensor")
-    .input(HrvInputType.CO2, "Living_Room_CO2_Sensor")  // Multiple sensors aggregated
-    .output("Hrv_Power_Output")
-    .events(events)
-    .scheduler(scheduler)
-    .itemRegistry(itemRegistry)
-    .build();
+// Create immutable state from OpenHAB items
+HabState state = HabStateFactory.of(HabState.class, items);
+
+// Calculate new values (returns new immutable instance)
+HabState calculated = state.withValue("hrvOutputPower", 75);
+
+// Access values
+int power = calculated.hrvOutputPower();  // 75 (new value)
+int humidity = calculated.airHumidity();  // from OpenHAB item
 ```
+
+**Module Annotations:**
+- `@Option` - Marks method as configurable option (from Options library)
+- `@InputItem` - User-configurable input (generates OpenHAB item with `["user"]` tag)
+- `@OutputItem` - Computed output (generates OpenHAB item with `["computed"]` tag)
+- `@ReadOnlyItem` - System-managed read-only value
+- `@MqttItem` - MQTT binding pattern with aggregation (e.g., `@MqttItem(value = "aqara*", numAgg = AVG)`)
 
 **Auto-Injection in OpenHAB Scripts:**
 OpenHAB's Java223 engine automatically injects services into script fields:
 - `ScriptBusEvent events` - For sending commands/updates to items
-- `Scheduler scheduler` - For scheduling delayed actions
-- `ItemRegistry itemRegistry` - For reading item states
+- `Map<String, State> items` - Map of item names to current states
+- `Items _items` - Generated type-safe item accessors
 
 **ScriptBusEvent API:**
 The correct way to interact with OpenHAB items:
 ```java
+// Send command (triggers channels, rules)
 events.sendCommand("itemName", "ON");
+events.sendCommand(_items.hrvOutputPower(), 75);
+
+// Post update (directly sets state, no channel trigger)
 events.postUpdate("itemName", "100");
 ```
-
-Do NOT use `ItemRegistry.get()` which returns the `Item` interface without a `send()` method.
 
 **Rule Annotations:**
 Scripts use annotations from `helper.rules.annotations`:
@@ -256,10 +309,8 @@ public void onTrigger() { ... }
 ```
 
 **Lombok for Boilerplate Reduction:**
-All classes use Lombok annotations:
+Library classes use Lombok annotations:
 - `@Slf4j` - Automatic logger field
-- `@RequiredArgsConstructor` - Constructor for final fields
-- `@Builder` - Fluent builder pattern
 
 ## Dependencies
 
@@ -359,16 +410,19 @@ This method requires `mosquitto-clients` package installed locally and direct ne
 
 ### HabState Items Generator (`HabStateItemsGenerator`)
 
-Generates OpenHAB items from `HabState.java` field annotations.
+Generates OpenHAB items from `HabState` interface method annotations using the Options library.
 
 **Generated file:** `openhab-dev/conf/items/habstate-items.items`
 
 **What it does:**
-- Generates **input items** from `@InputItem` annotated fields (HRV control parameters) with `["user"]` tag
-- Generates **output items** from `@OutputItem` annotated fields (HRV outputs) with `["computed"]` tag
-- Generates **aggregation groups** from `@NumAgg` and `@BoolAgg` annotated fields with `["mqtt", "zigbee", "computed"]` tags
+- Uses `OptionsFactory.create(HabState.class)` to get all option definitions
+- Iterates over `options()` to find annotated methods
+- Generates **input items** from `@InputItem` annotated methods with `["user"]` tag
+- Generates **output items** from `@OutputItem` annotated methods with `["computed"]` tag
+- Generates **read-only items** from `@ReadOnlyItem` annotated methods with `["readonly", "computed"]` tags
+- Generates **aggregation groups** from `@MqttItem` with `numAgg`/`boolAgg` parameters
 - Maps Java types to OpenHAB types (boolean → Switch, int → Number/Dimmer)
-- Determines icons based on field names
+- Determines icons based on method names
 - Aggregation groups receive members automatically via `MqttGenerator` based on `@MqttItem` patterns
 
 ### MQTT Generator (`MqttGenerator`)
@@ -384,11 +438,18 @@ Generates OpenHAB MQTT Things and Items from Zigbee2MQTT devices.
 
 **@MqttItem patterns:**
 ```java
-// In HabState.java:
-@NumAgg(NumericAggregation.MAX) @MqttItem({"aqara*Humidity"}) int humidity;
-@NumAgg(NumericAggregation.AVG) @MqttItem({"aqara*Temperature", "soil*Temperature"}) int temperature;
-@BoolAgg(BooleanAggregation.OR) @MqttItem("smoke*Smoke") boolean smoke;
-@NumAgg(NumericAggregation.MAX) @MqttItem int co2;  // Default: matches *Co2
+// In HabState.java (method annotations with aggregation):
+@Override @MqttItem(value = {"aqara*Humidity"}, numAgg = NumericAggregation.MAX)
+default int airHumidity() { return HrvModule.super.airHumidity(); }
+
+@Override @MqttItem(value = {"aqara*Temperature", "soil*Temperature"}, numAgg = NumericAggregation.AVG)
+default int temperature() { return CommonModule.super.temperature(); }
+
+@Override @MqttItem(value = "fire*Smoke", boolAgg = BooleanAggregation.OR)
+default boolean smoke() { return HrvModule.super.smoke(); }
+
+@Override @MqttItem(numAgg = NumericAggregation.MAX)  // Default: matches *Co2
+default int co2() { return HrvModule.super.co2(); }
 ```
 
 **Pattern syntax:**
@@ -403,7 +464,7 @@ Generates OpenHAB MQTT Things and Items from Zigbee2MQTT devices.
 
 ### Items Initializer (`Initializer`)
 
-Initializes OpenHAB items with default values from `HabState.builder().build()` via REST API.
+Initializes OpenHAB items with default values from `OptionsFactory.create(HabState.class)` via REST API.
 
 **Usage:**
 ```bash
@@ -413,9 +474,10 @@ mvn exec:java -Dexec.mainClass="io.github.fiserro.homehab.generator.Generator" \
 ```
 
 **What it does:**
-- Reads default values from `HabState.builder().build()`
+- Creates HabState instance using `OptionsFactory.create(HabState.class)`
+- Reads default values from `options()` iteration (default method implementations)
 - Sends HTTP PUT requests to OpenHAB REST API to set item states
-- Initializes both `@InputItem` and `@OutputItem` annotated fields
+- Initializes both `@InputItem` and `@OutputItem` annotated methods
 - Reports success/failure for each item
 
 **When to use:**
@@ -445,21 +507,22 @@ Generated by `MqttGenerator.java`:
 
 Generated by `HabStateItemsGenerator.java`:
 
-- **Item name:** `<fieldName>` (camelCase, matching HabState.java field names)
-  - Example: `manualMode`, `humidityThreshold`, `co2ThresholdLow`, `basePower`
-- **Group:** All items belong to `gHrvInputs` group
+- **Item name:** `<methodName>` (camelCase, matching HabState.java method names)
+  - Example: `manualMode`, `humidityThreshold`, `co2ThresholdLow`, `powerLow`
+- **Tags:** `["user"]` for input items, `["computed"]` for output items
 
 ### Items File Structure
 
 The project uses **two auto-generated items files**:
 
 1. **`openhab-dev/conf/items/habstate-items.items`**
-   - Input configuration parameters from `@InputItem` annotations
-   - Output items from `@OutputItem` annotations
-   - Aggregation groups from `@NumAgg` and `@BoolAgg` annotations
+   - Input configuration parameters from `@InputItem` method annotations
+   - Output items from `@OutputItem` method annotations
+   - Read-only items from `@ReadOnlyItem` method annotations
+   - Aggregation groups from `@MqttItem` with `numAgg`/`boolAgg` parameters
    - Auto-generated by `HabStateItemsGenerator.java`
    - Contains items like: `manualMode`, `humidityThreshold`, `powerLow`, `hrvOutputPower`
-   - Contains aggregation groups like: `humidity`, `smoke`, `temperature`
+   - Contains aggregation groups like: `airHumidity`, `smoke`, `temperature`
 
 2. **`openhab-dev/conf/items/mqtt-devices.items`**
    - ALL MQTT/Zigbee device items organized by device
@@ -471,8 +534,7 @@ The project uses **two auto-generated items files**:
 **Important:**
 - All files are auto-generated - do NOT edit manually
 - Scripts generate on a clean slate - removed devices will be automatically removed
-- Re-run generators after modifying `HabState.java` (adding/removing `@InputItem`, `@OutputItem`, `@NumAgg`, or `@BoolAgg` fields) or Zigbee devices
-- Manually edit MQTT items to assign them to aggregation groups
+- Re-run generators after modifying `HabState.java` (adding/removing `@InputItem`, `@OutputItem`, `@MqttItem` methods) or Zigbee devices
 
 ### OpenHAB Item Naming Rules
 
@@ -570,27 +632,28 @@ Group humidity "Humidity"  // state: NULL (no aggregation)
 
 ### Usage in This Project
 
-The `HabStateItemsGenerator` creates Groups with aggregation functions based on annotations in `HabState.java`:
+The `HabStateItemsGenerator` creates Groups with aggregation functions based on `@MqttItem` annotations in `HabState.java`:
 
-- `@NumAgg(NumericAggregation.MAX)` → `Group:Number:MAX`
-- `@NumAgg(NumericAggregation.AVG)` → `Group:Number:AVG`
-- `@BoolAgg(BooleanAggregation.OR)` → `Group:Switch:OR(ON,OFF)`
+- `@MqttItem(numAgg = NumericAggregation.MAX)` → `Group:Number:MAX`
+- `@MqttItem(numAgg = NumericAggregation.AVG)` → `Group:Number:AVG`
+- `@MqttItem(boolAgg = BooleanAggregation.OR)` → `Group:Switch:OR(ON,OFF)`
 
-Groups are named after the field name in `HabState.java` (e.g., `humidity`, `smoke`, `temperature`).
+Groups are named after the method name in `HabState.java` (e.g., `airHumidity`, `smoke`, `temperature`).
 
 **Automatic group assignment:** Items are automatically assigned to groups based on `@MqttItem` patterns in `HabState.java`:
 
 ```java
 // In HabState.java:
-@NumAgg(NumericAggregation.MAX) @MqttItem({"aqara*Humidity"}) int humidity;
+@Override @MqttItem(value = {"aqara*Humidity"}, numAgg = NumericAggregation.MAX)
+default int airHumidity() { return HrvModule.super.airHumidity(); }
 ```
 
 ```
 // Generated mqtt-devices.items:
-Number aqaraBedroomHumidity "Aqara Bedroom Humidity" <humidity> (humidity) ["0x00158d008b8b7beb", "mqtt", "zigbee"] { channel="..." }
+Number aqaraBedroomHumidity "Aqara Bedroom Humidity" <humidity> (airHumidity) ["0x00158d008b8b7beb", "mqtt", "zigbee"] { channel="..." }
 ```
 
-This allows UI pages to reference Group items (e.g., `humidity`) and display aggregated sensor values automatically.
+This allows UI pages to reference Group items (e.g., `airHumidity`) and display aggregated sensor values automatically.
 
 ## Common Pitfalls
 
@@ -603,8 +666,11 @@ Do NOT create stub classes for `helper.generated.*` - these are dynamically gene
 ### Scripts Are Excluded from Compilation
 The Maven compiler excludes `**/scripts/**/*.java` because these files depend on OpenHAB's generated classes. They compile only within OpenHAB's runtime environment.
 
-### Configuration Items Must Use Prefix
-All HRV configuration items in OpenHAB must use the prefix `hrvConfig` in camelCase (e.g., `hrvConfigCo2Threshold`, `hrvConfigHumidityThreshold`). This prefix is used to detect configuration changes and trigger reloads.
+### SLF4J Logging in Scripts
+SLF4J logging doesn't work in OpenHAB scripts. Use `System.out.println()` for debugging instead.
+
+### Channel Links and Autoupdate
+If an item has an invalid channel link (e.g., to a deleted Thing), OpenHAB's autoupdate may override your commands with predicted values. Delete invalid channel links in the UI.
 
 ## Language Guidelines
 
