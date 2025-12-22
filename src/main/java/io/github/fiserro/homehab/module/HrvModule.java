@@ -61,12 +61,14 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
 
     // Intake/Exhaust ratio control
     /**
-     * Ratio between intake and exhaust power. 50 = balanced (50:50).
-     * Range 45-55: value < 50 means more exhaust, value > 50 means more intake.
-     * Max difference is 10% (5 units each direction from center).
+     * Pressure balance control. 0 = balanced, negative = underpressure, positive = overpressure.
+     * Range -10 to +10: percentage adjustment relative to base power.
+     * -10 = underpressure (reduce exhaust by 10% of base power, intake unchanged)
+     * +10 = overpressure (increase intake by 10% of base power, exhaust unchanged)
+     * Example: base=20%, ratio=+10 → intake=22%, exhaust=20%
      */
-    @Min(45) @Max(55) @InputItem @Option
-    default int intakeExhaustRatio() { return 50; }
+    @Min(-10) @Max(10) @InputItem @Option
+    default int intakeExhaustRatio() { return 0; }
 
     // Power levels
     @Min(0) @Max(100) @InputItem @Option

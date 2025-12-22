@@ -29,31 +29,77 @@
                 "default" : [ {
                   "component" : "oh-grid-col",
                   "config" : {
-                    "width" : "100",
-                    "medium" : "70"
+                    "width" : "50",
+                    "medium" : "25"
                   },
                   "slots" : {
                     "default" : [ {
                       "component" : "oh-gauge-card",
                       "config" : {
-                        "title" : "HRV Output Power",
+                        "title" : "Base Power",
                         "item" : "hrvOutputPower",
                         "min" : 0,
                         "max" : 100,
                         "type" : "semicircle",
-                        "size" : 250,
-                        "borderWidth" : 20,
+                        "size" : 150,
+                        "borderWidth" : 15,
                         "valueTextColor" : "white",
                         "borderBgColor" : "#333",
-                        "borderColor" : "=items.hrvOutputPower.state > 80 ? 'red' : (items.hrvOutputPower.state > 50 ? 'orange' : 'green')"
+                        "borderColor" : "=Number(items.hrvOutputPower.state) > 80 ? 'red' : (Number(items.hrvOutputPower.state) > 50 ? 'orange' : 'green')"
                       }
                     } ]
                   }
                 }, {
                   "component" : "oh-grid-col",
                   "config" : {
-                    "width" : "100",
-                    "medium" : "30"
+                    "width" : "50",
+                    "medium" : "25"
+                  },
+                  "slots" : {
+                    "default" : [ {
+                      "component" : "oh-gauge-card",
+                      "config" : {
+                        "title" : "Intake Power",
+                        "item" : "hrvOutputIntake",
+                        "min" : 0,
+                        "max" : 100,
+                        "type" : "semicircle",
+                        "size" : 150,
+                        "borderWidth" : 15,
+                        "valueTextColor" : "white",
+                        "borderBgColor" : "#333",
+                        "borderColor" : "=Number(items.hrvOutputIntake.state) > 80 ? 'red' : (Number(items.hrvOutputIntake.state) > 50 ? 'orange' : 'green')"
+                      }
+                    } ]
+                  }
+                }, {
+                  "component" : "oh-grid-col",
+                  "config" : {
+                    "width" : "50",
+                    "medium" : "25"
+                  },
+                  "slots" : {
+                    "default" : [ {
+                      "component" : "oh-gauge-card",
+                      "config" : {
+                        "title" : "Exhaust Power",
+                        "item" : "hrvOutputExhaust",
+                        "min" : 0,
+                        "max" : 100,
+                        "type" : "semicircle",
+                        "size" : 150,
+                        "borderWidth" : 15,
+                        "valueTextColor" : "white",
+                        "borderBgColor" : "#333",
+                        "borderColor" : "=Number(items.hrvOutputExhaust.state) > 80 ? 'red' : (Number(items.hrvOutputExhaust.state) > 50 ? 'orange' : 'green')"
+                      }
+                    } ]
+                  }
+                }, {
+                  "component" : "oh-grid-col",
+                  "config" : {
+                    "width" : "50",
+                    "medium" : "25"
                   },
                   "slots" : {
                     "default" : [ {
@@ -63,66 +109,6 @@
                         "icon" : "=items.temporaryManualMode.state == 'ON' ? 'f7:timer' : (items.temporaryBoostMode.state == 'ON' ? 'f7:bolt' : 'f7:checkmark_circle')",
                         "iconColor" : "=items.temporaryManualMode.state == 'ON' ? 'blue' : (items.temporaryBoostMode.state == 'ON' ? 'orange' : 'green')",
                         "label" : "=(items['tickSecond'].state >= 0 || true) && items['temporaryManualMode'].state == 'ON' && Number(items['temporaryManualModeOffTime'].state) > 0 ? (Math.floor((Number(items['temporaryManualModeOffTime'].state) - dayjs().unix()) / 3600) + ':' + ('0' + Math.floor(((Number(items['temporaryManualModeOffTime'].state) - dayjs().unix()) % 3600) / 60)).slice(-2) + ':' + ('0' + Math.floor((Number(items['temporaryManualModeOffTime'].state) - dayjs().unix()) % 60)).slice(-2)) : (items['temporaryBoostMode'].state == 'ON' && Number(items['temporaryBoostModeOffTime'].state) > 0 ? (Math.floor((Number(items['temporaryBoostModeOffTime'].state) - dayjs().unix()) / 3600) + ':' + ('0' + Math.floor(((Number(items['temporaryBoostModeOffTime'].state) - dayjs().unix()) % 3600) / 60)).slice(-2) + ':' + ('0' + Math.floor((Number(items['temporaryBoostModeOffTime'].state) - dayjs().unix()) % 60)).slice(-2)) : '')"
-                      }
-                    } ]
-                  }
-                } ]
-              }
-            }, {
-              "component" : "oh-grid-row",
-              "config" : { },
-              "slots" : {
-                "default" : [ {
-                  "component" : "oh-grid-col",
-                  "config" : {
-                    "width" : "50",
-                    "medium" : "25"
-                  },
-                  "slots" : {
-                    "default" : [ {
-                      "component" : "oh-label-card",
-                      "config" : {
-                        "title" : "Intake Power",
-                        "item" : "hrvOutputIntake",
-                        "icon" : "f7:arrow_down_circle",
-                        "iconColor" : "=Number(items.hrvOutputIntake.state) > 80 ? 'red' : (Number(items.hrvOutputIntake.state) > 50 ? 'orange' : 'green')"
-                      }
-                    } ]
-                  }
-                }, {
-                  "component" : "oh-grid-col",
-                  "config" : {
-                    "width" : "50",
-                    "medium" : "25"
-                  },
-                  "slots" : {
-                    "default" : [ {
-                      "component" : "oh-label-card",
-                      "config" : {
-                        "title" : "Exhaust Power",
-                        "item" : "hrvOutputExhaust",
-                        "icon" : "f7:arrow_up_circle",
-                        "iconColor" : "=Number(items.hrvOutputExhaust.state) > 80 ? 'red' : (Number(items.hrvOutputExhaust.state) > 50 ? 'orange' : 'green')"
-                      }
-                    } ]
-                  }
-                }, {
-                  "component" : "oh-grid-col",
-                  "config" : {
-                    "width" : "100",
-                    "medium" : "50"
-                  },
-                  "slots" : {
-                    "default" : [ {
-                      "component" : "oh-slider-card",
-                      "config" : {
-                        "title" : "Intake/Exhaust Ratio",
-                        "subtitle" : "=Number(items.intakeExhaustRatio.state) < 50 ? 'More exhaust' : (Number(items.intakeExhaustRatio.state) > 50 ? 'More intake' : 'Balanced')",
-                        "item" : "intakeExhaustRatio",
-                        "min" : 45,
-                        "max" : 55,
-                        "step" : 1,
-                        "icon" : "f7:arrow_right_arrow_left"
                       }
                     } ]
                   }
@@ -571,7 +557,7 @@
         }, {
           "component" : "oh-block",
           "config" : {
-            "title" : "Intake/Exhaust Ratio"
+            "title" : "Pressure Control"
           },
           "slots" : {
             "default" : [ {
@@ -587,21 +573,28 @@
                     "default" : [ {
                       "component" : "oh-list-card",
                       "config" : {
-                        "title" : "Motor Balance",
-                        "subtitle" : "Adjust the balance between intake and exhaust motors",
+                        "title" : "Pressure Balance",
+                        "subtitle" : "Adjust pressure balance between intake and exhaust",
                         "icon" : "f7:arrow_right_arrow_left"
                       },
                       "slots" : {
                         "default" : [ {
                           "component" : "oh-slider-item",
                           "config" : {
-                            "title" : "Intake/Exhaust Ratio",
-                            "subtitle" : "45=more exhaust, 50=balanced, 55=more intake",
+                            "title" : "Pressure Balance",
+                            "subtitle" : "-10%=underpressure, 0%=balanced, +10%=overpressure",
                             "item" : "intakeExhaustRatio",
-                            "min" : 45,
-                            "max" : 55,
+                            "min" : -10,
+                            "max" : 10,
                             "step" : 1,
                             "icon" : "f7:arrow_right_arrow_left"
+                          }
+                        }, {
+                          "component" : "oh-label-item",
+                          "config" : {
+                            "title" : "Base Power",
+                            "item" : "hrvOutputPower",
+                            "icon" : "f7:gauge"
                           }
                         }, {
                           "component" : "oh-label-item",
@@ -616,13 +609,6 @@
                             "title" : "Exhaust Power",
                             "item" : "hrvOutputExhaust",
                             "icon" : "f7:arrow_up_circle"
-                          }
-                        }, {
-                          "component" : "oh-label-item",
-                          "config" : {
-                            "title" : "Base Power (50:50)",
-                            "item" : "hrvOutputPower",
-                            "icon" : "f7:equal_circle"
                           }
                         } ]
                       }

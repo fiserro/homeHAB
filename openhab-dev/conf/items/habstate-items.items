@@ -49,11 +49,11 @@ Number temporaryBoostModeOffTime "HRV - Temporary Boost Mode Off Time" <time> ["
 // Read-only items from FlowerModule
 
 // Aggregation groups from HabState @MqttItem annotations
-Group:Number:AVG temperature "Temperature" <temperature> ["mqtt", "zigbee", "computed"]
-Group:Number:AVG pressure "Pressure" <pressure> ["mqtt", "zigbee", "computed"]
-Group:Number:SUM openWindows "Open Windows" <window> ["mqtt", "zigbee", "computed"]
-Group:Number:MAX airHumidity "Air Humidity" <humidity> ["mqtt", "zigbee", "computed"]
-Group:Number:MIN soilHumidity "Soil Humidity" <humidity> ["mqtt", "zigbee", "computed"]
 Group:Switch:OR(ON,OFF) smoke "Smoke" <smoke> ["mqtt", "zigbee", "computed"]
 Group:Number:MAX co2 "Co2" <carbondioxide> ["mqtt", "zigbee", "computed"]
 Group:Switch:OR(ON,OFF) gas "Gas" <gas> ["mqtt", "zigbee", "computed"]
+Group:Number:SUM openWindows "Open Windows" <window> ["mqtt", "zigbee", "computed"]
+Group:Number:MAX airHumidity "Air Humidity" <humidity> ["mqtt", "zigbee", "computed"]
+Group:Number:MIN soilHumidity "Soil Humidity" <humidity> ["mqtt", "zigbee", "computed"]
+Group:Number:AVG temperature "Temperature" <temperature> ["mqtt", "zigbee", "computed"]
+Group:Number:AVG pressure "Pressure" <pressure> ["mqtt", "zigbee", "computed"]
