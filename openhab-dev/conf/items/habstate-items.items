@@ -18,21 +18,24 @@
 Number tickSecond "HRV - Tick Second" <none> ["readonly", "computed"]
 
 // Input items from HrvModule
-Number temporaryManualModeDurationSec "HRV - Temporary Manual Mode Duration Sec" <switch> ["user"]  // default: ?
-Number temporaryBoostModeDurationSec "HRV - Temporary Boost Mode Duration Sec" <switch> ["user"]  // default: ?
-Switch manualMode "HRV - Manual Mode" <switch> ["user"]  // default: ?
-Number manualPower "HRV - Manual Power" <energy> ["user"]  // default: ?
-Number powerLow "HRV - Power Low" <energy> ["user"]  // default: ?
-Number powerMid "HRV - Power Mid" <energy> ["user"]  // default: ?
-Number powerHigh "HRV - Power High" <energy> ["user"]  // default: ?
 Switch temporaryManualMode "HRV - Temporary Manual Mode" <switch> ["user"]  // default: ?
 Switch temporaryBoostMode "HRV - Temporary Boost Mode" <switch> ["user"]  // default: ?
 Number humidityThreshold "HRV - Humidity Threshold" <energy> ["user"]  // default: ?
 Number co2ThresholdLow "HRV - Co2 Threshold Low" <energy> ["user"]  // default: ?
 Number co2ThresholdMid "HRV - Co2 Threshold Mid" <energy> ["user"]  // default: ?
 Number co2ThresholdHigh "HRV - Co2 Threshold High" <energy> ["user"]  // default: ?
+Number intakeExhaustRatio "HRV - Intake Exhaust Ratio" <settings> ["user"]  // default: ?
+Switch manualMode "HRV - Manual Mode" <switch> ["user"]  // default: ?
+Number manualPower "HRV - Manual Power" <energy> ["user"]  // default: ?
+Number powerLow "HRV - Power Low" <energy> ["user"]  // default: ?
+Number powerMid "HRV - Power Mid" <energy> ["user"]  // default: ?
+Number powerHigh "HRV - Power High" <energy> ["user"]  // default: ?
+Number temporaryManualModeDurationSec "HRV - Temporary Manual Mode Duration Sec" <switch> ["user"]  // default: ?
+Number temporaryBoostModeDurationSec "HRV - Temporary Boost Mode Duration Sec" <switch> ["user"]  // default: ?
 
 // Output items from HrvModule
+Dimmer hrvOutputIntake "HRV - Hrv Output Intake" <settings> ["computed"]
+Dimmer hrvOutputExhaust "HRV - Hrv Output Exhaust" <settings> ["computed"]
 Dimmer hrvOutputPower "HRV - Hrv Output Power" <energy> ["computed"]
 
 // Read-only items from HrvModule

@@ -59,6 +59,15 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
     @Min(800) @Max(1500) @InputItem @Option
     default int co2ThresholdHigh() { return 900; }
 
+    // Intake/Exhaust ratio control
+    /**
+     * Ratio between intake and exhaust power. 50 = balanced (50:50).
+     * Range 45-55: value < 50 means more exhaust, value > 50 means more intake.
+     * Max difference is 10% (5 units each direction from center).
+     */
+    @Min(45) @Max(55) @InputItem @Option
+    default int intakeExhaustRatio() { return 50; }
+
     // Power levels
     @Min(0) @Max(100) @InputItem @Option
     default int manualPower() { return 50; }
@@ -92,6 +101,22 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
     @OutputItem @Option
     default int hrvOutputPower() { return 50; }
 
+    /**
+     * Output power for intake (fresh air) motor.
+     * Calculated from hrvOutputPower adjusted by intakeExhaustRatio.
+     */
+    @OutputItem @Option
+    default int hrvOutputIntake() { return 50; }
+
+    /**
+     * Output power for exhaust (stale air) motor.
+     * Calculated from hrvOutputPower adjusted by intakeExhaustRatio.
+     */
+    @OutputItem @Option
+    default int hrvOutputExhaust() { return 50; }
+
     T withHrvOutputPower(int power);
+    T withHrvOutputIntake(int power);
+    T withHrvOutputExhaust(int power);
 
 }

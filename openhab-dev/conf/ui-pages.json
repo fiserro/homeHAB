@@ -76,6 +76,66 @@
                   "component" : "oh-grid-col",
                   "config" : {
                     "width" : "50",
+                    "medium" : "25"
+                  },
+                  "slots" : {
+                    "default" : [ {
+                      "component" : "oh-label-card",
+                      "config" : {
+                        "title" : "Intake Power",
+                        "item" : "hrvOutputIntake",
+                        "icon" : "f7:arrow_down_circle",
+                        "iconColor" : "=Number(items.hrvOutputIntake.state) > 80 ? 'red' : (Number(items.hrvOutputIntake.state) > 50 ? 'orange' : 'green')"
+                      }
+                    } ]
+                  }
+                }, {
+                  "component" : "oh-grid-col",
+                  "config" : {
+                    "width" : "50",
+                    "medium" : "25"
+                  },
+                  "slots" : {
+                    "default" : [ {
+                      "component" : "oh-label-card",
+                      "config" : {
+                        "title" : "Exhaust Power",
+                        "item" : "hrvOutputExhaust",
+                        "icon" : "f7:arrow_up_circle",
+                        "iconColor" : "=Number(items.hrvOutputExhaust.state) > 80 ? 'red' : (Number(items.hrvOutputExhaust.state) > 50 ? 'orange' : 'green')"
+                      }
+                    } ]
+                  }
+                }, {
+                  "component" : "oh-grid-col",
+                  "config" : {
+                    "width" : "100",
+                    "medium" : "50"
+                  },
+                  "slots" : {
+                    "default" : [ {
+                      "component" : "oh-slider-card",
+                      "config" : {
+                        "title" : "Intake/Exhaust Ratio",
+                        "subtitle" : "=Number(items.intakeExhaustRatio.state) < 50 ? 'More exhaust' : (Number(items.intakeExhaustRatio.state) > 50 ? 'More intake' : 'Balanced')",
+                        "item" : "intakeExhaustRatio",
+                        "min" : 45,
+                        "max" : 55,
+                        "step" : 1,
+                        "icon" : "f7:arrow_right_arrow_left"
+                      }
+                    } ]
+                  }
+                } ]
+              }
+            }, {
+              "component" : "oh-grid-row",
+              "config" : { },
+              "slots" : {
+                "default" : [ {
+                  "component" : "oh-grid-col",
+                  "config" : {
+                    "width" : "50",
                     "medium" : "20"
                   },
                   "slots" : {
@@ -499,6 +559,70 @@
                             "max" : 100,
                             "step" : 5,
                             "icon" : "f7:wind"
+                          }
+                        } ]
+                      }
+                    } ]
+                  }
+                } ]
+              }
+            } ]
+          }
+        }, {
+          "component" : "oh-block",
+          "config" : {
+            "title" : "Intake/Exhaust Ratio"
+          },
+          "slots" : {
+            "default" : [ {
+              "component" : "oh-grid-row",
+              "config" : { },
+              "slots" : {
+                "default" : [ {
+                  "component" : "oh-grid-col",
+                  "config" : {
+                    "width" : "100"
+                  },
+                  "slots" : {
+                    "default" : [ {
+                      "component" : "oh-list-card",
+                      "config" : {
+                        "title" : "Motor Balance",
+                        "subtitle" : "Adjust the balance between intake and exhaust motors",
+                        "icon" : "f7:arrow_right_arrow_left"
+                      },
+                      "slots" : {
+                        "default" : [ {
+                          "component" : "oh-slider-item",
+                          "config" : {
+                            "title" : "Intake/Exhaust Ratio",
+                            "subtitle" : "45=more exhaust, 50=balanced, 55=more intake",
+                            "item" : "intakeExhaustRatio",
+                            "min" : 45,
+                            "max" : 55,
+                            "step" : 1,
+                            "icon" : "f7:arrow_right_arrow_left"
+                          }
+                        }, {
+                          "component" : "oh-label-item",
+                          "config" : {
+                            "title" : "Intake Power",
+                            "item" : "hrvOutputIntake",
+                            "icon" : "f7:arrow_down_circle"
+                          }
+                        }, {
+                          "component" : "oh-label-item",
+                          "config" : {
+                            "title" : "Exhaust Power",
+                            "item" : "hrvOutputExhaust",
+                            "icon" : "f7:arrow_up_circle"
+                          }
+                        }, {
+                          "component" : "oh-label-item",
+                          "config" : {
+                            "title" : "Base Power (50:50)",
+                            "item" : "hrvOutputPower",
+                            "icon" : "f7:equal_circle"
                           }
                         } ]
                       }

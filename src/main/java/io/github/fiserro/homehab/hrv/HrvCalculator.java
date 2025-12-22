@@ -18,7 +18,26 @@ public class HrvCalculator<T extends HrvModule<T>> implements Calculator<T> {
 
     @Override
     public T calculate(T state) {
-        return state.withHrvOutputPower(calculatePower(state));
+        int basePower = calculatePower(state);
+        int ratio = state.intakeExhaustRatio();
+
+        // Calculate intake and exhaust power based on ratio
+        // ratio 50 = balanced, <50 = more exhaust, >50 = more intake
+        // The adjustment is percentage-based: ratio 55 means intake gets +5%, exhaust gets -5%
+        int intakePower = adjustPower(basePower, ratio - 50);
+        int exhaustPower = adjustPower(basePower, 50 - ratio);
+
+        return state
+            .withHrvOutputPower(basePower)
+            .withHrvOutputIntake(intakePower)
+            .withHrvOutputExhaust(exhaustPower);
+    }
+
+    /**
+     * Adjust power level by the given delta, clamping to valid range 0-100.
+     */
+    private int adjustPower(int basePower, int delta) {
+        return Math.max(0, Math.min(100, basePower + delta));
     }
 
     /**

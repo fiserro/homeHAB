@@ -49,4 +49,10 @@ public interface HabState extends CommonModule<HabState>, HrvModule<HabState>, F
     @Override @OutputItem
     default int hrvOutputPower() { return HrvModule.super.hrvOutputPower(); }
 
+    @Override @OutputItem
+    default int hrvOutputIntake() { return HrvModule.super.hrvOutputIntake(); }
+
+    @Override @OutputItem
+    default int hrvOutputExhaust() { return HrvModule.super.hrvOutputExhaust(); }
+
 }

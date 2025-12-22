@@ -24,6 +24,8 @@ public class HrvControl extends Java223Script {
         HabState state = HabStateFactory.of(HabState.class, items);
         HabState calculated = new HrvCalculator<HabState>().calculate(state);
         events.sendCommand(_items.hrvOutputPower(), calculated.hrvOutputPower());
+        events.sendCommand(_items.hrvOutputIntake(), calculated.hrvOutputIntake());
+        events.sendCommand(_items.hrvOutputExhaust(), calculated.hrvOutputExhaust());
     }
 
     @Rule(name = "manual.power.changed", description = "Handle manual power changes")
