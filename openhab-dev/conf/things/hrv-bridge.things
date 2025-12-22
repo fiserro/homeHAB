@@ -1,0 +1,32 @@
+// HRV Bridge MQTT Thing configuration
+// Publishes HRV output values to the Python DAC Bridge via MQTT
+//
+// The bridge subscribes to:
+//   - homehab/hrv/power/set   -> Base power (both motors)
+//   - homehab/hrv/intake/set  -> Intake motor power
+//   - homehab/hrv/exhaust/set -> Exhaust motor power
+
+Thing mqtt:topic:mosquitto:hrv_bridge "HRV Bridge" (mqtt:broker:mosquitto) {
+    Channels:
+        // Base power output (sets both motors to same level)
+        Type dimmer : power "HRV Power" [
+            commandTopic="homehab/hrv/power/set",
+            stateTopic="homehab/hrv/power/state",
+            min=0,
+            max=100
+        ]
+        // Intake motor output (fresh air)
+        Type dimmer : intake "HRV Intake Power" [
+            commandTopic="homehab/hrv/intake/set",
+            stateTopic="homehab/hrv/intake/state",
+            min=0,
+            max=100
+        ]
+        // Exhaust motor output (stale air)
+        Type dimmer : exhaust "HRV Exhaust Power" [
+            commandTopic="homehab/hrv/exhaust/set",
+            stateTopic="homehab/hrv/exhaust/state",
+            min=0,
+            max=100
+        ]
+}

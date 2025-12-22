@@ -2,16 +2,24 @@
 """
 HRV Bridge - MQTT to PWM/DAC bridge for HRV power output control.
 
-Subscribes to MQTT topic and controls HRV output based on received values.
-Input: 0-100 (percentage from OpenHAB hrvOutputPower)
+Subscribes to MQTT topics and controls HRV output based on received values.
+Supports three output channels:
+  - power: Base power (50:50 balanced) - for single-motor or balanced setups
+  - intake: Fresh air motor power (adjusted by intakeExhaustRatio)
+  - exhaust: Stale air motor power (adjusted by intakeExhaustRatio)
+
+Input: 0-100 (percentage from OpenHAB hrvOutputPower/Intake/Exhaust)
 Output: PWM signal (default) or DAC voltage
 
 Modes:
   - PWM mode (default): GPIO PWM → PWM-to-0-10V module → HRV
+    - Uses separate GPIO pins for intake/exhaust
   - DAC mode: Waveshare DAC8532 → 0-5V output
+    - Channel A: Intake motor
+    - Channel B: Exhaust motor
 
 Usage:
-    hrv-bridge [--mqtt-host HOST] [--mode pwm|dac] [--pwm-pin PIN]
+    hrv-bridge [--mqtt-host HOST] [--mode pwm|dac] [--pwm-pin-intake PIN] [--pwm-pin-exhaust PIN]
 """
 
 import argparse
@@ -46,7 +54,8 @@ DEFAULT_MQTT_PORT = 1883
 DEFAULT_TOPIC_PREFIX = "homehab/hrv"
 DEFAULT_CLIENT_ID = "hrv-bridge"
 DEFAULT_MODE = "pwm"
-DEFAULT_PWM_PIN = 18  # GPIO 18 (hardware PWM capable)
+DEFAULT_PWM_PIN_INTAKE = 18  # GPIO 18 (hardware PWM capable) - intake motor
+DEFAULT_PWM_PIN_EXHAUST = 19  # GPIO 19 (hardware PWM capable) - exhaust motor
 DEFAULT_PWM_FREQ = 2000  # 2 kHz (PWM module accepts 1-3 kHz)
 
 
@@ -63,39 +72,60 @@ log = logging.getLogger("hrv-bridge")
 
 
 class PwmOutput:
-    """PWM output driver using lgpio."""
+    """PWM output driver using lgpio for dual-channel HRV control."""
 
-    def __init__(self, pin: int = DEFAULT_PWM_PIN, freq: int = DEFAULT_PWM_FREQ):
-        self.pin = pin
+    def __init__(self, pin_intake: int = DEFAULT_PWM_PIN_INTAKE,
+                 pin_exhaust: int = DEFAULT_PWM_PIN_EXHAUST,
+                 freq: int = DEFAULT_PWM_FREQ):
+        self.pin_intake = pin_intake
+        self.pin_exhaust = pin_exhaust
         self.freq = freq
         self.handle = None
-        self.duty_cycle = 0
+        self.duty_intake = 0
+        self.duty_exhaust = 0
 
         if not LGPIO_AVAILABLE:
             raise RuntimeError("lgpio library not available")
 
         self.handle = lgpio.gpiochip_open(0)
-        lgpio.gpio_claim_output(self.handle, self.pin)
-        log.info(f"PWM initialized on GPIO {self.pin} at {self.freq} Hz")
+        lgpio.gpio_claim_output(self.handle, self.pin_intake)
+        lgpio.gpio_claim_output(self.handle, self.pin_exhaust)
+        log.info(f"PWM initialized: intake=GPIO{self.pin_intake}, exhaust=GPIO{self.pin_exhaust} at {self.freq} Hz")
 
-    def set_duty_cycle(self, percent: float):
-        """Set PWM duty cycle using calibration table."""
+    def set_intake(self, percent: float):
+        """Set intake motor PWM duty cycle."""
         percent = max(0, min(100, percent))
-        self.duty_cycle = percent
-        # Use calibration to find actual PWM duty for desired output
+        self.duty_intake = percent
         calibrated_duty = percent_to_pwm(percent)
-        lgpio.tx_pwm(self.handle, self.pin, self.freq, calibrated_duty)
+        lgpio.tx_pwm(self.handle, self.pin_intake, self.freq, calibrated_duty)
+
+    def set_exhaust(self, percent: float):
+        """Set exhaust motor PWM duty cycle."""
+        percent = max(0, min(100, percent))
+        self.duty_exhaust = percent
+        calibrated_duty = percent_to_pwm(percent)
+        lgpio.tx_pwm(self.handle, self.pin_exhaust, self.freq, calibrated_duty)
+
+    def set_both(self, percent: float):
+        """Set both motors to same PWM duty cycle (for base power)."""
+        self.set_intake(percent)
+        self.set_exhaust(percent)
 
     def stop(self):
         """Stop PWM and cleanup."""
         if self.handle is not None:
-            lgpio.tx_pwm(self.handle, self.pin, self.freq, 0)
+            lgpio.tx_pwm(self.handle, self.pin_intake, self.freq, 0)
+            lgpio.tx_pwm(self.handle, self.pin_exhaust, self.freq, 0)
             lgpio.gpiochip_close(self.handle)
             self.handle = None
 
 
 class DacOutput:
-    """DAC output driver using Waveshare DAC8532."""
+    """DAC output driver using Waveshare DAC8532 for dual-channel HRV control.
+
+    Channel A: Intake motor
+    Channel B: Exhaust motor
+    """
 
     def __init__(self):
         if not DAC_AVAILABLE:
@@ -103,19 +133,32 @@ class DacOutput:
 
         waveshare_config.module_init()
         self.dac = DAC8532.DAC8532()
-        self.voltage = 0.0
+        self.voltage_intake = 0.0
+        self.voltage_exhaust = 0.0
         self.v_max = 5.0
-        log.info("DAC8532 initialized")
+        log.info("DAC8532 initialized: Channel A=intake, Channel B=exhaust")
 
-    def set_duty_cycle(self, percent: float):
-        """Set output voltage based on percentage (0-100% → 0-5V)."""
+    def set_intake(self, percent: float):
+        """Set intake motor voltage (Channel A)."""
         percent = max(0, min(100, percent))
-        self.voltage = (percent / 100.0) * self.v_max
-        self.dac.DAC8532_Out_Voltage(DAC8532.channel_A, self.voltage)
+        self.voltage_intake = (percent / 100.0) * self.v_max
+        self.dac.DAC8532_Out_Voltage(DAC8532.channel_A, self.voltage_intake)
+
+    def set_exhaust(self, percent: float):
+        """Set exhaust motor voltage (Channel B)."""
+        percent = max(0, min(100, percent))
+        self.voltage_exhaust = (percent / 100.0) * self.v_max
+        self.dac.DAC8532_Out_Voltage(DAC8532.channel_B, self.voltage_exhaust)
+
+    def set_both(self, percent: float):
+        """Set both motors to same voltage (for base power)."""
+        self.set_intake(percent)
+        self.set_exhaust(percent)
 
     def stop(self):
-        """Set output to 0 and cleanup."""
+        """Set outputs to 0 and cleanup."""
         self.dac.DAC8532_Out_Voltage(DAC8532.channel_A, 0.0)
+        self.dac.DAC8532_Out_Voltage(DAC8532.channel_B, 0.0)
         try:
             waveshare_config.module_exit()
         except Exception:
@@ -123,15 +166,32 @@ class DacOutput:
 
 
 class HrvBridge:
-    """MQTT to PWM/DAC bridge for HRV control."""
+    """MQTT to PWM/DAC bridge for HRV control.
+
+    Subscribes to three MQTT topics:
+      - {prefix}/power/set: Base power (sets both motors to same level)
+      - {prefix}/intake/set: Intake motor power (fresh air)
+      - {prefix}/exhaust/set: Exhaust motor power (stale air)
+
+    Use power/set for single-motor or balanced setups.
+    Use intake/set and exhaust/set for independent motor control.
+    """
 
     def __init__(self, mqtt_host: str, mqtt_port: int, topic_prefix: str,
-                 client_id: str, mode: str, pwm_pin: int, pwm_freq: int):
+                 client_id: str, mode: str, pwm_pin_intake: int,
+                 pwm_pin_exhaust: int, pwm_freq: int):
         self.mqtt_host = mqtt_host
         self.mqtt_port = mqtt_port
         self.topic_prefix = topic_prefix.rstrip('/')
-        self.topic_set = f"{self.topic_prefix}/power/set"
-        self.topic_state = f"{self.topic_prefix}/power/state"
+
+        # MQTT topics for all three outputs
+        self.topic_power_set = f"{self.topic_prefix}/power/set"
+        self.topic_power_state = f"{self.topic_prefix}/power/state"
+        self.topic_intake_set = f"{self.topic_prefix}/intake/set"
+        self.topic_intake_state = f"{self.topic_prefix}/intake/state"
+        self.topic_exhaust_set = f"{self.topic_prefix}/exhaust/set"
+        self.topic_exhaust_state = f"{self.topic_prefix}/exhaust/state"
+
         self.mode = mode
 
         self.client = mqtt.Client(client_id=client_id)
@@ -141,12 +201,16 @@ class HrvBridge:
 
         self.output = None
         self.running = False
-        self.current_percent = 0
+        self.current_power = 0
+        self.current_intake = 0
+        self.current_exhaust = 0
 
         # Initialize output driver
         try:
             if mode == "pwm":
-                self.output = PwmOutput(pin=pwm_pin, freq=pwm_freq)
+                self.output = PwmOutput(pin_intake=pwm_pin_intake,
+                                        pin_exhaust=pwm_pin_exhaust,
+                                        freq=pwm_freq)
             elif mode == "dac":
                 self.output = DacOutput()
             else:
@@ -158,9 +222,12 @@ class HrvBridge:
     def _on_connect(self, client, userdata, flags, rc):
         if rc == 0:
             log.info(f"Connected to MQTT broker at {self.mqtt_host}:{self.mqtt_port}")
-            client.subscribe(self.topic_set)
-            log.info(f"Subscribed to {self.topic_set}")
-            self._publish_state()
+            # Subscribe to all three control topics
+            client.subscribe(self.topic_power_set)
+            client.subscribe(self.topic_intake_set)
+            client.subscribe(self.topic_exhaust_set)
+            log.info(f"Subscribed to: {self.topic_power_set}, {self.topic_intake_set}, {self.topic_exhaust_set}")
+            self._publish_all_states()
         else:
             log.error(f"Connection failed with code {rc}")
 
@@ -173,31 +240,66 @@ class HrvBridge:
             payload = msg.payload.decode("utf-8").strip()
             payload = payload.replace(",", ".")
             percent = float(payload)
-            self._set_power(percent)
+
+            topic = msg.topic
+            if topic == self.topic_power_set:
+                self._set_power(percent)
+            elif topic == self.topic_intake_set:
+                self._set_intake(percent)
+            elif topic == self.topic_exhaust_set:
+                self._set_exhaust(percent)
+            else:
+                log.warning(f"Unknown topic: {topic}")
         except ValueError as e:
             log.error(f"Invalid payload '{msg.payload}': {e}")
         except Exception as e:
             log.exception(f"Error processing message: {e}")
 
     def _set_power(self, percent: float):
-        """Set output power level."""
+        """Set base power level (both motors)."""
         percent = max(PERCENT_MIN, min(PERCENT_MAX, percent))
 
         if self.output:
-            self.output.set_duty_cycle(percent)
+            self.output.set_both(percent)
 
-        self.current_percent = percent
-        log.info(f"Power set: {percent:.1f}% (mode: {self.mode})")
-        self._publish_state()
+        self.current_power = percent
+        self.current_intake = percent
+        self.current_exhaust = percent
+        log.info(f"Power set: {percent:.1f}% (both motors, mode: {self.mode})")
+        self._publish_all_states()
 
-    def _publish_state(self):
-        """Publish current state to MQTT."""
-        self.client.publish(self.topic_state, f"{self.current_percent:.1f}", retain=True)
+    def _set_intake(self, percent: float):
+        """Set intake motor power level."""
+        percent = max(PERCENT_MIN, min(PERCENT_MAX, percent))
+
+        if self.output:
+            self.output.set_intake(percent)
+
+        self.current_intake = percent
+        log.info(f"Intake power set: {percent:.1f}% (mode: {self.mode})")
+        self.client.publish(self.topic_intake_state, f"{self.current_intake:.1f}", retain=True)
+
+    def _set_exhaust(self, percent: float):
+        """Set exhaust motor power level."""
+        percent = max(PERCENT_MIN, min(PERCENT_MAX, percent))
+
+        if self.output:
+            self.output.set_exhaust(percent)
+
+        self.current_exhaust = percent
+        log.info(f"Exhaust power set: {percent:.1f}% (mode: {self.mode})")
+        self.client.publish(self.topic_exhaust_state, f"{self.current_exhaust:.1f}", retain=True)
+
+    def _publish_all_states(self):
+        """Publish all current states to MQTT."""
+        self.client.publish(self.topic_power_state, f"{self.current_power:.1f}", retain=True)
+        self.client.publish(self.topic_intake_state, f"{self.current_intake:.1f}", retain=True)
+        self.client.publish(self.topic_exhaust_state, f"{self.current_exhaust:.1f}", retain=True)
 
     def start(self):
         """Start the bridge."""
         self.running = True
-        self._set_power(0)
+        self._set_power(0)  # Initialize both motors to 0
 
         log.info(f"Connecting to MQTT broker at {self.mqtt_host}:{self.mqtt_port}")
         self.client.connect(self.mqtt_host, self.mqtt_port, keepalive=60)
@@ -212,10 +314,10 @@ class HrvBridge:
     def stop(self):
         """Stop the bridge and cleanup."""
         self.running = False
-        log.info("Shutting down - setting output to 0")
+        log.info("Shutting down - setting outputs to 0")
 
         if self.output:
-            self.output.set_duty_cycle(0)
+            self.output.set_both(0)
             self.output.stop()
 
         self.client.disconnect()
@@ -224,7 +326,7 @@ class HrvBridge:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="HRV Bridge - MQTT to PWM/DAC bridge for HRV power output"
+        description="HRV Bridge - MQTT to PWM/DAC bridge for dual-channel HRV power output"
     )
     parser.add_argument(
         "--mqtt-host", "-H",
@@ -254,10 +356,16 @@ def main():
         help=f"Output mode: pwm or dac (default: {DEFAULT_MODE})"
     )
     parser.add_argument(
-        "--pwm-pin",
+        "--pwm-pin-intake",
         type=int,
-        default=DEFAULT_PWM_PIN,
-        help=f"GPIO pin for PWM output (default: {DEFAULT_PWM_PIN})"
+        default=DEFAULT_PWM_PIN_INTAKE,
+        help=f"GPIO pin for intake motor PWM (default: {DEFAULT_PWM_PIN_INTAKE})"
+    )
+    parser.add_argument(
+        "--pwm-pin-exhaust",
+        type=int,
+        default=DEFAULT_PWM_PIN_EXHAUST,
+        help=f"GPIO pin for exhaust motor PWM (default: {DEFAULT_PWM_PIN_EXHAUST})"
     )
     parser.add_argument(
         "--pwm-freq",
@@ -282,7 +390,8 @@ def main():
         topic_prefix=args.topic_prefix,
         client_id=args.client_id,
         mode=args.mode,
-        pwm_pin=args.pwm_pin,
+        pwm_pin_intake=args.pwm_pin_intake,
+        pwm_pin_exhaust=args.pwm_pin_exhaust,
         pwm_freq=args.pwm_freq
     )
 
