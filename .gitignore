@@ -67,3 +67,7 @@ __pycache__/
 *.tar.gz
 *.rar
 .env.dev
+
+# ESPHome
+esp32-panel/secrets.yaml
+esp32-panel/.esphome/

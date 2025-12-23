@@ -1,0 +1,115 @@
+// MQTT Bridge for ESP32 Panel
+// Publishes OpenHAB item states to MQTT topics
+// Uses retained=true so panel receives values even if it connects after change
+
+val mqttActions = getActions("mqtt", "mqtt:broker:mosquitto")
+val prefix = "homehab-dev/"
+
+rule "Publish HRV Output Power"
+when
+    Item hrvOutputPower changed
+then
+    if (hrvOutputPower.state !== NULL && hrvOutputPower.state !== UNDEF) {
+        mqttActions.publishMQTT(prefix + "hrvOutputPower/state", hrvOutputPower.state.toString, true)
+    }
+end
+
+rule "Publish Temperature"
+when
+    Item temperature changed
+then
+    if (temperature.state !== NULL && temperature.state !== UNDEF) {
+        mqttActions.publishMQTT(prefix + "temperature/state", temperature.state.toString, true)
+    }
+end
+
+rule "Publish Air Humidity"
+when
+    Item airHumidity changed
+then
+    if (airHumidity.state !== NULL && airHumidity.state !== UNDEF) {
+        mqttActions.publishMQTT(prefix + "airHumidity/state", airHumidity.state.toString, true)
+    }
+end
+
+rule "Publish CO2"
+when
+    Item co2 changed
+then
+    if (co2.state !== NULL && co2.state !== UNDEF) {
+        mqttActions.publishMQTT(prefix + "co2/state", co2.state.toString, true)
+    }
+end
+
+rule "Publish Pressure"
+when
+    Item pressure changed
+then
+    if (pressure.state !== NULL && pressure.state !== UNDEF) {
+        mqttActions.publishMQTT(prefix + "pressure/state", pressure.state.toString, true)
+    }
+end
+
+rule "Publish Manual Mode"
+when
+    Item manualMode changed
+then
+    if (manualMode.state !== NULL && manualMode.state !== UNDEF) {
+        mqttActions.publishMQTT(prefix + "manualMode/state", manualMode.state.toString, true)
+    }
+end
+
+rule "Publish Temporary Boost Mode"
+when
+    Item temporaryBoostMode changed
+then
+    if (temporaryBoostMode.state !== NULL && temporaryBoostMode.state !== UNDEF) {
+        mqttActions.publishMQTT(prefix + "temporaryBoostMode/state", temporaryBoostMode.state.toString, true)
+    }
+end
+
+rule "Publish Smoke"
+when
+    Item smoke changed
+then
+    if (smoke.state !== NULL && smoke.state !== UNDEF) {
+        mqttActions.publishMQTT(prefix + "smoke/state", smoke.state.toString, true)
+    }
+end
+
+rule "Publish Manual Power"
+when
+    Item manualPower changed
+then
+    if (manualPower.state !== NULL && manualPower.state !== UNDEF) {
+        mqttActions.publishMQTT(prefix + "manualPower/state", manualPower.state.toString, true)
+    }
+end
+
+// Handle commands from panel
+rule "Panel Manual Power Command"
+when
+    Item panelManualPowerCommand received update
+then
+    if (panelManualPowerCommand.state !== NULL && panelManualPowerCommand.state !== UNDEF) {
+        manualPower.sendCommand(panelManualPowerCommand.state.toString)
+    }
+end
+
+rule "Panel Manual Mode Command"
+when
+    Item panelManualModeCommand received update
+then
+    if (panelManualModeCommand.state !== NULL && panelManualModeCommand.state !== UNDEF) {
+        manualMode.sendCommand(panelManualModeCommand.state.toString)
+    }
+end
+
+rule "Panel Boost Mode Command"
+when
+    Item panelBoostModeCommand received update
+then
+    if (panelBoostModeCommand.state !== NULL && panelBoostModeCommand.state !== UNDEF) {
+        temporaryBoostMode.sendCommand(panelBoostModeCommand.state.toString)
+    }
+end

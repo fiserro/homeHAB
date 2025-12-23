@@ -1,0 +1,70 @@
+// MQTT channels for ESP32 Panel communication
+// - Inbound: receives commands FROM panel
+// - Outbound: publishes state TO panel
+
+// Panel -> OpenHAB (commands from panel)
+Thing mqtt:topic:mosquitto:panel_commands "ESP32 Panel Commands" (mqtt:broker:mosquitto) {
+    Channels:
+        Type number : manualPower "Panel Manual Power Command" [
+            stateTopic="homehab-dev/panel/manualPower/command"
+        ]
+        Type switch : manualMode "Panel Manual Mode Command" [
+            stateTopic="homehab-dev/panel/manualMode/command"
+        ]
+        Type switch : boostMode "Panel Boost Mode Command" [
+            stateTopic="homehab-dev/panel/temporaryBoostMode/command"
+        ]
+        Type switch : tempManualMode "Panel Temporary Manual Mode Command" [
+            stateTopic="homehab-dev/panel/temporaryManualMode/command"
+        ]
+}
+
+// OpenHAB -> Panel (state updates to panel)
+Thing mqtt:topic:mosquitto:panel_state "ESP32 Panel State Updates" (mqtt:broker:mosquitto) {
+    Channels:
+        // HRV Output Power
+        Type number : hrvOutputPower "HRV Output Power" [
+            commandTopic="homehab-dev/hrvOutputPower/state",
+            retained=true
+        ]
+        // Temperature (aggregated)
+        Type number : temperature "Temperature" [
+            commandTopic="homehab-dev/temperature/state",
+            retained=true
+        ]
+        // Air Humidity (aggregated)
+        Type number : airHumidity "Air Humidity" [
+            commandTopic="homehab-dev/airHumidity/state",
+            retained=true
+        ]
+        // CO2 (aggregated)
+        Type number : co2 "CO2" [
+            commandTopic="homehab-dev/co2/state",
+            retained=true
+        ]
+        // Pressure (aggregated)
+        Type number : pressure "Pressure" [
+            commandTopic="homehab-dev/pressure/state",
+            retained=true
+        ]
+        // Manual Mode
+        Type switch : manualMode "Manual Mode" [
+            commandTopic="homehab-dev/manualMode/state",
+            retained=true
+        ]
+        // Temporary Boost Mode
+        Type switch : temporaryBoostMode "Temporary Boost Mode" [
+            commandTopic="homehab-dev/temporaryBoostMode/state",
+            retained=true
+        ]
+        // Smoke (aggregated)
+        Type switch : smoke "Smoke" [
+            commandTopic="homehab-dev/smoke/state",
+            retained=true
+        ]
+        // Manual Power setting
+        Type number : manualPower "Manual Power" [
+            commandTopic="homehab-dev/manualPower/state",
+            retained=true
+        ]
+}

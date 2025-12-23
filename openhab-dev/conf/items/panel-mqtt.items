@@ -1,0 +1,8 @@
+// Items for ESP32 Panel MQTT communication
+// Linked to channels in panel-mqtt.things
+
+// Commands received FROM panel (linked to panel_commands Thing)
+Number panelManualPowerCommand "Panel Manual Power Command" { channel="mqtt:topic:mosquitto:panel_commands:manualPower" }
+Switch panelManualModeCommand "Panel Manual Mode Command" { channel="mqtt:topic:mosquitto:panel_commands:manualMode" }
+Switch panelBoostModeCommand "Panel Boost Mode Command" { channel="mqtt:topic:mosquitto:panel_commands:boostMode" }
+Switch panelTempManualModeCommand "Panel Temporary Manual Mode Command" { channel="mqtt:topic:mosquitto:panel_commands:tempManualMode" }

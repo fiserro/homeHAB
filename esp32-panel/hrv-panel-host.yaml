@@ -1,0 +1,92 @@
+# HRV Panel - Host simulation (runs on PC)
+# For testing basic logic without hardware
+# Note: MQTT not supported on host platform - use mqtt-simulator.py for MQTT testing
+
+substitutions:
+  name: hrv-panel-sim
+  friendly_name: HRV Panel Simulator
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+
+# Run on host PC instead of ESP32
+host:
+
+logger:
+  level: DEBUG
+
+# Simulated sensors
+sensor:
+  - platform: template
+    name: "Simulated Temperature"
+    id: sim_temperature
+    unit_of_measurement: "C"
+    update_interval: 5s
+    lambda: |-
+      static float temp = 20.0;
+      temp += (rand() % 10 - 5) * 0.1;  // Random fluctuation
+      if (temp < 18) temp = 18;
+      if (temp > 28) temp = 28;
+      ESP_LOGI("sim", "Temperature: %.1f C", temp);
+      return temp;
+
+  - platform: template
+    name: "Simulated Humidity"
+    id: sim_humidity
+    unit_of_measurement: "%"
+    update_interval: 5s
+    lambda: |-
+      static float hum = 50.0;
+      hum += (rand() % 10 - 5) * 0.5;
+      if (hum < 30) hum = 30;
+      if (hum > 80) hum = 80;
+      ESP_LOGI("sim", "Humidity: %.1f %%", hum);
+      return hum;
+
+  - platform: template
+    name: "Simulated CO2"
+    id: sim_co2
+    unit_of_measurement: "ppm"
+    update_interval: 5s
+    lambda: |-
+      static float co2 = 600.0;
+      co2 += (rand() % 100 - 50);
+      if (co2 < 400) co2 = 400;
+      if (co2 > 2000) co2 = 2000;
+      ESP_LOGI("sim", "CO2: %.0f ppm", co2);
+      return co2;
+
+# Simulated HRV state
+number:
+  - platform: template
+    name: "HRV Power"
+    id: hrv_power
+    min_value: 0
+    max_value: 100
+    step: 5
+    optimistic: true
+    on_value:
+      then:
+        - logger.log:
+            format: "HRV Power set to: %.0f%%"
+            args: ['x']
+
+switch:
+  - platform: template
+    name: "Manual Mode"
+    id: manual_mode
+    optimistic: true
+    on_turn_on:
+      - logger.log: "Manual mode ON"
+    on_turn_off:
+      - logger.log: "Manual mode OFF"
+
+  - platform: template
+    name: "Boost Mode"
+    id: boost_mode
+    optimistic: true
+    on_turn_on:
+      - logger.log: "Boost mode ON"
+    on_turn_off:
+      - logger.log: "Boost mode OFF"

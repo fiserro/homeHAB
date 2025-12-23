@@ -1,0 +1,710 @@
+# HRV Control Panel for OpenHAB
+# ESP32-P4-86-Panel-ETH-2RO
+
+substitutions:
+  name: hrv-panel
+  friendly_name: HRV Control Panel
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  platformio_options:
+    board_build.flash_mode: dio
+  on_boot:
+    priority: -100  # Run after network is connected
+    then:
+      - delay: 5s  # Wait for network to be ready
+      - script.execute: fetch_initial_states
+
+esp32:
+  board: esp32-p4-evboard
+  flash_size: 32MB
+  cpu_frequency: 400MHz
+  framework:
+    type: esp-idf
+    advanced:
+      enable_idf_experimental_features: yes
+
+logger:
+  level: DEBUG
+  hardware_uart: UART0
+
+psram:
+  speed: 200MHz
+
+# LDO for display
+esp_ldo:
+  - channel: 3
+    voltage: 2.5V
+
+# HTTP Request for REST API
+http_request:
+  verify_ssl: false
+  timeout: 10s
+
+# Ethernet (IP101 PHY)
+ethernet:
+  type: IP101
+  mdc_pin: GPIO31
+  mdio_pin: GPIO52
+  clk:
+    pin: GPIO50
+    mode: CLK_EXT_IN
+  phy_addr: 1
+  power_pin: GPIO51
+
+# MQTT for OpenHAB
+mqtt:
+  broker: zigbee.home
+  port: 1883
+  topic_prefix: homehab-dev/panel
+
+  birth_message:
+    topic: homehab-dev/panel/status
+    payload: online
+  will_message:
+    topic: homehab-dev/panel/status
+    payload: offline
+
+  on_message:
+    # HRV Output Power
+    - topic: homehab-dev/hrvOutputPower/state
+      then:
+        - lambda: |-
+            int power = atoi(x.c_str());
+            id(power_value) = power;
+            lv_arc_set_value(id(arc_power), power);
+            lv_label_set_text_fmt(id(lbl_power_value), "%d%%", power);
+            // Color based on value
+            lv_color_t color;
+            if (power > 80) color = lv_color_hex(0xFF0000);
+            else if (power > 50) color = lv_color_hex(0xFFA500);
+            else color = lv_color_hex(0x00FF00);
+            lv_obj_set_style_arc_color(id(arc_power), color, LV_PART_INDICATOR);
+
+    # Temperature
+    - topic: homehab-dev/temperature/state
+      then:
+        - lambda: |-
+            float temp = atof(x.c_str());
+            lv_label_set_text_fmt(id(lbl_temp_value), "%.1f", temp);
+
+    # Air Humidity
+    - topic: homehab-dev/airHumidity/state
+      then:
+        - lambda: |-
+            int hum = atoi(x.c_str());
+            lv_label_set_text_fmt(id(lbl_humidity_value), "%d", hum);
+
+    # CO2
+    - topic: homehab-dev/co2/state
+      then:
+        - lambda: |-
+            int co2 = atoi(x.c_str());
+            lv_label_set_text_fmt(id(lbl_co2_value), "%d", co2);
+            // Color based on level
+            lv_color_t color;
+            if (co2 > 900) color = lv_color_hex(0xFF0000);
+            else if (co2 > 700) color = lv_color_hex(0xFFA500);
+            else color = lv_color_hex(0x00FF00);
+            lv_obj_set_style_text_color(id(lbl_co2_value), color, 0);
+
+    # Manual Mode state (permanent manual)
+    - topic: homehab-dev/manualMode/state
+      then:
+        - lambda: |-
+            id(manual_mode_active) = (x == "ON");
+        - script.execute: update_button_colors
+
+    # Temporary Manual Mode state
+    - topic: homehab-dev/temporaryManualMode/state
+      then:
+        - lambda: |-
+            id(temp_manual_mode_active) = (x == "ON");
+        - script.execute: update_button_colors
+
+    # Temporary Boost Mode state
+    - topic: homehab-dev/temporaryBoostMode/state
+      then:
+        - lambda: |-
+            id(boost_mode_active) = (x == "ON");
+        - script.execute: update_button_colors
+
+    # Smoke detector
+    - topic: homehab-dev/smoke/state
+      then:
+        - lambda: |-
+            bool alarm = (x == "ON");
+            if (alarm) {
+              lv_obj_set_style_bg_color(id(smoke_indicator), lv_color_hex(0xFF0000), 0);
+              lv_label_set_text(id(lbl_smoke), "SMOKE!");
+            } else {
+              lv_obj_set_style_bg_color(id(smoke_indicator), lv_color_hex(0x00FF00), 0);
+              lv_label_set_text(id(lbl_smoke), "OK");
+            }
+
+    # Manual Power (sync slider with OpenHAB value)
+    - topic: homehab-dev/manualPower/state
+      then:
+        - lambda: |-
+            // Set flag to ignore slider events triggered by programmatic update
+            id(ignore_slider_events) = true;
+            int power = atoi(x.c_str());
+            lv_slider_set_value(id(slider_manual_power), power, LV_ANIM_ON);
+        - delay: 200ms
+        - lambda: |-
+            id(ignore_slider_events) = false;
+
+    # Pressure
+    - topic: homehab-dev/pressure/state
+      then:
+        - lambda: |-
+            float pressure = atof(x.c_str());
+            lv_label_set_text_fmt(id(lbl_pressure_value), "%.0f", pressure);
+
+# I2C for touchscreen
+i2c:
+  sda: GPIO7
+  scl: GPIO8
+  scan: true
+  frequency: 400kHz
+
+# Display (MIPI DSI)
+external_components:
+  - source: github://pr#10562
+    components: [mipi_dsi]
+    refresh: 1h
+
+display:
+  - platform: mipi_dsi
+    model: WAVESHARE-P4-86-PANEL
+    id: main_display
+    reset_pin:
+      number: GPIO27
+      inverted: false
+
+# Touchscreen (GT911)
+touchscreen:
+  platform: gt911
+  id: main_touch
+  on_release:
+    - if:
+        condition: lvgl.is_paused
+        then:
+          - lvgl.resume:
+          - light.turn_on: display_backlight
+
+# Backlight
+output:
+  - platform: ledc
+    id: backlight_output
+    pin: GPIO26
+    frequency: 100Hz
+    inverted: true
+    max_power: 0.8
+
+light:
+  - platform: monochromatic
+    name: "Backlight"
+    output: backlight_output
+    id: display_backlight
+    restore_mode: ALWAYS_ON
+
+# Global variables
+globals:
+  - id: power_value
+    type: int
+    initial_value: '0'
+  - id: manual_mode_active
+    type: bool
+    initial_value: 'false'
+  - id: temp_manual_mode_active
+    type: bool
+    initial_value: 'false'
+  - id: boost_mode_active
+    type: bool
+    initial_value: 'false'
+  - id: ignore_slider_events
+    type: bool
+    initial_value: 'false'
+
+# Colors
+color:
+  - id: color_bg
+    hex: "1a1a2e"
+  - id: color_card
+    hex: "16213e"
+  - id: color_accent
+    hex: "0f3460"
+  - id: color_text
+    hex: "e8e8e8"
+  - id: color_text_dim
+    hex: "888888"
+  - id: color_green
+    hex: "00c853"
+  - id: color_orange
+    hex: "ff9800"
+  - id: color_red
+    hex: "f44336"
+  - id: color_blue
+    hex: "2196f3"
+
+# LVGL UI
+lvgl:
+  id: lvgl_main
+  buffer_size: 100%
+  byte_order: little_endian
+  touchscreens:
+    - touchscreen_id: main_touch
+
+  style_definitions:
+    - id: style_card
+      bg_color: 0x16213e
+      radius: 12
+      pad_all: 12
+      border_width: 0
+
+    - id: style_btn
+      bg_color: 0x37474F
+      radius: 8
+      pad_all: 10
+      text_color: 0xFFFFFF
+
+  pages:
+    # ==================== MAIN PAGE ====================
+    - id: page_main
+      bg_color: 0x1a1a2e
+      widgets:
+        # Header
+        - label:
+            align: TOP_MID
+            y: 15
+            text: "HRV Control"
+            text_font: montserrat_24
+            text_color: 0xe8e8e8
+
+        # ========== POWER ARC (center top) ==========
+        - obj:
+            align: TOP_MID
+            y: 50
+            width: 200
+            height: 200
+            styles: style_card
+            widgets:
+              - arc:
+                  id: arc_power
+                  align: CENTER
+                  width: 160
+                  height: 160
+                  min_value: 0
+                  max_value: 100
+                  value: 0
+                  rotation: 135
+                  end_angle: 270
+                  arc_width: 15
+                  indicator:
+                    arc_width: 15
+                    arc_color: 0x00c853
+                  knob:
+                    bg_opa: TRANSP
+              - label:
+                  id: lbl_power_value
+                  align: CENTER
+                  text: "0%"
+                  text_font: montserrat_36
+                  text_color: 0xFFFFFF
+              - label:
+                  align: CENTER
+                  y: 35
+                  text: "Power"
+                  text_font: montserrat_14
+                  text_color: 0x888888
+
+        # ========== SENSOR CARDS (row below arc) ==========
+        # Temperature
+        - obj:
+            x: 20
+            y: 270
+            width: 160
+            height: 100
+            styles: style_card
+            widgets:
+              - label:
+                  align: TOP_LEFT
+                  text: "Temperature"
+                  text_font: montserrat_14
+                  text_color: 0x888888
+              - label:
+                  id: lbl_temp_value
+                  align: CENTER
+                  y: 5
+                  text: "--"
+                  text_font: montserrat_36
+                  text_color: 0xFFA500
+              - label:
+                  align: CENTER
+                  y: 35
+                  text: "C"
+                  text_font: montserrat_14
+                  text_color: 0x888888
+
+        # Humidity
+        - obj:
+            x: 195
+            y: 270
+            width: 160
+            height: 100
+            styles: style_card
+            widgets:
+              - label:
+                  align: TOP_LEFT
+                  text: "Humidity"
+                  text_font: montserrat_14
+                  text_color: 0x888888
+              - label:
+                  id: lbl_humidity_value
+                  align: CENTER
+                  y: 5
+                  text: "--"
+                  text_font: montserrat_36
+                  text_color: 0x2196F3
+              - label:
+                  align: CENTER
+                  y: 35
+                  text: "%"
+                  text_font: montserrat_14
+                  text_color: 0x888888
+
+        # CO2
+        - obj:
+            x: 370
+            y: 270
+            width: 160
+            height: 100
+            styles: style_card
+            widgets:
+              - label:
+                  align: TOP_LEFT
+                  text: "CO2"
+                  text_font: montserrat_14
+                  text_color: 0x888888
+              - label:
+                  id: lbl_co2_value
+                  align: CENTER
+                  y: 5
+                  text: "--"
+                  text_font: montserrat_36
+                  text_color: 0x00c853
+              - label:
+                  align: CENTER
+                  y: 35
+                  text: "ppm"
+                  text_font: montserrat_14
+                  text_color: 0x888888
+
+        # Pressure
+        - obj:
+            x: 545
+            y: 270
+            width: 160
+            height: 100
+            styles: style_card
+            widgets:
+              - label:
+                  align: TOP_LEFT
+                  text: "Pressure"
+                  text_font: montserrat_14
+                  text_color: 0x888888
+              - label:
+                  id: lbl_pressure_value
+                  align: CENTER
+                  y: 5
+                  text: "--"
+                  text_font: montserrat_28
+                  text_color: 0x888888
+              - label:
+                  align: CENTER
+                  y: 30
+                  text: "hPa"
+                  text_font: montserrat_14
+                  text_color: 0x888888
+
+        # ========== SAFETY INDICATOR ==========
+        - obj:
+            id: smoke_indicator
+            x: 20
+            y: 385
+            width: 160
+            height: 60
+            bg_color: 0x00c853
+            radius: 8
+            widgets:
+              - label:
+                  align: LEFT_MID
+                  x: 10
+                  text: "Smoke"
+                  text_font: montserrat_14
+                  text_color: 0xFFFFFF
+              - label:
+                  id: lbl_smoke
+                  align: RIGHT_MID
+                  x: -10
+                  text: "OK"
+                  text_font: montserrat_18
+                  text_color: 0xFFFFFF
+
+        # ========== MANUAL POWER SLIDER ==========
+        - obj:
+            x: 195
+            y: 385
+            width: 510
+            height: 60
+            styles: style_card
+            widgets:
+              - label:
+                  align: LEFT_MID
+                  x: 5
+                  text: "Manual"
+                  text_font: montserrat_14
+                  text_color: 0x888888
+              - slider:
+                  id: slider_manual_power
+                  align: RIGHT_MID
+                  x: -10
+                  width: 380
+                  height: 30
+                  min_value: 0
+                  max_value: 100
+                  value: 50
+                  indicator:
+                    bg_color: 0x2196F3
+                  knob:
+                    bg_color: 0xFFFFFF
+                  on_release:
+                    then:
+                      - if:
+                          condition:
+                            lambda: 'return !id(ignore_slider_events);'
+                          then:
+                            - mqtt.publish:
+                                topic: homehab-dev/panel/manualPower/command
+                                payload: !lambda |-
+                                  return to_string((int)x);
+
+        # ========== MODE BUTTONS ==========
+        # Auto Mode Button - turns off all manual modes
+        - button:
+            id: btn_auto
+            align: BOTTOM_LEFT
+            x: 30
+            y: -40
+            width: 200
+            height: 65
+            bg_color: 0x00c853
+            radius: 10
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "AUTO"
+                  text_font: montserrat_24
+                  text_color: 0xFFFFFF
+            on_click:
+              then:
+                # Turn off all manual modes
+                - mqtt.publish:
+                    topic: homehab-dev/panel/manualMode/command
+                    payload: "OFF"
+                - mqtt.publish:
+                    topic: homehab-dev/panel/temporaryManualMode/command
+                    payload: "OFF"
+                - mqtt.publish:
+                    topic: homehab-dev/panel/temporaryBoostMode/command
+                    payload: "OFF"
+
+        # Boost Mode Button - activates temporaryBoostMode
+        - button:
+            id: btn_boost
+            align: BOTTOM_MID
+            y: -40
+            width: 200
+            height: 65
+            bg_color: 0x37474F
+            radius: 10
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "BOOST"
+                  text_font: montserrat_24
+                  text_color: 0xFFFFFF
+            on_click:
+              then:
+                - mqtt.publish:
+                    topic: homehab-dev/panel/temporaryBoostMode/command
+                    payload: "ON"
+
+        # Manual Mode Button - activates temporaryManualMode
+        - button:
+            id: btn_manual
+            align: BOTTOM_RIGHT
+            x: -30
+            y: -40
+            width: 200
+            height: 65
+            bg_color: 0x37474F
+            radius: 10
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "MANUAL"
+                  text_font: montserrat_24
+                  text_color: 0xFFFFFF
+            on_click:
+              then:
+                - mqtt.publish:
+                    topic: homehab-dev/panel/temporaryManualMode/command
+                    payload: "ON"
+
+        # ========== FOOTER (IP address) ==========
+        - label:
+            id: lbl_ip
+            align: BOTTOM_MID
+            y: -10
+            text: "Connecting..."
+            text_font: montserrat_14
+            text_color: 0x888888
+
+# Sensors publishing to MQTT
+sensor:
+  - platform: uptime
+    name: "Uptime"
+    update_interval: 60s
+
+text_sensor:
+  - platform: ethernet_info
+    ip_address:
+      name: "IP Address"
+      on_value:
+        then:
+          - lambda: |-
+              lv_label_set_text(id(lbl_ip), x.c_str());
+
+# Interval for periodic tasks (currently empty, placeholder for future use)
+# interval:
+#   - interval: 1s
+#     then:
+#       - lambda: |-
+#           // Placeholder for future periodic updates
+
+# Scripts
+script:
+  # Update button colors based on current mode states
+  - id: update_button_colors
+    then:
+      - lambda: |-
+          // AUTO button: green if no manual modes active
+          bool auto_active = !id(manual_mode_active) && !id(temp_manual_mode_active) && !id(boost_mode_active);
+          if (auto_active) {
+            lv_obj_set_style_bg_color(id(btn_auto), lv_color_hex(0x00c853), 0);  // Green
+          } else {
+            lv_obj_set_style_bg_color(id(btn_auto), lv_color_hex(0x37474F), 0);  // Gray
+          }
+
+          // BOOST button: orange if temporaryBoostMode active
+          if (id(boost_mode_active)) {
+            lv_obj_set_style_bg_color(id(btn_boost), lv_color_hex(0xFF9800), 0);  // Orange
+          } else {
+            lv_obj_set_style_bg_color(id(btn_boost), lv_color_hex(0x37474F), 0);  // Gray
+          }
+
+          // MANUAL button: blue if temporaryManualMode active
+          if (id(temp_manual_mode_active)) {
+            lv_obj_set_style_bg_color(id(btn_manual), lv_color_hex(0x2196F3), 0);  // Blue
+          } else {
+            lv_obj_set_style_bg_color(id(btn_manual), lv_color_hex(0x37474F), 0);  // Gray
+          }
+
+  # Fetch initial states from OpenHAB REST API
+  - id: fetch_initial_states
+    then:
+      - lambda: |-
+          ESP_LOGI("panel", "Fetching initial states from OpenHAB...");
+      # Fetch HRV Output Power
+      - http_request.get:
+          url: "http://openhab.home:8888/rest/items/hrvOutputPower/state"
+          capture_response: true
+          on_response:
+            - lambda: |-
+                if (response->status_code == 200) {
+                  int power = atoi(body.c_str());
+                  id(power_value) = power;
+                  lv_arc_set_value(id(arc_power), power);
+                  lv_label_set_text_fmt(id(lbl_power_value), "%d%%", power);
+                  ESP_LOGI("panel", "HRV Power: %d", power);
+                }
+      # Fetch Temperature
+      - http_request.get:
+          url: "http://openhab.home:8888/rest/items/temperature/state"
+          capture_response: true
+          on_response:
+            - lambda: |-
+                if (response->status_code == 200) {
+                  float temp = atof(body.c_str());
+                  lv_label_set_text_fmt(id(lbl_temp_value), "%.1f", temp);
+                  ESP_LOGI("panel", "Temperature: %.1f", temp);
+                }
+      # Fetch Air Humidity
+      - http_request.get:
+          url: "http://openhab.home:8888/rest/items/airHumidity/state"
+          capture_response: true
+          on_response:
+            - lambda: |-
+                if (response->status_code == 200) {
+                  int hum = atoi(body.c_str());
+                  lv_label_set_text_fmt(id(lbl_humidity_value), "%d", hum);
+                  ESP_LOGI("panel", "Humidity: %d", hum);
+                }
+      # Fetch CO2
+      - http_request.get:
+          url: "http://openhab.home:8888/rest/items/co2/state"
+          capture_response: true
+          on_response:
+            - lambda: |-
+                if (response->status_code == 200) {
+                  int co2 = atoi(body.c_str());
+                  lv_label_set_text_fmt(id(lbl_co2_value), "%d", co2);
+                  ESP_LOGI("panel", "CO2: %d", co2);
+                }
+      # Fetch Manual Mode
+      - http_request.get:
+          url: "http://openhab.home:8888/rest/items/manualMode/state"
+          capture_response: true
+          on_response:
+            - lambda: |-
+                if (response->status_code == 200) {
+                  id(manual_mode_active) = (body == "ON");
+                  ESP_LOGI("panel", "Manual Mode: %s", id(manual_mode_active) ? "ON" : "OFF");
+                }
+      # Fetch Temporary Manual Mode
+      - http_request.get:
+          url: "http://openhab.home:8888/rest/items/temporaryManualMode/state"
+          capture_response: true
+          on_response:
+            - lambda: |-
+                if (response->status_code == 200) {
+                  id(temp_manual_mode_active) = (body == "ON");
+                  ESP_LOGI("panel", "Temp Manual Mode: %s", id(temp_manual_mode_active) ? "ON" : "OFF");
+                }
+      # Fetch Boost Mode
+      - http_request.get:
+          url: "http://openhab.home:8888/rest/items/temporaryBoostMode/state"
+          capture_response: true
+          on_response:
+            - lambda: |-
+                if (response->status_code == 200) {
+                  id(boost_mode_active) = (body == "ON");
+                  ESP_LOGI("panel", "Boost Mode: %s", id(boost_mode_active) ? "ON" : "OFF");
+                }
+      # Update button colors after all states loaded
+      - script.execute: update_button_colors
+      - lambda: |-
+          ESP_LOGI("panel", "Initial states fetched successfully");
