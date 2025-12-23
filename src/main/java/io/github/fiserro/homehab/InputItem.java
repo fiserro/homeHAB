@@ -8,4 +8,10 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD})
 public @interface InputItem {
+
+    /**
+     * OpenHAB channel binding for this input item.
+     * Example: "mqtt:topic:mosquitto:panel_commands:tempManualMode"
+     */
+    String channel() default "";
 }

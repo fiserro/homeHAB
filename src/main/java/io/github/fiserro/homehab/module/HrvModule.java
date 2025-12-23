@@ -27,13 +27,13 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
     @InputItem @Option
     default boolean manualMode() { return false; }
 
-    @InputItem @Option
+    @InputItem(channel = "mqtt:topic:mosquitto:panel_commands:tempManualMode") @Option
     default boolean temporaryManualMode() { return false; }
 
     @Max(43200) @Min(3600) @InputItem @Option
     default int temporaryManualModeDurationSec() { return 8 * 60 * 60; }
 
-    @InputItem @Option
+    @InputItem(channel = "mqtt:topic:mosquitto:panel_commands:boostMode") @Option
     default boolean temporaryBoostMode() { return false; }
 
     @Max(3600) @Min(300) @InputItem @Option
@@ -71,7 +71,7 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
     default int intakeExhaustRatio() { return 0; }
 
     // Power levels
-    @Min(0) @Max(100) @InputItem @Option
+    @Min(0) @Max(100) @InputItem(channel = "mqtt:topic:mosquitto:panel_commands:manualPower") @Option
     default int manualPower() { return 50; }
 
     @Min(0) @Max(100) @InputItem @Option

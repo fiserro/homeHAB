@@ -23,6 +23,7 @@ public class HrvControl extends Java223Script {
     public void onZigbeeItemChanged() {
         HabState state = HabStateFactory.of(HabState.class, items);
         HabState calculated = new HrvCalculator<HabState>().calculate(state);
+//        events.sendCommand(_items.manualPower(),calculated.hrvOutputPower());
         events.sendCommand(_items.hrvOutputPower(), calculated.hrvOutputPower());
         events.sendCommand(_items.hrvOutputIntake(), calculated.hrvOutputIntake());
         events.sendCommand(_items.hrvOutputExhaust(), calculated.hrvOutputExhaust());

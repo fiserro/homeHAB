@@ -29,6 +29,9 @@ logger:
   level: DEBUG
   hardware_uart: UART0
 
+ota:
+  platform: esphome
+
 psram:
   speed: 200MHz
 
@@ -113,6 +116,7 @@ mqtt:
     - topic: homehab-dev/manualMode/state
       then:
         - lambda: |-
+            ESP_LOGI("panel", "MQTT manualMode = %s", x.c_str());
             id(manual_mode_active) = (x == "ON");
         - script.execute: update_button_colors
 
@@ -120,6 +124,7 @@ mqtt:
     - topic: homehab-dev/temporaryManualMode/state
       then:
         - lambda: |-
+            ESP_LOGI("panel", "MQTT temporaryManualMode = %s", x.c_str());
             id(temp_manual_mode_active) = (x == "ON");
         - script.execute: update_button_colors
 
@@ -127,6 +132,7 @@ mqtt:
     - topic: homehab-dev/temporaryBoostMode/state
       then:
         - lambda: |-
+            ESP_LOGI("panel", "MQTT temporaryBoostMode = %s", x.c_str());
             id(boost_mode_active) = (x == "ON");
         - script.execute: update_button_colors
 
@@ -601,6 +607,8 @@ script:
   - id: update_button_colors
     then:
       - lambda: |-
+          ESP_LOGI("panel", "update_button_colors: manual=%d, temp_manual=%d, boost=%d",
+                   id(manual_mode_active), id(temp_manual_mode_active), id(boost_mode_active));
           // AUTO button: green if no manual modes active
           bool auto_active = !id(manual_mode_active) && !id(temp_manual_mode_active) && !id(boost_mode_active);
           if (auto_active) {

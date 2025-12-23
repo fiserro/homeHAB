@@ -195,8 +195,12 @@ public class HabStateItemsGenerator {
         String icon = getInputIcon(itemName);
         String defaultValue = getDefaultValue(method);
 
-        return String.format("%s %s \"HRV - %s\" <%s> %s  // default: %s%n",
-            itemType, itemName, label, icon, INPUT_TAGS, defaultValue);
+        InputItem annotation = method.getAnnotation(InputItem.class);
+        String channel = annotation != null ? annotation.channel() : "";
+        String channelBinding = channel.isEmpty() ? "" : String.format(" { channel=\"%s\" }", channel);
+
+        return String.format("%s %s \"HRV - %s\" <%s> %s%s  // default: %s%n",
+            itemType, itemName, label, icon, INPUT_TAGS, channelBinding, defaultValue);
     }
 
     private static String generateOutputItem(Method method) {

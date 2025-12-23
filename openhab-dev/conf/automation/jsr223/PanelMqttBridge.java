@@ -89,44 +89,4 @@ public class PanelMqttBridge extends Java223Script {
         publish("manualPower", _items.manualPower().getState());
     }
 
-    // Handle commands FROM panel
-    @Rule(name = "panel.cmd.manual.power", description = "Handle manual power command from panel")
-    @ItemStateChangeTrigger(itemName = Items.panelManualPowerCommand)
-    public void onPanelManualPowerCommand() {
-        State state = _items.panelManualPowerCommand().getState();
-        if (state != null) {
-            events.sendCommand(_items.manualPower(), state.toString());
-            System.out.println("[PanelMqttBridge] Panel command: manualPower = " + state);
-        }
-    }
-
-    @Rule(name = "panel.cmd.manual.mode", description = "Handle manual mode command from panel")
-    @ItemStateChangeTrigger(itemName = Items.panelManualModeCommand)
-    public void onPanelManualModeCommand() {
-        State state = _items.panelManualModeCommand().getState();
-        if (state != null) {
-            events.sendCommand(_items.manualMode(), state.toString());
-            System.out.println("[PanelMqttBridge] Panel command: manualMode = " + state);
-        }
-    }
-
-    @Rule(name = "panel.cmd.boost.mode", description = "Handle boost mode command from panel")
-    @ItemStateChangeTrigger(itemName = Items.panelBoostModeCommand)
-    public void onPanelBoostModeCommand() {
-        State state = _items.panelBoostModeCommand().getState();
-        if (state != null) {
-            events.sendCommand(_items.temporaryBoostMode(), state.toString());
-            System.out.println("[PanelMqttBridge] Panel command: temporaryBoostMode = " + state);
-        }
-    }
-
-    @Rule(name = "panel.cmd.temp.manual.mode", description = "Handle temporary manual mode command from panel")
-    @ItemStateChangeTrigger(itemName = "panelTempManualModeCommand")
-    public void onPanelTempManualModeCommand() {
-        State state = items.get("panelTempManualModeCommand");
-        if (state != null) {
-            events.sendCommand(_items.temporaryManualMode(), state.toString());
-            System.out.println("[PanelMqttBridge] Panel command: temporaryManualMode = " + state);
-        }
-    }
 }
