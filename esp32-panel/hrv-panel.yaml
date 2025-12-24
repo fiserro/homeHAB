@@ -89,8 +89,13 @@ mqtt:
     - topic: homehab-dev/temperature/state
       then:
         - lambda: |-
+            ESP_LOGI("panel", "MQTT temperature: '%s'", x.c_str());
             float temp = atof(x.c_str());
-            lv_label_set_text_fmt(id(lbl_temp_value), "%.1f", temp);
+            int temp_int = (int)(temp * 10);
+            int whole = temp_int / 10;
+            int frac = temp_int % 10;
+            if (frac < 0) frac = -frac;
+            lv_label_set_text_fmt(id(lbl_temp_value), "%d.%d", whole, frac);
 
     # Air Humidity
     - topic: homehab-dev/airHumidity/state
@@ -165,8 +170,9 @@ mqtt:
     - topic: homehab-dev/pressure/state
       then:
         - lambda: |-
-            float pressure = atof(x.c_str());
-            lv_label_set_text_fmt(id(lbl_pressure_value), "%.0f", pressure);
+            ESP_LOGI("panel", "MQTT pressure: '%s'", x.c_str());
+            int pressure = (int)(atof(x.c_str()) + 0.5);
+            lv_label_set_text_fmt(id(lbl_pressure_value), "%d", pressure);
 
 # I2C for touchscreen
 i2c:
@@ -642,76 +648,115 @@ script:
           capture_response: true
           on_response:
             - lambda: |-
+                ESP_LOGI("panel", "HTTP hrvOutputPower: status=%d, body='%s'", response->status_code, body.c_str());
                 if (response->status_code == 200) {
                   int power = atoi(body.c_str());
                   id(power_value) = power;
                   lv_arc_set_value(id(arc_power), power);
                   lv_label_set_text_fmt(id(lbl_power_value), "%d%%", power);
-                  ESP_LOGI("panel", "HRV Power: %d", power);
                 }
+          on_error:
+            - lambda: |-
+                ESP_LOGE("panel", "HTTP hrvOutputPower FAILED");
       # Fetch Temperature
       - http_request.get:
           url: "http://openhab.home:8888/rest/items/temperature/state"
           capture_response: true
           on_response:
             - lambda: |-
+                ESP_LOGI("panel", "HTTP temperature: status=%d, body='%s'", response->status_code, body.c_str());
                 if (response->status_code == 200) {
                   float temp = atof(body.c_str());
-                  lv_label_set_text_fmt(id(lbl_temp_value), "%.1f", temp);
-                  ESP_LOGI("panel", "Temperature: %.1f", temp);
+                  int temp_int = (int)(temp * 10);
+                  int whole = temp_int / 10;
+                  int frac = temp_int % 10;
+                  if (frac < 0) frac = -frac;
+                  lv_label_set_text_fmt(id(lbl_temp_value), "%d.%d", whole, frac);
                 }
+          on_error:
+            - lambda: |-
+                ESP_LOGE("panel", "HTTP temperature FAILED");
       # Fetch Air Humidity
       - http_request.get:
           url: "http://openhab.home:8888/rest/items/airHumidity/state"
           capture_response: true
           on_response:
             - lambda: |-
+                ESP_LOGI("panel", "HTTP airHumidity: status=%d, body='%s'", response->status_code, body.c_str());
                 if (response->status_code == 200) {
                   int hum = atoi(body.c_str());
                   lv_label_set_text_fmt(id(lbl_humidity_value), "%d", hum);
-                  ESP_LOGI("panel", "Humidity: %d", hum);
                 }
+          on_error:
+            - lambda: |-
+                ESP_LOGE("panel", "HTTP airHumidity FAILED");
       # Fetch CO2
       - http_request.get:
           url: "http://openhab.home:8888/rest/items/co2/state"
           capture_response: true
           on_response:
             - lambda: |-
+                ESP_LOGI("panel", "HTTP co2: status=%d, body='%s'", response->status_code, body.c_str());
                 if (response->status_code == 200) {
                   int co2 = atoi(body.c_str());
                   lv_label_set_text_fmt(id(lbl_co2_value), "%d", co2);
-                  ESP_LOGI("panel", "CO2: %d", co2);
                 }
+          on_error:
+            - lambda: |-
+                ESP_LOGE("panel", "HTTP co2 FAILED");
+      # Fetch Pressure
+      - http_request.get:
+          url: "http://openhab.home:8888/rest/items/pressure/state"
+          capture_response: true
+          on_response:
+            - lambda: |-
+                ESP_LOGI("panel", "HTTP pressure: status=%d, body='%s'", response->status_code, body.c_str());
+                if (response->status_code == 200) {
+                  int pressure = (int)(atof(body.c_str()) + 0.5);
+                  lv_label_set_text_fmt(id(lbl_pressure_value), "%d", pressure);
+                }
+          on_error:
+            - lambda: |-
+                ESP_LOGE("panel", "HTTP pressure FAILED");
       # Fetch Manual Mode
       - http_request.get:
           url: "http://openhab.home:8888/rest/items/manualMode/state"
           capture_response: true
           on_response:
             - lambda: |-
+                ESP_LOGI("panel", "HTTP manualMode: status=%d, body='%s'", response->status_code, body.c_str());
                 if (response->status_code == 200) {
                   id(manual_mode_active) = (body == "ON");
-                  ESP_LOGI("panel", "Manual Mode: %s", id(manual_mode_active) ? "ON" : "OFF");
                 }
+          on_error:
+            - lambda: |-
+                ESP_LOGE("panel", "HTTP manualMode FAILED");
       # Fetch Temporary Manual Mode
       - http_request.get:
           url: "http://openhab.home:8888/rest/items/temporaryManualMode/state"
           capture_response: true
           on_response:
             - lambda: |-
+                ESP_LOGI("panel", "HTTP temporaryManualMode: status=%d, body='%s'", response->status_code, body.c_str());
                 if (response->status_code == 200) {
                   id(temp_manual_mode_active) = (body == "ON");
-                  ESP_LOGI("panel", "Temp Manual Mode: %s", id(temp_manual_mode_active) ? "ON" : "OFF");
                 }
+          on_error:
+            - lambda: |-
+                ESP_LOGE("panel", "HTTP temporaryManualMode FAILED");
       # Fetch Boost Mode
       - http_request.get:
           url: "http://openhab.home:8888/rest/items/temporaryBoostMode/state"
           capture_response: true
           on_response:
             - lambda: |-
+                ESP_LOGI("panel", "HTTP temporaryBoostMode: status=%d, body='%s'", response->status_code, body.c_str());
                 if (response->status_code == 200) {
                   id(boost_mode_active) = (body == "ON");
-                  ESP_LOGI("panel", "Boost Mode: %s", id(boost_mode_active) ? "ON" : "OFF");
                 }
+          on_error:
+            - lambda: |-
+                ESP_LOGE("panel", "HTTP temporaryBoostMode FAILED");
       # Update button colors after all states loaded
       - script.execute: update_button_colors
       - lambda: |-

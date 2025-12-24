@@ -693,6 +693,38 @@ If an item has an invalid channel link (e.g., to a deleted Thing), OpenHAB's aut
 - OpenHAB Scheduler API: https://www.openhab.org/javadoc/latest/org/openhab/core/scheduler/scheduler
 - OpenHAB JSR223 Documentation: https://www.openhab.org/docs/configuration/jsr223.html
 
+## OpenHAB Source Code (Local Repositories)
+
+The following OpenHAB source code repositories are available locally for reference:
+
+### openhab-core
+**Location:** `/Users/robertfiser/workspace/openhab-core`
+
+Key files:
+- `bundles/org.openhab.core.automation.module.script/src/main/java/org/openhab/core/automation/module/script/defaultscope/ScriptBusEvent.java` - Interface for `events` object in scripts
+- `bundles/org.openhab.core.automation.module.script/src/main/java/org/openhab/core/automation/module/script/internal/defaultscope/ScriptBusEventImpl.java` - Implementation of ScriptBusEvent
+- `bundles/org.openhab.core/src/main/java/org/openhab/core/items/events/ItemEventFactory.java` - Factory for creating item events (command, state, stateChanged, etc.)
+
+### openhab-addons-java223
+**Location:** `/Users/robertfiser/workspace/openhab-addons-java223`
+
+Key files:
+- `bundles/org.openhab.automation.java223/src/main/java/org/openhab/automation/java223/internal/strategy/ScriptWrappingStrategy.java` - Script wrapping and auto-injected fields (`events`, `items`, `ir`, etc.)
+- `bundles/org.openhab.automation.java223/src/helper/java/helper/rules/annotations/` - Rule annotations (`@Rule`, `@ItemStateChangeTrigger`, etc.)
+- `bundles/org.openhab.automation.java223/src/helper/java/helper/rules/eventinfo/` - Event info classes (`ItemStateChange`, `ChannelEvent`, etc.)
+
+### ScriptBusEvent API Notes
+
+Both `sendCommand` and `postUpdate` publish events to the event bus - there is no "silent update":
+- `sendCommand` → `ItemEventFactory.createCommandEvent()` → triggers command handlers and potentially state change
+- `postUpdate` → `ItemEventFactory.createStateEvent()` → triggers state update and potentially state change
+
+To avoid triggering `@ItemStateChangeTrigger` in a loop:
+1. Check if value changed before updating: `if (!Objects.equals(oldValue, newValue))`
+2. Filter output items in the handler: `if (eventInfo.getItemName().equals("outputItem")) return;`
+
+Note: `ItemEventFactory.createStateEvent()` supports a `source` parameter, but `ScriptBusEvent.postUpdate()` doesn't expose it ([issue #1618](https://github.com/openhab/openhab-core/issues/1618)).
+
 ## Project Documentation
 
 - [Main UI Pages Guide](docs/MAIN-UI-PAGES.md) - How to create and manage pages in OpenHAB Main UI
