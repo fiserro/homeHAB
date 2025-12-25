@@ -141,8 +141,15 @@ The HRV calculator uses priority-based decision tree:
 
 ## Documentation
 
-- [CLAUDE.md](CLAUDE.md) - Detailed development guide
-- [src/main/python/README.md](src/main/python/README.md) - DAC Bridge documentation
+### Project Guides
+- [CLAUDE.md](CLAUDE.md) - Detailed development guide and API reference
+- [docs/INSTALLATION.md](docs/INSTALLATION.md) - Infrastructure installation (Raspberry Pi, MQTT, Zigbee2MQTT)
+- [docs/MAIN-UI-PAGES.md](docs/MAIN-UI-PAGES.md) - OpenHAB Main UI pages guide
+
+### Component Documentation
+- [esp32-panel/README.md](esp32-panel/README.md) - ESP32 touch panel (ESPHome, LVGL)
+- [src/main/python/README.md](src/main/python/README.md) - HRV Bridge (MQTT to PWM/DAC)
+- [openhab-dev/README.md](openhab-dev/README.md) - Docker development environment
 
 ## License
 
