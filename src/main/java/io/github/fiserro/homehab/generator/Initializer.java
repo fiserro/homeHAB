@@ -7,6 +7,9 @@ import io.github.fiserro.homehab.module.CommonModule;
 import io.github.fiserro.homehab.module.FlowerModule;
 import io.github.fiserro.homehab.module.HrvModule;
 import io.github.fiserro.options.Option;
+import io.github.fiserro.options.OptionDef;
+import io.github.fiserro.options.Options;
+import io.github.fiserro.options.OptionsFactory;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.net.URI;
@@ -14,7 +17,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -25,10 +30,14 @@ public class Initializer {
 
     private String openhabUrl;
     private HttpClient httpClient;
+    private Map<String, Object> defaultValues;
 
     public void initialize(GeneratorOptions options) throws Exception {
         this.openhabUrl = options.openhabUrl();
         this.httpClient = HttpClient.newHttpClient();
+
+        // Load default values from all module interfaces using OptionsFactory
+        this.defaultValues = loadDefaultValues();
 
         log.info("Initializing all items with default values...");
         Set<String> processed = new HashSet<>();
@@ -38,6 +47,36 @@ public class Initializer {
         int readOnlyCount = initializeItems(ReadOnlyItem.class, processed);
 
         log.info("Initialized {} input, {} output, {} read-only items", inputCount, outputCount, readOnlyCount);
+    }
+
+    /**
+     * Load default values from all module interfaces using OptionsFactory.
+     * This correctly invokes default method implementations to get actual values.
+     */
+    private Map<String, Object> loadDefaultValues() {
+        Map<String, Object> defaults = new java.util.HashMap<>();
+
+        // Load defaults from each module using OptionsFactory
+        loadModuleDefaults(CommonModule.class, defaults);
+        loadModuleDefaults(HrvModule.class, defaults);
+        loadModuleDefaults(FlowerModule.class, defaults);
+
+        return defaults;
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T extends Options<T>> void loadModuleDefaults(Class<?> moduleClass, Map<String, Object> defaults) {
+        try {
+            T instance = OptionsFactory.create((Class<T>) moduleClass);
+            for (OptionDef opt : instance.options()) {
+                Object value = instance.getValue(opt);
+                if (value != null) {
+                    defaults.put(opt.name(), value);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not load defaults from {}: {}", moduleClass.getSimpleName(), e.getMessage());
+        }
     }
 
     private int initializeItems(Class<? extends Annotation> annotationType, Set<String> processed)
@@ -77,8 +116,14 @@ public class Initializer {
                 continue;
             }
 
-            // Get default value from default method
-            Object value = getDefaultValue(method);
+            // Get default value from pre-loaded defaults map
+            Object value = defaultValues.get(itemName);
+            if (value == null) {
+                log.debug("  - {}: no default value found", itemName);
+                processed.add(itemName);
+                continue;
+            }
+
             String defaultValue = formatState(value);
 
             String currentState = getItemState(itemName);
@@ -97,28 +142,6 @@ public class Initializer {
         }
 
         return count;
-    }
-
-    private Object getDefaultValue(Method method) {
-        // Default methods have default implementations we can read
-        if (method.isDefault()) {
-            try {
-                // For primitives, return appropriate defaults based on return type
-                Class<?> returnType = method.getReturnType();
-                if (returnType == boolean.class) {
-                    return false;
-                } else if (returnType == int.class) {
-                    return 0;
-                } else if (returnType == long.class) {
-                    return 0L;
-                } else if (returnType == double.class) {
-                    return 0.0;
-                }
-            } catch (Exception e) {
-                log.debug("Could not get default value for {}: {}", method.getName(), e.getMessage());
-            }
-        }
-        return null;
     }
 
     private boolean needsInitialization(String currentState) {
