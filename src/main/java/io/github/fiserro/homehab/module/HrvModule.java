@@ -59,6 +59,16 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
     @Min(800) @Max(1500) @InputItem @Option
     default int co2ThresholdHigh() { return 900; }
 
+    // Motor control mode
+    /**
+     * Dual motor mode flag:
+     * - false (default): Single motor mode - uses hrvOutputPower for both motors
+     * - true: Dual motor mode - uses hrvOutputIntake (GPIO 18) and hrvOutputExhaust (GPIO 19)
+     * When switching modes, manually update channel links in OpenHAB UI.
+     */
+    @InputItem @Option
+    default boolean dualMotorMode() { return false; }
+
     // Intake/Exhaust ratio control
     /**
      * Pressure balance control. 0 = balanced, negative = underpressure, positive = overpressure.
@@ -66,6 +76,7 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
      * -10 = underpressure (reduce exhaust by 10% of base power, intake unchanged)
      * +10 = overpressure (increase intake by 10% of base power, exhaust unchanged)
      * Example: base=20%, ratio=+10 → intake=22%, exhaust=20%
+     * Only effective when dualMotorMode=true.
      */
     @Min(-10) @Max(10) @InputItem @Option
     default int intakeExhaustRatio() { return 0; }
@@ -100,21 +111,24 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
     default boolean gas() { return false; }
 
     // Output
-    @OutputItem @Option
+    // Channel links for HRV Bridge (see hrv-bridge.things):
+    // - Single motor mode: use hrvOutputPower → power channel (controls both motors equally)
+    // - Dual motor mode: use hrvOutputIntake/Exhaust → intake/exhaust channels (independent control)
+    @OutputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:power") @Option
     default int hrvOutputPower() { return 50; }
 
     /**
      * Output power for intake (fresh air) motor.
      * Calculated from hrvOutputPower adjusted by intakeExhaustRatio.
      */
-    @OutputItem @Option
+    @OutputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:intake") @Option
     default int hrvOutputIntake() { return 50; }
 
     /**
      * Output power for exhaust (stale air) motor.
      * Calculated from hrvOutputPower adjusted by intakeExhaustRatio.
      */
-    @OutputItem @Option
+    @OutputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:exhaust") @Option
     default int hrvOutputExhaust() { return 50; }
 
     T withHrvOutputPower(int power);

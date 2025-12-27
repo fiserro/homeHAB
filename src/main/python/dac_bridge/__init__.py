@@ -45,8 +45,8 @@ try:
 except ImportError:
     DAC_AVAILABLE = False
 
-# Import PWM calibration
-from .pwm_calibration import percent_to_pwm
+# Import PWM calibration (separate tables for intake/exhaust)
+from .pwm_calibration import percent_to_pwm_intake, percent_to_pwm_exhaust
 
 # Default configuration
 DEFAULT_MQTT_HOST = "localhost"
@@ -96,14 +96,14 @@ class PwmOutput:
         """Set intake motor PWM duty cycle."""
         percent = max(0, min(100, percent))
         self.duty_intake = percent
-        calibrated_duty = percent_to_pwm(percent)
+        calibrated_duty = percent_to_pwm_intake(percent)
         lgpio.tx_pwm(self.handle, self.pin_intake, self.freq, calibrated_duty)
 
     def set_exhaust(self, percent: float):
         """Set exhaust motor PWM duty cycle."""
         percent = max(0, min(100, percent))
         self.duty_exhaust = percent
-        calibrated_duty = percent_to_pwm(percent)
+        calibrated_duty = percent_to_pwm_exhaust(percent)
         lgpio.tx_pwm(self.handle, self.pin_exhaust, self.freq, calibrated_duty)
 
     def set_both(self, percent: float):

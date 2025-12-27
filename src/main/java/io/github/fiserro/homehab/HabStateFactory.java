@@ -45,14 +45,21 @@ public class HabStateFactory {
 
     /**
      * Writes output values from Options instance to OpenHAB items.
+     * Respects dualMotorMode setting for HRV outputs:
+     * - dualMotorMode=false: sends only hrvOutputPower
+     * - dualMotorMode=true: sends only hrvOutputIntake and hrvOutputExhaust
      *
      * @param events the OpenHAB script bus event for sending commands
      * @param state the Options instance containing output values
      * @param <T> the Options type
      */
     public static <T extends Options<T>> void writeState(ScriptBusEvent events, T state) {
+        // Check if dualMotorMode is enabled (for HRV module compatibility)
+        boolean dualMotorMode = getDualMotorMode(state);
+
         state.options().stream()
             .filter(opt -> hasAnnotation(opt, OutputItem.class))
+            .filter(opt -> shouldSendOutput(opt.name(), dualMotorMode))
             .forEach(opt -> {
                 Object value = state.getValue(opt);
                 if (value != null) {
@@ -61,6 +68,37 @@ public class HabStateFactory {
                     events.sendCommand(opt.name(), command);
                 }
             });
+    }
+
+    /**
+     * Checks if dualMotorMode is enabled in the state.
+     * Returns false if the option is not present (for non-HRV modules).
+     */
+    private static <T extends Options<T>> boolean getDualMotorMode(T state) {
+        return state.options().stream()
+            .filter(opt -> "dualMotorMode".equals(opt.name()))
+            .findFirst()
+            .map(opt -> {
+                Object value = state.getValue(opt);
+                return value instanceof Boolean && (Boolean) value;
+            })
+            .orElse(false);
+    }
+
+    /**
+     * Determines if an output should be sent based on motor mode.
+     * - In single motor mode: send only hrvOutputPower
+     * - In dual motor mode: send only hrvOutputIntake and hrvOutputExhaust
+     * - For other outputs: always send
+     */
+    private static boolean shouldSendOutput(String outputName, boolean dualMotorMode) {
+        if (dualMotorMode) {
+            // Dual motor mode: skip hrvOutputPower, send intake and exhaust
+            return !"hrvOutputPower".equals(outputName);
+        } else {
+            // Single motor mode: send hrvOutputPower, skip intake and exhaust
+            return !"hrvOutputIntake".equals(outputName) && !"hrvOutputExhaust".equals(outputName);
+        }
     }
 
     private static boolean hasAnnotation(OptionDef optionDef, Class<? extends Annotation> annotationType) {
