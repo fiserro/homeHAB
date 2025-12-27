@@ -21,7 +21,7 @@ The dev environment uses `.env.dev` configuration file (via `.env` symlink).
 **MQTT Settings:**
 - Broker: `zigbee.home:1883`
 - Client ID: `homehab-dev`
-- Topic prefix: `homehab-dev/`
+- Topic prefix: `homehab/`
 
 ## Starting the Environment
 

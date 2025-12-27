@@ -13,7 +13,7 @@ import org.openhab.core.types.State;
 public class PanelMqttBridge extends Java223Script {
 
     private static final String MQTT_BROKER = "mqtt:broker:mosquitto";
-    private static final String PREFIX = "homehab-dev/";
+    private static final String STATE_PREFIX = "homehab/state/";
 
     private MQTTActions mqtt() {
         return new MQTTActions(actions, MQTT_BROKER);
@@ -23,7 +23,7 @@ public class PanelMqttBridge extends Java223Script {
         if (state != null) {
             String value = state.toString();
             if (!value.equals("NULL") && !value.equals("UNDEF")) {
-                mqtt().publishMQTT(PREFIX + topic + "/state", value, true);
+                mqtt().publishMQTT(STATE_PREFIX + topic, value, true);
                 System.out.println("[PanelMqttBridge] Published " + topic + " = " + value);
             }
         }

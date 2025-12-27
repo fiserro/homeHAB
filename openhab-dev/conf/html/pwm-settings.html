@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWM Settings</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 16px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+        h2 {
+            color: #fff;
+            margin: 0 0 15px 0;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .container {
+            width: 100%;
+        }
+        .row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .col {
+            flex: 1;
+            min-width: 0;
+        }
+        @media (max-width: 768px) {
+            .row {
+                flex-direction: column;
+            }
+        }
+        .section-title {
+            color: #999;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .card {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .card:last-child {
+            margin-bottom: 0;
+        }
+        .form-group {
+            margin-bottom: 12px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #bbb;
+            font-size: 13px;
+        }
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #333;
+            border-radius: 4px;
+            background: #2a2a2a;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+        select:focus {
+            outline: none;
+            border-color: #e64a19;
+        }
+        .calibration-table {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .calibration-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .calibration-row input[type="number"] {
+            width: 70px;
+            padding: 8px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background: #2a2a2a;
+            color: #fff;
+            font-size: 14px;
+            text-align: center;
+        }
+        .calibration-row input[type="number"]:focus {
+            outline: none;
+            border-color: #e64a19;
+        }
+        .calibration-row .arrow {
+            color: #666;
+            font-size: 16px;
+        }
+        .calibration-row .unit {
+            color: #888;
+            font-size: 12px;
+            min-width: 20px;
+        }
+        .btn-remove {
+            background: transparent;
+            border: 1px solid #555;
+            color: #888;
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        .btn-remove:hover {
+            background: #f44336;
+            border-color: #f44336;
+            color: #fff;
+        }
+        .btn-test {
+            background: transparent;
+            border: 1px solid #4caf50;
+            color: #4caf50;
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        .btn-test:hover {
+            background: #4caf50;
+            color: #fff;
+        }
+        .btn-test:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-add {
+            background: transparent;
+            border: 1px dashed #555;
+            color: #888;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        .btn-add:hover {
+            border-color: #e64a19;
+            color: #e64a19;
+        }
+        .btn {
+            background: #e64a19;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn:hover {
+            background: #ff5722;
+        }
+        .btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        input[type="range"] {
+            flex: 1;
+            height: 4px;
+            -webkit-appearance: none;
+            background: linear-gradient(to right, #e64a19 0%, #e64a19 var(--value, 0%), #444 var(--value, 0%), #444 100%);
+            border-radius: 2px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #e64a19;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .slider-value {
+            min-width: 50px;
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+        }
+        .status {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-left: 10px;
+        }
+        .status.success {
+            background: #4caf50;
+            color: white;
+        }
+        .status.error {
+            background: #f44336;
+            color: white;
+        }
+        .status.loading {
+            background: #e64a19;
+            color: white;
+        }
+        .instructions {
+            font-size: 12px;
+            color: #bbb;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- GPIO Configuration -->
+        <div class="section-title">GPIO Configuration</div>
+
+        <div class="row">
+            <!-- GPIO 18 -->
+            <div class="col">
+                <div class="card">
+                    <h2>GPIO 18</h2>
+
+                    <div class="form-group">
+                        <label for="gpio18Source">Source</label>
+                        <select id="gpio18Source">
+                            <option value="POWER">Power</option>
+                            <option value="INTAKE">Intake</option>
+                            <option value="EXHAUST">Exhaust</option>
+                            <option value="TEST">Test</option>
+                            <option value="OFF">Off</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Calibration Table (PWM % → Voltage)</label>
+                        <div id="calibrationTableGpio18" class="calibration-table"></div>
+                        <button class="btn-add" onclick="addCalibrationRow('calibrationTableGpio18')">+ Add Row</button>
+                    </div>
+
+                    <button class="btn" onclick="saveCalibration('calibrationTableGpio18')">
+                        Save
+                    </button>
+                    <span id="status-calibrationTableGpio18" class="status" style="display: none;"></span>
+                </div>
+            </div>
+
+            <!-- GPIO 19 -->
+            <div class="col">
+                <div class="card">
+                    <h2>GPIO 19</h2>
+
+                    <div class="form-group">
+                        <label for="gpio19Source">Source</label>
+                        <select id="gpio19Source">
+                            <option value="POWER">Power</option>
+                            <option value="INTAKE">Intake</option>
+                            <option value="EXHAUST">Exhaust</option>
+                            <option value="TEST">Test</option>
+                            <option value="OFF">Off</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Calibration Table (PWM % → Voltage)</label>
+                        <div id="calibrationTableGpio19" class="calibration-table"></div>
+                        <button class="btn-add" onclick="addCalibrationRow('calibrationTableGpio19')">+ Add Row</button>
+                    </div>
+
+                    <button class="btn" onclick="saveCalibration('calibrationTableGpio19')">
+                        Save
+                    </button>
+                    <span id="status-calibrationTableGpio19" class="status" style="display: none;"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Output -->
+        <div class="section-title">Test Output</div>
+        <div class="card">
+            <p style="color: #bbb; font-size: 13px; margin: 0 0 12px 0;">
+                Set GPIO source to "Test" to use this value for calibration.
+            </p>
+
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="hrvOutputTest">Test Power (PWM %)</label>
+                <div class="slider-container">
+                    <input type="range" id="hrvOutputTest" min="0" max="100" value="0"
+                           oninput="updateSliderDisplay(this.value)"
+                           onchange="updateItem('hrvOutputTest', this.value)">
+                    <span class="slider-value" id="testPowerValue">0%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="section-title">Calibration Instructions</div>
+        <div class="card">
+            <div class="instructions">
+                1. Add row: enter PWM % value<br>
+                2. Click green ▶ button to test (auto-reverts after 10s)<br>
+                3. Measure voltage output and enter it<br>
+                4. Repeat for more PWM values<br>
+                5. Click "Save" to store calibration and source
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Item names for this page
+        const SELECT_ITEMS = ['gpio18Source', 'gpio19Source'];
+        const CALIBRATION_ITEMS = ['calibrationTableGpio18', 'calibrationTableGpio19'];
+
+        // Load all items on page load
+        async function loadItems() {
+            for (const itemName of SELECT_ITEMS) {
+                await loadSelectItem(itemName);
+            }
+            for (const itemName of CALIBRATION_ITEMS) {
+                await loadCalibrationTable(itemName);
+            }
+            await loadSliderItem('hrvOutputTest');
+        }
+
+        // Load select item state
+        async function loadSelectItem(itemName) {
+            try {
+                const response = await fetch(`/rest/items/${itemName}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (!response.ok) return;
+                const item = await response.json();
+                const element = document.getElementById(itemName);
+                if (element) element.value = item.state;
+            } catch (error) {
+                console.error(`Error loading ${itemName}:`, error);
+            }
+        }
+
+        // Load slider item state
+        async function loadSliderItem(itemName) {
+            try {
+                const response = await fetch(`/rest/items/${itemName}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (!response.ok) return;
+                const item = await response.json();
+                const value = parseInt(item.state) || 0;
+                document.getElementById(itemName).value = value;
+                updateSliderDisplay(value);
+            } catch (error) {
+                console.error(`Error loading ${itemName}:`, error);
+            }
+        }
+
+        // Load calibration table from JSON
+        async function loadCalibrationTable(itemName) {
+            try {
+                const response = await fetch(`/rest/items/${itemName}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (!response.ok) return;
+                const item = await response.json();
+                const container = document.getElementById(itemName);
+                container.innerHTML = '';
+
+                if (item.state && item.state !== 'NULL' && item.state !== '{}') {
+                    try {
+                        const data = JSON.parse(item.state);
+                        // Sort by PWM value
+                        const entries = Object.entries(data).sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
+                        for (const [pwm, voltage] of entries) {
+                            addCalibrationRow(itemName, parseInt(pwm), parseFloat(voltage));
+                        }
+                    } catch (e) {
+                        console.error(`Invalid JSON in ${itemName}:`, e);
+                    }
+                }
+            } catch (error) {
+                console.error(`Error loading ${itemName}:`, error);
+            }
+        }
+
+        // Add a calibration row
+        function addCalibrationRow(containerId, pwm = '', voltage = '') {
+            const container = document.getElementById(containerId);
+            const row = document.createElement('div');
+            row.className = 'calibration-row';
+            row.innerHTML = `
+                <input type="number" class="pwm-input" min="0" max="100" step="1" placeholder="0" value="${pwm}">
+                <span class="unit">%</span>
+                <span class="arrow">→</span>
+                <input type="number" class="voltage-input" min="0" max="10" step="0.1" placeholder="0" value="${voltage}">
+                <span class="unit">V</span>
+                <button class="btn-test" onclick="testCalibrationRow(this, '${containerId}')">▶</button>
+                <button class="btn-remove" onclick="removeCalibrationRow(this)">×</button>
+            `;
+            container.appendChild(row);
+        }
+
+        // Remove a calibration row
+        function removeCalibrationRow(button) {
+            const row = button.parentElement;
+            const container = row.parentElement;
+            row.remove();
+        }
+
+        // Test a calibration row - set PWM and temporarily switch to TEST mode
+        let testTimeout = null;
+        async function testCalibrationRow(button, containerId) {
+            const row = button.parentElement;
+            const pwmInput = row.querySelector('.pwm-input');
+            const pwmValue = parseInt(pwmInput.value) || 0;
+
+            // Determine source item name from container id
+            // calibrationTableGpio18 -> gpio18Source
+            const gpioNum = containerId.replace('calibrationTable', '').toLowerCase();
+            const sourceItemName = gpioNum + 'Source';
+            const sourceSelect = document.getElementById(sourceItemName);
+
+            // Store original source value
+            const originalSource = sourceSelect.value;
+
+            // Clear any existing timeout
+            if (testTimeout) {
+                clearTimeout(testTimeout);
+            }
+
+            // Set source to TEST and update PWM
+            sourceSelect.value = 'TEST';
+            await updateItem(sourceItemName, 'TEST');
+            await updateItem('hrvOutputTest', pwmValue);
+
+            // Update slider display
+            document.getElementById('hrvOutputTest').value = pwmValue;
+            updateSliderDisplay(pwmValue);
+
+            // Revert source after 10 seconds
+            testTimeout = setTimeout(async () => {
+                sourceSelect.value = originalSource;
+                await updateItem(sourceItemName, originalSource);
+                testTimeout = null;
+            }, 10000);
+        }
+
+        // Update slider display
+        function updateSliderDisplay(value) {
+            document.getElementById('testPowerValue').textContent = value + '%';
+            const slider = document.getElementById('hrvOutputTest');
+            slider.style.setProperty('--value', value + '%');
+        }
+
+        // Send command to item
+        async function updateItem(itemName, value) {
+            try {
+                const response = await fetch(`/rest/items/${itemName}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: String(value)
+                });
+                if (!response.ok) {
+                    console.error(`Failed to update ${itemName}: ${response.status}`);
+                }
+            } catch (error) {
+                console.error(`Error updating ${itemName}:`, error);
+            }
+        }
+
+        // Save calibration table and source - build JSON from rows
+        async function saveCalibration(itemName) {
+            const container = document.getElementById(itemName);
+            const rows = container.querySelectorAll('.calibration-row');
+            const data = {};
+
+            for (const row of rows) {
+                const pwmInput = row.querySelector('.pwm-input');
+                const voltageInput = row.querySelector('.voltage-input');
+                const pwm = pwmInput.value.trim();
+                const voltage = voltageInput.value.trim();
+
+                if (pwm !== '' && voltage !== '') {
+                    const pwmVal = parseInt(pwm);
+                    const voltageVal = parseFloat(voltage);
+
+                    if (pwmVal < 0 || pwmVal > 100) {
+                        showStatus(itemName, 'error', 'PWM must be 0-100');
+                        return;
+                    }
+                    if (voltageVal < 0 || voltageVal > 10) {
+                        showStatus(itemName, 'error', 'Voltage must be 0-10');
+                        return;
+                    }
+
+                    data[pwmVal] = voltageVal;
+                }
+            }
+
+            // Get source item name and value
+            const gpioNum = itemName.replace('calibrationTable', '').toLowerCase();
+            const sourceItemName = gpioNum + 'Source';
+            const sourceValue = document.getElementById(sourceItemName).value;
+
+            showStatus(itemName, 'loading', 'Saving...');
+
+            try {
+                await updateItem(itemName, JSON.stringify(data));
+                await updateItem(sourceItemName, sourceValue);
+                showStatus(itemName, 'success', 'Saved!');
+            } catch (error) {
+                showStatus(itemName, 'error', 'Error!');
+            }
+        }
+
+        // Show status message
+        function showStatus(itemName, type, message) {
+            const statusEl = document.getElementById(`status-${itemName}`);
+            if (statusEl) {
+                statusEl.textContent = message;
+                statusEl.className = `status ${type}`;
+                statusEl.style.display = 'inline';
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', loadItems);
+    </script>
+</body>
+</html>

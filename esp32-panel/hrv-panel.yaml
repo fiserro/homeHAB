@@ -62,18 +62,18 @@ ethernet:
 mqtt:
   broker: zigbee.home
   port: 1883
-  topic_prefix: homehab-dev/panel
+  topic_prefix: homehab/panel
 
   birth_message:
-    topic: homehab-dev/panel/status
+    topic: homehab/panel/status
     payload: online
   will_message:
-    topic: homehab-dev/panel/status
+    topic: homehab/panel/status
     payload: offline
 
   on_message:
     # HRV Output Power
-    - topic: homehab-dev/hrvOutputPower/state
+    - topic: homehab/state/hrvOutputPower
       then:
         - lambda: |-
             int power = atoi(x.c_str());
@@ -88,7 +88,7 @@ mqtt:
             lv_obj_set_style_arc_color(id(arc_power), color, LV_PART_INDICATOR);
 
     # Temperature
-    - topic: homehab-dev/temperature/state
+    - topic: homehab/state/temperature
       then:
         - lambda: |-
             ESP_LOGI("panel", "MQTT temperature: '%s'", x.c_str());
@@ -100,14 +100,14 @@ mqtt:
             lv_label_set_text_fmt(id(lbl_temp_value), "%d.%d", whole, frac);
 
     # Air Humidity
-    - topic: homehab-dev/airHumidity/state
+    - topic: homehab/state/airHumidity
       then:
         - lambda: |-
             int hum = atoi(x.c_str());
             lv_label_set_text_fmt(id(lbl_humidity_value), "%d", hum);
 
     # CO2
-    - topic: homehab-dev/co2/state
+    - topic: homehab/state/co2
       then:
         - lambda: |-
             int co2 = atoi(x.c_str());
@@ -120,7 +120,7 @@ mqtt:
             lv_obj_set_style_text_color(id(lbl_co2_value), color, 0);
 
     # Manual Mode state (permanent manual)
-    - topic: homehab-dev/manualMode/state
+    - topic: homehab/state/manualMode
       then:
         - lambda: |-
             ESP_LOGI("panel", "MQTT manualMode = %s", x.c_str());
@@ -128,7 +128,7 @@ mqtt:
         - script.execute: update_button_colors
 
     # Temporary Manual Mode state
-    - topic: homehab-dev/temporaryManualMode/state
+    - topic: homehab/state/temporaryManualMode
       then:
         - lambda: |-
             ESP_LOGI("panel", "MQTT temporaryManualMode = %s", x.c_str());
@@ -136,7 +136,7 @@ mqtt:
         - script.execute: update_button_colors
 
     # Temporary Boost Mode state
-    - topic: homehab-dev/temporaryBoostMode/state
+    - topic: homehab/state/temporaryBoostMode
       then:
         - lambda: |-
             ESP_LOGI("panel", "MQTT temporaryBoostMode = %s", x.c_str());
@@ -144,7 +144,7 @@ mqtt:
         - script.execute: update_button_colors
 
     # Smoke detector
-    - topic: homehab-dev/smoke/state
+    - topic: homehab/state/smoke
       then:
         - lambda: |-
             bool alarm = (x == "ON");
@@ -157,7 +157,7 @@ mqtt:
             }
 
     # Manual Power (sync slider with OpenHAB value)
-    - topic: homehab-dev/manualPower/state
+    - topic: homehab/state/manualPower
       then:
         - lambda: |-
             // Set flag to ignore slider events triggered by programmatic update
@@ -169,7 +169,7 @@ mqtt:
             id(ignore_slider_events) = false;
 
     # Pressure
-    - topic: homehab-dev/pressure/state
+    - topic: homehab/state/pressure
       then:
         - lambda: |-
             ESP_LOGI("panel", "MQTT pressure: '%s'", x.c_str());
@@ -509,7 +509,7 @@ lvgl:
                             lambda: 'return !id(ignore_slider_events);'
                           then:
                             - mqtt.publish:
-                                topic: homehab-dev/panel/manualPower/command
+                                topic: homehab/panel/command/manualPower
                                 payload: !lambda |-
                                   return to_string((int)x);
 
@@ -534,13 +534,13 @@ lvgl:
               then:
                 # Turn off all manual modes
                 - mqtt.publish:
-                    topic: homehab-dev/panel/manualMode/command
+                    topic: homehab/panel/command/manualMode
                     payload: "OFF"
                 - mqtt.publish:
-                    topic: homehab-dev/panel/temporaryManualMode/command
+                    topic: homehab/panel/command/temporaryManualMode
                     payload: "OFF"
                 - mqtt.publish:
-                    topic: homehab-dev/panel/temporaryBoostMode/command
+                    topic: homehab/panel/command/temporaryBoostMode
                     payload: "OFF"
 
         # Boost Mode Button - activates temporaryBoostMode
@@ -561,7 +561,7 @@ lvgl:
             on_click:
               then:
                 - mqtt.publish:
-                    topic: homehab-dev/panel/temporaryBoostMode/command
+                    topic: homehab/panel/command/temporaryBoostMode
                     payload: "ON"
 
         # Manual Mode Button - activates temporaryManualMode
@@ -583,7 +583,7 @@ lvgl:
             on_click:
               then:
                 - mqtt.publish:
-                    topic: homehab-dev/panel/temporaryManualMode/command
+                    topic: homehab/panel/command/temporaryManualMode
                     payload: "ON"
 
         # ========== FOOTER (IP address) ==========

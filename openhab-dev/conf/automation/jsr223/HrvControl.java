@@ -13,81 +13,85 @@ import org.openhab.core.types.State;
  * HRV (Heat Recovery Ventilator) control script. Split into multiple rules due to annotation
  * processing limitations.
  *
- * <p>This script uses the modular HabState interface which extends module interfaces
- * (CommonModule, HrvModule, FlowerModule) and adds home-specific MQTT bindings.
+ * <p>This script uses the modular HabState interface which extends module interfaces (CommonModule,
+ * HrvModule, FlowerModule) and adds home-specific MQTT bindings.
  */
 public class HrvControl extends Java223Script {
 
-    @Rule(name = "item.changed", description = "Handle item changes")
-    @ItemStateChangeTrigger(itemName = "*")
-    public void onZigbeeItemChanged() {
-        HabState state = HabStateFactory.of(HabState.class, items);
-        HabState calculated = new HrvCalculator<HabState>().calculate(state);
+  @Rule(name = "item.changed", description = "Handle item changes")
+  @ItemStateChangeTrigger(itemName = "*")
+  public void onZigbeeItemChanged() {
+    HabState state = HabStateFactory.of(HabState.class, items);
+    HabState calculated = new HrvCalculator<HabState>().calculate(state);
 
-        // Only send commands if values actually changed (prevents infinite loop)
-        int currentPower = state.hrvOutputPower();
-        int currentIntake = state.hrvOutputIntake();
-        int currentExhaust = state.hrvOutputExhaust();
+    // Only send commands if values actually changed (prevents infinite loop)
+    int currentPower = state.hrvOutputPower();
+    int currentIntake = state.hrvOutputIntake();
+    int currentExhaust = state.hrvOutputExhaust();
 
-        if (calculated.hrvOutputPower() != currentPower) {
-            events.sendCommand(_items.hrvOutputPower(), calculated.hrvOutputPower());
-        }
-        if (calculated.hrvOutputIntake() != currentIntake) {
-            events.sendCommand(_items.hrvOutputIntake(), calculated.hrvOutputIntake());
-        }
-        if (calculated.hrvOutputExhaust() != currentExhaust) {
-            events.sendCommand(_items.hrvOutputExhaust(), calculated.hrvOutputExhaust());
-        }
+    logger.info("Power state: {} power calculated: {}", currentPower, calculated.hrvOutputPower());
+
+    if (calculated.hrvOutputPower() != currentPower) {
+      events.sendCommand(_items.hrvOutputPower(), calculated.hrvOutputPower());
     }
-
-    @Rule(name = "manual.power.changed", description = "Handle manual power changes")
-    @ItemStateChangeTrigger(itemName = Items.manualPower)
-    public void onManualPowerChanged() {
-        if (_items.manualMode().getStateAs(OnOffType.class) == OnOffType.OFF) {
-            events.sendCommand(_items.temporaryManualMode(), OnOffType.ON);
-        }
+    if (calculated.hrvOutputIntake() != currentIntake) {
+      events.sendCommand(_items.hrvOutputIntake(), calculated.hrvOutputIntake());
     }
-
-    @Rule(name = "manual.mode.changed", description = "Handle manual mode changes")
-    @ItemStateChangeTrigger(itemName = Items.manualMode)
-    public void onManualModeChanged() {
-        if (_items.manualMode().getStateAs(OnOffType.class) == OnOffType.ON) {
-            events.sendCommand(_items.temporaryManualMode(), OnOffType.OFF);
-            events.sendCommand(_items.temporaryBoostMode(), OnOffType.OFF);
-        }
+    if (calculated.hrvOutputExhaust() != currentExhaust) {
+      events.sendCommand(_items.hrvOutputExhaust(), calculated.hrvOutputExhaust());
     }
+  }
 
-    @Rule(name = "manual.temp.mode.changed", description = "Handle temporary manual mode changes")
-    @ItemStateChangeTrigger(itemName = Items.temporaryManualMode)
-    public void onTempManualModeChanged() {
-        if (_items.temporaryManualMode().getStateAs(OnOffType.class) == OnOffType.ON) {
-            events.sendCommand(_items.manualMode(), OnOffType.OFF);
-            events.sendCommand(_items.temporaryBoostMode(), OnOffType.OFF);
-            // Set off time = now + duration, reset other mode's off time
-            int durationSec = _items.temporaryManualModeDurationSec().getStateAs(DecimalType.class).intValue();
-            long offTime = Instant.now().getEpochSecond() + durationSec;
-            events.postUpdate(_items.temporaryManualModeOffTime(), (State) new DecimalType(offTime));
-            events.postUpdate(_items.temporaryBoostModeOffTime(), (State) new DecimalType(0));
-        } else {
-            // Mode turned OFF - reset off time
-            events.postUpdate(_items.temporaryManualModeOffTime(), (State) new DecimalType(0));
-        }
+  @Rule(name = "manual.power.changed", description = "Handle manual power changes")
+  @ItemStateChangeTrigger(itemName = Items.manualPower)
+  public void onManualPowerChanged() {
+    if (_items.manualMode().getStateAs(OnOffType.class) == OnOffType.OFF) {
+      events.sendCommand(_items.temporaryManualMode(), OnOffType.ON);
     }
+  }
 
-    @Rule(name = "boost.temp.mode.changed", description = "Handle temporary boost mode changes")
-    @ItemStateChangeTrigger(itemName = Items.temporaryBoostMode)
-    public void onTempBoostModeChanged() {
-        if (_items.temporaryBoostMode().getStateAs(OnOffType.class) == OnOffType.ON) {
-            events.sendCommand(_items.manualMode(), OnOffType.OFF);
-            events.sendCommand(_items.temporaryManualMode(), OnOffType.OFF);
-            // Set off time = now + duration, reset other mode's off time
-            int durationSec = _items.temporaryBoostModeDurationSec().getStateAs(DecimalType.class).intValue();
-            long offTime = Instant.now().getEpochSecond() + durationSec;
-            events.postUpdate(_items.temporaryBoostModeOffTime(), (State) new DecimalType(offTime));
-            events.postUpdate(_items.temporaryManualModeOffTime(), (State) new DecimalType(0));
-        } else {
-            // Mode turned OFF - reset off time
-            events.postUpdate(_items.temporaryBoostModeOffTime(), (State) new DecimalType(0));
-        }
+  @Rule(name = "manual.mode.changed", description = "Handle manual mode changes")
+  @ItemStateChangeTrigger(itemName = Items.manualMode)
+  public void onManualModeChanged() {
+    if (_items.manualMode().getStateAs(OnOffType.class) == OnOffType.ON) {
+      events.sendCommand(_items.temporaryManualMode(), OnOffType.OFF);
+      events.sendCommand(_items.temporaryBoostMode(), OnOffType.OFF);
     }
+  }
+
+  @Rule(name = "manual.temp.mode.changed", description = "Handle temporary manual mode changes")
+  @ItemStateChangeTrigger(itemName = Items.temporaryManualMode)
+  public void onTempManualModeChanged() {
+    if (_items.temporaryManualMode().getStateAs(OnOffType.class) == OnOffType.ON) {
+      events.sendCommand(_items.manualMode(), OnOffType.OFF);
+      events.sendCommand(_items.temporaryBoostMode(), OnOffType.OFF);
+      // Set off time = now + duration, reset other mode's off time
+      int durationSec =
+          _items.temporaryManualModeDurationSec().getStateAs(DecimalType.class).intValue();
+      long offTime = Instant.now().getEpochSecond() + durationSec;
+      events.postUpdate(_items.temporaryManualModeOffTime(), (State) new DecimalType(offTime));
+      events.postUpdate(_items.temporaryBoostModeOffTime(), (State) new DecimalType(0));
+    } else {
+      // Mode turned OFF - reset off time
+      events.postUpdate(_items.temporaryManualModeOffTime(), (State) new DecimalType(0));
+    }
+  }
+
+  @Rule(name = "boost.temp.mode.changed", description = "Handle temporary boost mode changes")
+  @ItemStateChangeTrigger(itemName = Items.temporaryBoostMode)
+  public void onTempBoostModeChanged() {
+    if (_items.temporaryBoostMode().getStateAs(OnOffType.class) == OnOffType.ON) {
+      events.sendCommand(_items.manualMode(), OnOffType.OFF);
+      events.sendCommand(_items.temporaryManualMode(), OnOffType.OFF);
+      // Set off time = now + duration, reset other mode's off time
+      int durationSec =
+          _items.temporaryBoostModeDurationSec().getStateAs(DecimalType.class).intValue();
+      long offTime = Instant.now().getEpochSecond() + durationSec;
+      events.postUpdate(_items.temporaryBoostModeOffTime(), (State) new DecimalType(offTime));
+      events.postUpdate(_items.temporaryManualModeOffTime(), (State) new DecimalType(0));
+    } else {
+      // Mode turned OFF - reset off time
+      events.postUpdate(_items.temporaryBoostModeOffTime(), (State) new DecimalType(0));
+    }
+  }
 }

@@ -67,7 +67,7 @@ This allows testing with real sensors without duplicating hardware.
 │  │   Docker            │                                                    │
 │  │   ┌──────────────┐  │     MQTT (zigbee.home:1883)                       │
 │  │   │   OpenHAB    │──┼─────────────────────┐                              │
-│  │   │   :8888      │  │                     │  topic: homehab-dev/*       │
+│  │   │   :8888      │  │                     │  topic: homehab/*       │
 │  │   └──────────────┘  │                     │                              │
 │  └─────────────────────┘                     │                              │
 └──────────────────────────────────────────────┼──────────────────────────────┘
@@ -81,7 +81,7 @@ This allows testing with real sensors without duplicating hardware.
 │  │   :8080      │  │   :8081      │  │   :1883      │  │   (Python)       │ │
 │  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────────┘ │
 │         │                                  │                                 │
-│         │ topic: homehab/*                 │ topic: homehab-dev/*           │
+│         │ topic: homehab/*                 │ topic: homehab/*           │
 │         └──────────────────────────────────┘                                 │
 │                                                                              │
 │  ┌──────────────┐  ┌──────────────┐                                         │
@@ -93,10 +93,11 @@ This allows testing with real sensors without duplicating hardware.
 ```
 
 **Key points:**
-- Dev and Prod OpenHAB use different MQTT topic prefixes (`homehab-dev/` vs `homehab/`)
-- Dev OpenHAB connects to the shared MQTT broker on RPi
-- InfluxDB/Grafana use tags to separate dev and prod data
-- Real sensors are accessible in dev environment (no mocking needed)
+- Both Dev and Prod OpenHAB use the same MQTT topic prefix (`homehab/`)
+- Single HRV Bridge on RPi serves both environments
+- Real sensors and HRV control are accessible in dev environment
+
+**Future option:** If needed, environments can be separated using different prefixes.
 
 ### Future: Fully Separated Environments (2 RPi)
 
@@ -109,7 +110,7 @@ If you add a second Raspberry Pi for development, you can fully separate environ
 │  OpenHAB, Mosquitto, Z2M,      │     │  OpenHAB, Mosquitto, Z2M,      │
 │  HRV Bridge, InfluxDB, Grafana │     │  HRV Bridge, InfluxDB, Grafana │
 │                                │     │                                │
-│  topic: homehab-dev/*          │     │  topic: homehab/*              │
+│  topic: homehab/*          │     │  topic: homehab/*              │
 └────────────────────────────────┘     └────────────────────────────────┘
 ```
 

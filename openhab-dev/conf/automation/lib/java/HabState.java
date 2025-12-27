@@ -5,6 +5,7 @@ import io.github.fiserro.homehab.OutputItem;
 import io.github.fiserro.homehab.module.CommonModule;
 import io.github.fiserro.homehab.module.FlowerModule;
 import io.github.fiserro.homehab.module.HrvModule;
+import io.github.fiserro.options.Option;
 
 /**
  * Complete home automation state interface.

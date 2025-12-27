@@ -99,6 +99,18 @@ class HabStateFactoryTest {
   }
 
   @Test
+  void shouldReadOutputItemValues() {
+    // Output items should be readable from the items map, not just writable
+    Map<String, State> itemStates = new HashMap<>();
+    itemStates.put("hrvOutputPower", mockState(new DecimalType(75)));
+
+    TestHabState state = HabStateFactory.of(TestHabState.class, itemStates);
+
+    // Should read 75 from the items map, not the default value (50)
+    assertEquals(75, state.hrvOutputPower());
+  }
+
+  @Test
   void shouldWriteStateToOutputItems() {
     Map<String, State> itemStates = new HashMap<>();
     itemStates.put("hrvOutputPower", mockState(new DecimalType(75)));

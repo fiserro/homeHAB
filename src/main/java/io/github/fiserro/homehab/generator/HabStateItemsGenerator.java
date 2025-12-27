@@ -264,6 +264,8 @@ public class HabStateItemsGenerator {
             return "Number";
         } else if (type == String.class) {
             return "String";
+        } else if (type.isEnum()) {
+            return "String";
         }
         throw new IllegalArgumentException("Unsupported input type: " + type);
     }

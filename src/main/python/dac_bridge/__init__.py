@@ -12,18 +12,18 @@ Output: PWM signal (default) or DAC voltage
 
 MQTT Topics:
   Source values (OpenHAB → Bridge):
-    - {prefix}/power/set    -> Base power value
-    - {prefix}/intake/set   -> Intake power value
-    - {prefix}/exhaust/set  -> Exhaust power value
-    - {prefix}/test/set     -> Test power value (for calibration)
+    - {prefix}/value/power    -> Base power value
+    - {prefix}/value/intake   -> Intake power value
+    - {prefix}/value/exhaust  -> Exhaust power value
+    - {prefix}/value/test     -> Test power value (for calibration)
 
   GPIO configuration (bidirectional, retained):
-    - {prefix}/gpio18/source  -> Source: "power"|"intake"|"exhaust"|"test"|"off"
-    - {prefix}/gpio19/source  -> Source: "power"|"intake"|"exhaust"|"test"|"off"
+    - {prefix}/source/gpio18  -> Source: "power"|"intake"|"exhaust"|"test"|"off"
+    - {prefix}/source/gpio19  -> Source: "power"|"intake"|"exhaust"|"test"|"off"
 
   Calibration tables (bidirectional, retained):
-    - {prefix}/calibration/gpio18/table -> JSON calibration table
-    - {prefix}/calibration/gpio19/table -> JSON calibration table
+    - {prefix}/calibration/gpio18 -> JSON calibration table
+    - {prefix}/calibration/gpio19 -> JSON calibration table
 """
 
 import argparse
@@ -97,12 +97,12 @@ class PwmOutput:
         lgpio.gpio_claim_output(self.handle, self.pin_exhaust)
         log.info(f"PWM initialized: GPIO{self.pin_intake}, GPIO{self.pin_exhaust} at {self.freq} Hz")
 
-    def set_gpio(self, gpio: int, percent: float):
+    def set_gpio(self, gpio: int, percent: float, source: str = ""):
         """Set PWM duty cycle for specified GPIO with calibration."""
         if self.handle is None:
             return
         percent = max(0, min(100, percent))
-        calibrated_duty = self.calibration.get_pwm_for_percent(gpio, percent)
+        calibrated_duty = self.calibration.get_pwm_for_percent(gpio, percent, source)
         pin = self.pin_intake if gpio == 18 else self.pin_exhaust
         lgpio.tx_pwm(self.handle, pin, self.freq, calibrated_duty)
 
@@ -211,18 +211,19 @@ class HrvBridge:
 
             # Subscribe to source value topics
             for source in VALID_SOURCES:
-                topic = f"{self.topic_prefix}/{source}/set"
-                client.subscribe(topic)
-            log.info(f"Subscribed to source topics: power, intake, exhaust, test")
+                if source != "off":
+                    topic = f"{self.topic_prefix}/value/{source}"
+                    client.subscribe(topic)
+            log.info(f"Subscribed to value topics: power, intake, exhaust, test")
 
             # Subscribe to GPIO config topics (source only, "off" disables GPIO)
             for gpio in (18, 19):
-                client.subscribe(f"{self.topic_prefix}/gpio{gpio}/source")
-            log.info(f"Subscribed to GPIO config topics")
+                client.subscribe(f"{self.topic_prefix}/source/gpio{gpio}")
+            log.info(f"Subscribed to source config topics")
 
             # Subscribe to calibration table topics
-            client.subscribe(f"{self.topic_prefix}/calibration/gpio18/table")
-            client.subscribe(f"{self.topic_prefix}/calibration/gpio19/table")
+            client.subscribe(f"{self.topic_prefix}/calibration/gpio18")
+            client.subscribe(f"{self.topic_prefix}/calibration/gpio19")
             log.info(f"Subscribed to calibration topics")
 
         else:
@@ -238,26 +239,26 @@ class HrvBridge:
             topic = msg.topic
 
             # Calibration table updates
-            if topic == f"{self.topic_prefix}/calibration/gpio18/table":
+            if topic == f"{self.topic_prefix}/calibration/gpio18":
                 self.calibration_manager.update_from_mqtt(18, payload)
                 self._update_gpio(18)  # Re-apply with new calibration
                 return
-            elif topic == f"{self.topic_prefix}/calibration/gpio19/table":
+            elif topic == f"{self.topic_prefix}/calibration/gpio19":
                 self.calibration_manager.update_from_mqtt(19, payload)
                 self._update_gpio(19)  # Re-apply with new calibration
                 return
 
             # GPIO config: source (including "off" to disable)
-            if topic == f"{self.topic_prefix}/gpio18/source":
+            if topic == f"{self.topic_prefix}/source/gpio18":
                 self._handle_gpio_source(18, payload)
                 return
-            elif topic == f"{self.topic_prefix}/gpio19/source":
+            elif topic == f"{self.topic_prefix}/source/gpio19":
                 self._handle_gpio_source(19, payload)
                 return
 
             # Source value updates
             for source in VALID_SOURCES:
-                if topic == f"{self.topic_prefix}/{source}/set":
+                if source != "off" and topic == f"{self.topic_prefix}/value/{source}":
                     self._handle_source_value(source, payload)
                     return
 
@@ -318,7 +319,7 @@ class HrvBridge:
         value = self.sources.get(config.source, 0)
 
         if self.output:
-            self.output.set_gpio(gpio, value)
+            self.output.set_gpio(gpio, value, config.source)
             log.debug(f"GPIO{gpio} set to {value:.1f}% (source: {config.source})")
 
     def start(self):

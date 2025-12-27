@@ -6,14 +6,14 @@ Thing mqtt:topic:mosquitto:panel_commands "ESP32 Panel Commands" (mqtt:broker:mo
     Channels:
         // Panel "MANUAL" button -> temporaryManualMode (not permanent manualMode!)
         Type switch : tempManualMode "Panel Temp Manual Mode" [
-            stateTopic="homehab-dev/panel/temporaryManualMode/command"
+            stateTopic="homehab/panel/command/temporaryManualMode"
         ]
         // Panel "BOOST" button -> temporaryBoostMode
         Type switch : boostMode "Panel Boost Mode" [
-            stateTopic="homehab-dev/panel/temporaryBoostMode/command"
+            stateTopic="homehab/panel/command/temporaryBoostMode"
         ]
         // Panel slider -> manualPower
         Type number : manualPower "Panel Manual Power" [
-            stateTopic="homehab-dev/panel/manualPower/command"
+            stateTopic="homehab/panel/command/manualPower"
         ]
 }

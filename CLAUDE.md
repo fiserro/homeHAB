@@ -63,10 +63,12 @@ The development workflow follows these steps:
 
 The development and production environments share a common MQTT broker:
 - **Mosquitto** runs on Raspberry Pi (`openhab.home:1883`)
-- **Dev environment** connects to the same broker with prefix `homehab-dev/`
-- **Prod environment** connects with prefix `homehab/`
+- **Both environments** use the same topic prefix `homehab/`
+- **HRV Bridge** (Python on RPi) serves both dev and prod OpenHAB
 
-**Benefit**: Development environment can use **real sensors** from production without needing to mock them. This enables realistic testing during development.
+**Benefit**: Development environment can use **real sensors** and **real HRV control** without needing to mock them.
+
+**Future option**: If needed, environments can be separated using different prefixes (`homehab-dev/` vs `homehab/`).
 
 ## Deployment
 
@@ -130,8 +132,7 @@ docker-compose down
 - Web UI: http://localhost:8888
 - HTTPS: https://localhost:8889
 - MQTT: `openhab.home:1883` (shared with prod)
-  - Client ID: `homehab-dev`
-  - Topic prefix: `homehab-dev/`
+  - Topic prefix: `homehab/`
 
 ### Production Environment (Remote OpenHABian)
 

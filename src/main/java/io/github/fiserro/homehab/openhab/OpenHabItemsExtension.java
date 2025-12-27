@@ -50,12 +50,6 @@ public class OpenHabItemsExtension extends AbstractOptionsExtension {
     }
 
     private void loadAndSetValue(OptionsBuilder<?, ?> builder, OptionDef optionDef) {
-        // Skip if value is already set in the builder (e.g., from withValue call)
-        if (builder.getValue(optionDef) != null) {
-            log.debug("Value already set for item: {}", optionDef.name());
-            return;
-        }
-
         String itemName = optionDef.name();
         State state = itemStates.get(itemName);
 
@@ -67,27 +61,52 @@ public class OpenHabItemsExtension extends AbstractOptionsExtension {
         Class<?> returnType = optionDef.method().getReturnType();
         Object value = convertState(state, returnType);
 
+        // Log output items at INFO level for debugging
+        if (itemName.startsWith("hrvOutput")) {
+            log.info("Loaded output item {}: state={}, stateClass={}, converted={}",
+                itemName, state, state.getClass().getSimpleName(), value);
+        }
+
         if (value != null) {
             builder.setValue(optionDef, value);
+        } else if (itemName.startsWith("hrvOutput")) {
+            log.warn("Failed to convert output item {}: state={}, type={}", itemName, state, returnType);
         }
     }
 
+    @SuppressWarnings("unchecked")
     private Object convertState(State state, Class<?> targetType) {
-        if (targetType == int.class || targetType == Integer.class) {
-            DecimalType decimal = state.as(DecimalType.class);
-            return decimal != null ? decimal.intValue() : null;
-        } else if (targetType == long.class || targetType == Long.class) {
-            DecimalType decimal = state.as(DecimalType.class);
-            return decimal != null ? decimal.longValue() : null;
-        } else if (targetType == float.class || targetType == Float.class) {
-            DecimalType decimal = state.as(DecimalType.class);
-            return decimal != null ? decimal.floatValue() : null;
-        } else if (targetType == double.class || targetType == Double.class) {
-            DecimalType decimal = state.as(DecimalType.class);
-            return decimal != null ? decimal.doubleValue() : null;
-        } else if (targetType == boolean.class || targetType == Boolean.class) {
-            OnOffType onOff = state.as(OnOffType.class);
-            return onOff != null ? onOff == OnOffType.ON : null;
+        String stateStr = state.toString();
+        if (stateStr == null || stateStr.equals("NULL") || stateStr.equals("UNDEF")) {
+            return null;
+        }
+
+        try {
+            if (targetType == int.class || targetType == Integer.class) {
+                // Parse as double first to handle "55.0" format, then convert to int
+                return (int) Double.parseDouble(stateStr);
+            } else if (targetType == long.class || targetType == Long.class) {
+                return (long) Double.parseDouble(stateStr);
+            } else if (targetType == float.class || targetType == Float.class) {
+                return Float.parseFloat(stateStr);
+            } else if (targetType == double.class || targetType == Double.class) {
+                return Double.parseDouble(stateStr);
+            } else if (targetType == boolean.class || targetType == Boolean.class) {
+                return stateStr.equalsIgnoreCase("ON") || stateStr.equalsIgnoreCase("true");
+        } else if (targetType == String.class) {
+            String str = state.toString();
+            return (str != null && !str.equals("NULL") && !str.equals("UNDEF")) ? str : null;
+        } else if (targetType.isEnum()) {
+            String str = state.toString();
+            if (str == null || str.equals("NULL") || str.equals("UNDEF")) {
+                return null;
+            }
+            try {
+                return Enum.valueOf((Class<Enum>) targetType, str.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid enum value '{}' for type {}", str, targetType.getSimpleName());
+                return null;
+            }
         } else {
             log.warn("Unsupported type for state conversion: {}", targetType);
             return null;

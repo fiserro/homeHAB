@@ -27,16 +27,16 @@ import sys
 # Configuration
 MQTT_BROKER = "openhab.home"
 MQTT_PORT = 1883
-PANEL_TOPIC_PREFIX = "homehab-dev/panel"
+PANEL_TOPIC_PREFIX = "homehab/panel"
 
 # Topics panel subscribes to (from OpenHAB)
 SUBSCRIBE_TOPICS = [
-    "homehab-dev/temperature/state",
-    "homehab-dev/airHumidity/state",
-    "homehab-dev/co2/state",
-    "homehab-dev/hrvOutputPower/state",
-    "homehab-dev/manualMode/state",
-    "homehab-dev/boostMode/state",
+    "homehab/temperature/state",
+    "homehab/airHumidity/state",
+    "homehab/co2/state",
+    "homehab/hrvOutputPower/state",
+    "homehab/manualMode/state",
+    "homehab/boostMode/state",
 ]
 
 # State received from OpenHAB
@@ -67,10 +67,10 @@ def on_message(client, userdata, msg):
     topic = msg.topic
     payload = msg.payload.decode()
 
-    # Extract item name from topic (e.g., "homehab-dev/temperature/state" -> "temperature")
+    # Extract item name from topic (e.g., "homehab/temperature/state" -> "temperature")
     parts = topic.split("/")
     if len(parts) >= 2:
-        item_name = parts[1]  # homehab-dev/<item>/state
+        item_name = parts[1]  # homehab/<item>/state
         if item_name in state:
             state[item_name] = payload
             print(f"<< {item_name}: {payload}")

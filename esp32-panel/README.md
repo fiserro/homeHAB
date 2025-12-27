@@ -154,29 +154,29 @@ esphome logs hrv-panel.yaml
 
 | Topic | Popis |
 |-------|-------|
-| `homehab-dev/temperature/state` | Agregovaná teplota |
-| `homehab-dev/airHumidity/state` | Agregovaná vlhkost |
-| `homehab-dev/co2/state` | Agregované CO2 |
-| `homehab-dev/hrvOutputPower/state` | Aktuální výkon HRV |
-| `homehab-dev/manualMode/state` | Stav manuálního módu |
-| `homehab-dev/boostMode/state` | Stav boost módu |
+| `homehab/temperature/state` | Agregovaná teplota |
+| `homehab/airHumidity/state` | Agregovaná vlhkost |
+| `homehab/co2/state` | Agregované CO2 |
+| `homehab/hrvOutputPower/state` | Aktuální výkon HRV |
+| `homehab/manualMode/state` | Stav manuálního módu |
+| `homehab/boostMode/state` | Stav boost módu |
 
 ### Panel publikuje (do OpenHAB)
 
 | Topic | Popis |
 |-------|-------|
-| `homehab-dev/panel/status` | online/offline (birth/will) |
-| `homehab-dev/panel/mode/command` | auto/boost/manual |
-| `homehab-dev/panel/power/command` | 0-100 |
+| `homehab/panel/status` | online/offline (birth/will) |
+| `homehab/panel/mode/command` | auto/boost/manual |
+| `homehab/panel/power/command` | 0-100 |
 
 ## Sledování MQTT zpráv
 
 ```bash
 # Všechny zprávy z panelu
-mosquitto_sub -h openhab.home -t "homehab-dev/panel/#" -v
+mosquitto_sub -h openhab.home -t "homehab/panel/#" -v
 
 # Všechny zprávy v dev namespace
-mosquitto_sub -h openhab.home -t "homehab-dev/#" -v
+mosquitto_sub -h openhab.home -t "homehab/#" -v
 ```
 
 ## Další kroky
