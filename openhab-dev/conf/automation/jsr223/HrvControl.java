@@ -29,8 +29,6 @@ public class HrvControl extends Java223Script {
     int currentIntake = state.hrvOutputIntake();
     int currentExhaust = state.hrvOutputExhaust();
 
-    logger.info("Power state: {} power calculated: {}", currentPower, calculated.hrvOutputPower());
-
     if (calculated.hrvOutputPower() != currentPower) {
       events.sendCommand(_items.hrvOutputPower(), calculated.hrvOutputPower());
     }

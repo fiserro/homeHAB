@@ -125,13 +125,13 @@ class HabStateFactoryTest {
 
   private State mockState(OnOffType type) {
     State state = mock(State.class);
-    when(state.as(OnOffType.class)).thenReturn(type);
+    when(state.toString()).thenReturn(type == OnOffType.ON ? "ON" : "OFF");
     return state;
   }
 
   private State mockState(DecimalType type) {
     State state = mock(State.class);
-    when(state.as(DecimalType.class)).thenReturn(type);
+    when(state.toString()).thenReturn(type.toString());
     return state;
   }
 }

@@ -7,11 +7,8 @@ import io.github.fiserro.options.Options;
 import io.github.fiserro.options.OptionsBuilder;
 import io.github.fiserro.options.extension.AbstractOptionsExtension;
 import io.github.fiserro.options.extension.OptionExtensionType;
-import java.lang.annotation.Annotation;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import org.openhab.core.library.types.DecimalType;
-import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.types.State;
 
 /**
@@ -61,16 +58,8 @@ public class OpenHabItemsExtension extends AbstractOptionsExtension {
         Class<?> returnType = optionDef.method().getReturnType();
         Object value = convertState(state, returnType);
 
-        // Log output items at INFO level for debugging
-        if (itemName.startsWith("hrvOutput")) {
-            log.info("Loaded output item {}: state={}, stateClass={}, converted={}",
-                itemName, state, state.getClass().getSimpleName(), value);
-        }
-
         if (value != null) {
             builder.setValue(optionDef, value);
-        } else if (itemName.startsWith("hrvOutput")) {
-            log.warn("Failed to convert output item {}: state={}, type={}", itemName, state, returnType);
         }
     }
 
@@ -93,28 +82,20 @@ public class OpenHabItemsExtension extends AbstractOptionsExtension {
                 return Double.parseDouble(stateStr);
             } else if (targetType == boolean.class || targetType == Boolean.class) {
                 return stateStr.equalsIgnoreCase("ON") || stateStr.equalsIgnoreCase("true");
-        } else if (targetType == String.class) {
-            String str = state.toString();
-            return (str != null && !str.equals("NULL") && !str.equals("UNDEF")) ? str : null;
-        } else if (targetType.isEnum()) {
-            String str = state.toString();
-            if (str == null || str.equals("NULL") || str.equals("UNDEF")) {
+            } else if (targetType == String.class) {
+                return stateStr;
+            } else if (targetType.isEnum()) {
+                return Enum.valueOf((Class<Enum>) targetType, stateStr.toUpperCase());
+            } else {
+                log.warn("Unsupported type for state conversion: {}", targetType);
                 return null;
             }
-            try {
-                return Enum.valueOf((Class<Enum>) targetType, str.toUpperCase());
-            } catch (IllegalArgumentException e) {
-                log.warn("Invalid enum value '{}' for type {}", str, targetType.getSimpleName());
-                return null;
-            }
-        } else {
-            log.warn("Unsupported type for state conversion: {}", targetType);
+        } catch (NumberFormatException e) {
+            log.warn("Failed to parse numeric value '{}' for type {}", stateStr, targetType.getSimpleName());
+            return null;
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid enum value '{}' for type {}", stateStr, targetType.getSimpleName());
             return null;
         }
-    }
-
-    private static boolean hasAnnotation(OptionDef optionDef, Class<? extends Annotation> annotationType) {
-        return optionDef.annotations().stream()
-            .anyMatch(annotationType::isInstance);
     }
 }
