@@ -88,7 +88,7 @@ class CalibrationManager:
             for k, v in data.items():
                 pwm = int(k)
                 voltage = float(v)
-                if 0 <= pwm <= 100 and 0 <= voltage <= 12:
+                if 0 <= pwm <= 100 and 0 <= voltage <= 20:
                     new_table[pwm] = voltage
 
             self.tables[gpio] = new_table
