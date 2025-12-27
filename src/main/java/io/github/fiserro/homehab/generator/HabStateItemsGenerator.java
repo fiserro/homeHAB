@@ -225,8 +225,12 @@ public class HabStateItemsGenerator {
         String label = formatLabel(itemName);
         String icon = getReadOnlyIcon(itemName);
 
-        return String.format("%s %s \"HRV - %s\" <%s> %s%n",
-            itemType, itemName, label, icon, READONLY_TAGS);
+        ReadOnlyItem annotation = method.getAnnotation(ReadOnlyItem.class);
+        String channel = annotation != null ? annotation.channel() : "";
+        String channelBinding = channel.isEmpty() ? "" : String.format(" { channel=\"%s\" }", channel);
+
+        return String.format("%s %s \"HRV - %s\" <%s> %s%s%n",
+            itemType, itemName, label, icon, READONLY_TAGS, channelBinding);
     }
 
     private static String getReadOnlyItemType(Class<?> type) {
@@ -237,6 +241,8 @@ public class HabStateItemsGenerator {
                    type == float.class || type == Float.class ||
                    type == double.class || type == Double.class) {
             return "Number";
+        } else if (type == String.class) {
+            return "String";
         }
         throw new IllegalArgumentException("Unsupported read-only type: " + type);
     }
@@ -256,6 +262,8 @@ public class HabStateItemsGenerator {
                    type == float.class || type == Float.class ||
                    type == double.class || type == Double.class) {
             return "Number";
+        } else if (type == String.class) {
+            return "String";
         }
         throw new IllegalArgumentException("Unsupported input type: " + type);
     }

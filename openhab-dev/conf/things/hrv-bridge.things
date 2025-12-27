@@ -1,32 +1,78 @@
 // HRV Bridge MQTT Thing configuration
 // Publishes HRV output values to the Python DAC Bridge via MQTT
 //
-// The bridge subscribes to:
-//   - homehab/hrv/power/set   -> Base power (both motors)
-//   - homehab/hrv/intake/set  -> Intake motor power
-//   - homehab/hrv/exhaust/set -> Exhaust motor power
+// Output topics (OpenHAB → Bridge):
+//   - homehab/hrv/power/set   -> Base power value
+//   - homehab/hrv/intake/set  -> Intake power value
+//   - homehab/hrv/exhaust/set -> Exhaust power value
+//   - homehab/hrv/test/set    -> Test power value (for calibration)
+//
+// GPIO configuration (OpenHAB → Bridge):
+//   - homehab/hrv/gpio18/source  -> Source: "power"|"intake"|"exhaust"|"test"|"off"
+//   - homehab/hrv/gpio19/source  -> Source: "power"|"intake"|"exhaust"|"test"|"off"
+//
+// Calibration tables (bidirectional, retained):
+//   - homehab/hrv/calibration/gpio18/table -> JSON calibration table
+//   - homehab/hrv/calibration/gpio19/table -> JSON calibration table
 
 Thing mqtt:topic:mosquitto:hrv_bridge "HRV Bridge" (mqtt:broker:mosquitto) {
     Channels:
-        // Base power output (sets both motors to same level)
+        // ========== Output Values ==========
+        // These are the source values that GPIOs can be configured to use
+
+        // Base power output
         Type dimmer : power "HRV Power" [
             commandTopic="homehab/hrv/power/set",
-            stateTopic="homehab/hrv/power/state",
             min=0,
             max=100
         ]
-        // Intake motor output (fresh air)
+        // Intake motor power
         Type dimmer : intake "HRV Intake Power" [
             commandTopic="homehab/hrv/intake/set",
-            stateTopic="homehab/hrv/intake/state",
             min=0,
             max=100
         ]
-        // Exhaust motor output (stale air)
+        // Exhaust motor power
         Type dimmer : exhaust "HRV Exhaust Power" [
             commandTopic="homehab/hrv/exhaust/set",
-            stateTopic="homehab/hrv/exhaust/state",
             min=0,
             max=100
+        ]
+        // Test power (for calibration)
+        Type dimmer : test "HRV Test Power" [
+            commandTopic="homehab/hrv/test/set",
+            min=0,
+            max=100
+        ]
+
+        // ========== GPIO Configuration ==========
+        // Use source="off" to disable a GPIO
+
+        // GPIO 18 source selection
+        Type string : gpio18Source "GPIO18 Source" [
+            commandTopic="homehab/hrv/gpio18/source",
+            stateTopic="homehab/hrv/gpio18/source",
+            retained=true
+        ]
+        // GPIO 19 source selection
+        Type string : gpio19Source "GPIO19 Source" [
+            commandTopic="homehab/hrv/gpio19/source",
+            stateTopic="homehab/hrv/gpio19/source",
+            retained=true
+        ]
+
+        // ========== Calibration Tables ==========
+
+        // Calibration table for GPIO 18 (JSON format, retained)
+        Type string : calibrationGpio18 "Calibration GPIO18" [
+            commandTopic="homehab/hrv/calibration/gpio18/table",
+            stateTopic="homehab/hrv/calibration/gpio18/table",
+            retained=true
+        ]
+        // Calibration table for GPIO 19 (JSON format, retained)
+        Type string : calibrationGpio19 "Calibration GPIO19" [
+            commandTopic="homehab/hrv/calibration/gpio19/table",
+            stateTopic="homehab/hrv/calibration/gpio19/table",
+            retained=true
         ]
 }

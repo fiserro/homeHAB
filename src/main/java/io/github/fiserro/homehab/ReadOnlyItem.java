@@ -13,4 +13,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ReadOnlyItem {
+
+    /**
+     * OpenHAB channel binding for this read-only item.
+     * Example: "mqtt:topic:mosquitto:hrv_bridge:calibrationStep"
+     */
+    String channel() default "";
 }

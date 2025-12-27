@@ -135,4 +135,61 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
     T withHrvOutputIntake(int power);
     T withHrvOutputExhaust(int power);
 
+    // ========== GPIO Configuration ==========
+    /**
+     * Source for GPIO 18 output value.
+     * Options: "power", "intake", "exhaust", "test", "off"
+     * - power: uses hrvOutputPower
+     * - intake: uses hrvOutputIntake
+     * - exhaust: uses hrvOutputExhaust
+     * - test: uses hrvOutputTest (for calibration)
+     * - off: disables GPIO output
+     */
+    @InputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:gpio18Source") @Option
+    default GpioSource gpio18Source() { return GpioSource.INTAKE; }
+
+    /**
+     * Source for GPIO 19 output value.
+     * Options: "power", "intake", "exhaust", "test", "off"
+     * - off: disables GPIO output
+     */
+    @InputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:gpio19Source") @Option
+    default GpioSource gpio19Source() { return GpioSource.EXHAUST; }
+
+    enum GpioSource {
+        POWER,
+        INTAKE,
+        EXHAUST,
+        TEST,
+        OFF
+    }
+
+    /**
+     * Test output value for calibration.
+     * When gpioXXSource="test", this value is used for PWM output.
+     * Allows testing specific PWM values without affecting normal operation.
+     */
+    @OutputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:test") @Option
+    default int hrvOutputTest() { return 0; }
+
+    // ========== Calibration Tables ==========
+
+    /**
+     * Calibration table for GPIO 18.
+     * JSON format: {"0": 0.0, "10": 1.48, "20": 2.63, ...}
+     * Maps PWM duty cycle (%) to measured output voltage (V).
+     * Set to {"0":0, "100":10} for linear (uncalibrated) mode.
+     */
+    @InputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:calibrationGpio18") @Option
+    default String calibrationTableGpio18() { return "{}"; }
+
+    /**
+     * Calibration table for GPIO 19.
+     * JSON format: {"0": 0.0, "10": 1.48, "20": 2.63, ...}
+     * Maps PWM duty cycle (%) to measured output voltage (V).
+     * Set to {"0":0, "100":10} for linear (uncalibrated) mode.
+     */
+    @InputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:calibrationGpio19") @Option
+    default String calibrationTableGpio19() { return "{}"; }
+
 }

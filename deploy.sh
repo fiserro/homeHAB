@@ -97,16 +97,20 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Step 2: Run generator
+# Step 2: Run generator (only for dev - generates into openhab-dev/conf)
 echo ""
-echo -e "${BLUE}Step 2: Running generator...${NC}"
-mvn exec:java -q -Dexec.mainClass="io.github.fiserro.homehab.generator.Generator"
+if [ "$ENV" = "dev" ]; then
+    echo -e "${BLUE}Step 2: Running generator...${NC}"
+    mvn exec:java -q -Dexec.mainClass="io.github.fiserro.homehab.generator.Generator"
 
-if [ $? -ne 0 ]; then
-    echo -e "${RED}Generator failed!${NC}"
-    exit 1
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Generator failed!${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Generator completed${NC}"
+else
+    echo -e "${YELLOW}Step 2: Skipping generator (configs are for dev environment)${NC}"
 fi
-echo -e "${GREEN}✓ Generator completed${NC}"
 
 # Step 3: Find the built shaded JAR (contains all dependencies)
 JAR_FILE=$(find target -name "homeHAB-*-shaded.jar" | head -1)
@@ -159,15 +163,17 @@ if [ "$REMOTE_DEPLOY" = true ]; then
     echo -e "${BLUE}Step 5: Deploying UI Pages...${NC}"
 
     PAGES_SOURCE="openhab-dev/conf/ui-pages.json"
-    REMOTE_PAGES_DIR="$REMOTE_PATH/../userdata/jsondb"
+    # On OpenHABian: conf=/etc/openhab, userdata=/var/lib/openhab
+    REMOTE_PAGES_DIR="/var/lib/openhab/jsondb"
     REMOTE_PAGES_TARGET="$REMOTE_PAGES_DIR/uicomponents_ui_page.json"
 
     if [ -f "$PAGES_SOURCE" ]; then
-        # Ensure remote directory exists
-        ssh $SSH_KEY "$REMOTE_USER_HOST" "mkdir -p $REMOTE_PAGES_DIR"
+        # Ensure remote directory exists (needs sudo)
+        ssh $SSH_KEY "$REMOTE_USER_HOST" "sudo mkdir -p $REMOTE_PAGES_DIR && sudo chown openhab:openhab $REMOTE_PAGES_DIR"
 
-        # Copy pages file
-        scp $SSH_KEY "$PAGES_SOURCE" "$REMOTE_USER_HOST:$REMOTE_PAGES_TARGET"
+        # Copy pages file (to temp, then sudo move)
+        scp $SSH_KEY "$PAGES_SOURCE" "$REMOTE_USER_HOST:/tmp/uicomponents_ui_page.json"
+        ssh $SSH_KEY "$REMOTE_USER_HOST" "sudo mv /tmp/uicomponents_ui_page.json $REMOTE_PAGES_TARGET && sudo chown openhab:openhab $REMOTE_PAGES_TARGET"
 
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}✓ UI Pages deployed: ${REMOTE_USER_HOST}:${REMOTE_PAGES_TARGET}${NC}"
@@ -202,12 +208,12 @@ if [ "$REMOTE_DEPLOY" = true ]; then
             echo -e "${BLUE}Installing Python package...${NC}"
             ssh $SSH_KEY "$PYTHON_HOST" "
                 cd /tmp && \
-                rm -rf /tmp/dac-bridge-install && \
+                sudo rm -rf /tmp/dac-bridge-install && \
                 mkdir -p /tmp/dac-bridge-install && \
                 tar -xzf dac-bridge-deploy.tar.gz -C /tmp/dac-bridge-install && \
                 cd /tmp/dac-bridge-install && \
-                sudo pip3 install --break-system-packages -e . && \
-                rm -rf /tmp/dac-bridge-deploy.tar.gz /tmp/dac-bridge-install
+                sudo pip3 install --break-system-packages --force-reinstall . && \
+                sudo rm -rf /tmp/dac-bridge-deploy.tar.gz /tmp/dac-bridge-install
             "
 
             if [ $? -eq 0 ]; then
