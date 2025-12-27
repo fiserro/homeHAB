@@ -4,6 +4,10 @@ Complete guide for setting up a home automation system on Raspberry Pi with Open
 
 ## Architecture Overview
 
+### Production Architecture (Raspberry Pi)
+
+All services run on a single Raspberry Pi in production:
+
 ```
                            ┌──────────────────┐
                            │  Web Browser     │
@@ -32,16 +36,96 @@ Complete guide for setting up a home automation system on Raspberry Pi with Open
 │                   │   :1883         │                         │
 │                   └─────────────────┘                         │
 │                                                               │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐ │
+│  │  HRV Bridge  │  │   InfluxDB   │  │       Grafana        │ │
+│  │  (Python)    │  │   :8086      │  │       :3000          │ │
+│  └──────────────┘  └──────────────┘  └──────────────────────┘ │
+│                                                               │
 │  ┌─────────────────────────────────────────────────────────┐  │
 │  │              Zigbee USB Dongle (/dev/ttyUSB0)           │  │
 │  └────────────────────────────┬────────────────────────────┘  │
 └───────────────────────────────┼───────────────────────────────┘
-                                │ Zigbee
-                       ┌────────▼────────┐
-                       │  Zigbee Devices │
-                       │  (sensors, etc.)│
-                       └─────────────────┘
+                                │ Zigbee / PWM
+              ┌─────────────────┼─────────────────┐
+              ▼                 ▼                 ▼
+     ┌────────────────┐ ┌────────────────┐ ┌────────────────┐
+     │ Zigbee Devices │ │  ESP32 Panel   │ │  PWM Modules   │
+     │ (sensors, etc.)│ │  (HRV control) │ │  (GPIO 18, 19) │
+     └────────────────┘ └────────────────┘ └────────────────┘
 ```
+
+### Development Architecture (Current Setup)
+
+Development uses a hybrid approach: OpenHAB runs locally in Docker on Mac,
+while other services (MQTT, Zigbee, sensors) are shared from the production RPi.
+This allows testing with real sensors without duplicating hardware.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              Mac (Development)                               │
+│  ┌─────────────────────┐                                                    │
+│  │   Docker            │                                                    │
+│  │   ┌──────────────┐  │     MQTT (zigbee.home:1883)                       │
+│  │   │   OpenHAB    │──┼─────────────────────┐                              │
+│  │   │   :8888      │  │                     │  topic: homehab-dev/*       │
+│  │   └──────────────┘  │                     │                              │
+│  └─────────────────────┘                     │                              │
+└──────────────────────────────────────────────┼──────────────────────────────┘
+                                               │
+                                               ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                          Raspberry Pi (Production)                           │
+│                                                                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐ │
+│  │   OpenHAB    │  │  Zigbee2MQTT │  │   Mosquitto  │  │   HRV Bridge     │ │
+│  │   :8080      │  │   :8081      │  │   :1883      │  │   (Python)       │ │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────────┘ │
+│         │                                  │                                 │
+│         │ topic: homehab/*                 │ topic: homehab-dev/*           │
+│         └──────────────────────────────────┘                                 │
+│                                                                              │
+│  ┌──────────────┐  ┌──────────────┐                                         │
+│  │   InfluxDB   │  │   Grafana    │  ← Uses tags to separate dev/prod data │
+│  │   :8086      │  │   :3000      │                                         │
+│  └──────────────┘  └──────────────┘                                         │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Key points:**
+- Dev and Prod OpenHAB use different MQTT topic prefixes (`homehab-dev/` vs `homehab/`)
+- Dev OpenHAB connects to the shared MQTT broker on RPi
+- InfluxDB/Grafana use tags to separate dev and prod data
+- Real sensors are accessible in dev environment (no mocking needed)
+
+### Future: Fully Separated Environments (2 RPi)
+
+If you add a second Raspberry Pi for development, you can fully separate environments:
+
+```
+┌────────────────────────────────┐     ┌────────────────────────────────┐
+│     Dev RPi (dev-rpi.home)     │     │    Prod RPi (openhab.home)     │
+│                                │     │                                │
+│  OpenHAB, Mosquitto, Z2M,      │     │  OpenHAB, Mosquitto, Z2M,      │
+│  HRV Bridge, InfluxDB, Grafana │     │  HRV Bridge, InfluxDB, Grafana │
+│                                │     │                                │
+│  topic: homehab-dev/*          │     │  topic: homehab/*              │
+└────────────────────────────────┘     └────────────────────────────────┘
+```
+
+**To switch `.env.dev` from local Docker to remote dev RPi:**
+
+```bash
+# Change deployment type
+DEPLOY_TYPE=remote
+DEPLOY_TARGET=robertfiser@dev-rpi.home:/etc/openhab
+
+# Enable Python deployment to dev RPi
+PYTHON_DEPLOY_ENABLED=true
+PYTHON_DEPLOY_HOST=robertfiser@dev-rpi.home
+```
+
+No changes needed in `.env.prod` - it already deploys to the production RPi.
 
 ## Prerequisites
 

@@ -1,0 +1,18 @@
+[Unit]
+Description=HRV Bridge - MQTT to PWM/DAC for HRV control
+After=network-online.target mosquitto.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+# Dual motor mode: GPIO 18 (intake) + GPIO 19 (exhaust)
+ExecStart=/usr/local/bin/hrv-bridge --mqtt-host localhost --mode pwm --pwm-pin-intake 18 --pwm-pin-exhaust 19
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,6 +1,6 @@
 # PWM Calibration Tables
 #
-# Separate calibration tables for INTAKE (GPIO 18) and EXHAUST (GPIO 19) motors.
+# Separate calibration tables for each GPIO pin (PWM module).
 # Each table maps PWM duty cycle % to measured output voltage.
 # Fill in with actual measured values, then the bridge will use
 # inverse interpolation to find the correct PWM duty for desired voltage.
@@ -13,9 +13,13 @@
 #
 # Format: {pwm_duty_percent: measured_voltage}
 # Happy day values assume linear 0-100% -> 0-10V
+#
+# Usage:
+# - Single motor mode: GPIO 18 only (both motors connected to same PWM)
+# - Dual motor mode: GPIO 18 (intake) + GPIO 19 (exhaust)
 
-# Calibration table for INTAKE motor (GPIO 18)
-PWM_CALIBRATION_INTAKE = {
+# Calibration table for GPIO 18 (default/intake)
+PWM_CALIBRATION_GPIO18 = {
     0: 0.0,
     3: 0.01,
     4: 0.02,
@@ -45,9 +49,9 @@ PWM_CALIBRATION_INTAKE = {
     100: 10.19,
 }
 
-# Calibration table for EXHAUST motor (GPIO 19)
-# TODO: Measure and fill in actual values for exhaust motor
-PWM_CALIBRATION_EXHAUST = {
+# Calibration table for GPIO 19 (exhaust in dual motor mode)
+# TODO: Measure and fill in actual values for second PWM module
+PWM_CALIBRATION_GPIO19 = {
     0: 0.0,
     3: 0.01,
     4: 0.02,
@@ -83,12 +87,12 @@ PWM_CALIBRATION_LINEAR = {
     100: 10.0,
 }
 
-# Active calibration tables for each channel
+# Active calibration tables for each GPIO pin
 # Switch to PWM_CALIBRATION_LINEAR for measuring raw PWM output
-ACTIVE_CALIBRATION_INTAKE = PWM_CALIBRATION_INTAKE
-ACTIVE_CALIBRATION_EXHAUST = PWM_CALIBRATION_EXHAUST
-# ACTIVE_CALIBRATION_INTAKE = PWM_CALIBRATION_LINEAR  # uncomment for measuring
-# ACTIVE_CALIBRATION_EXHAUST = PWM_CALIBRATION_LINEAR  # uncomment for measuring
+ACTIVE_CALIBRATION_GPIO18 = PWM_CALIBRATION_GPIO18
+ACTIVE_CALIBRATION_GPIO19 = PWM_CALIBRATION_GPIO19
+# ACTIVE_CALIBRATION_GPIO18 = PWM_CALIBRATION_LINEAR  # uncomment for measuring
+# ACTIVE_CALIBRATION_GPIO19 = PWM_CALIBRATION_LINEAR  # uncomment for measuring
 
 
 def _pwm_for_voltage(target_voltage: float, calibration: dict) -> float:
@@ -134,9 +138,9 @@ def _pwm_for_voltage(target_voltage: float, calibration: dict) -> float:
     return lower_pwm + ratio * (upper_pwm - lower_pwm)
 
 
-def percent_to_pwm_intake(percent: float) -> float:
+def percent_to_pwm_gpio18(percent: float) -> float:
     """
-    Convert desired output percent to calibrated PWM duty cycle for INTAKE motor.
+    Convert desired output percent to calibrated PWM duty cycle for GPIO 18.
 
     Args:
         percent: Desired output (0-100%, where 100% = 10V)
@@ -145,12 +149,12 @@ def percent_to_pwm_intake(percent: float) -> float:
         PWM duty cycle to send to the module
     """
     target_voltage = (percent / 100.0) * 10.0  # 100% = 10V
-    return _pwm_for_voltage(target_voltage, ACTIVE_CALIBRATION_INTAKE)
+    return _pwm_for_voltage(target_voltage, ACTIVE_CALIBRATION_GPIO18)
 
 
-def percent_to_pwm_exhaust(percent: float) -> float:
+def percent_to_pwm_gpio19(percent: float) -> float:
     """
-    Convert desired output percent to calibrated PWM duty cycle for EXHAUST motor.
+    Convert desired output percent to calibrated PWM duty cycle for GPIO 19.
 
     Args:
         percent: Desired output (0-100%, where 100% = 10V)
@@ -159,14 +163,14 @@ def percent_to_pwm_exhaust(percent: float) -> float:
         PWM duty cycle to send to the module
     """
     target_voltage = (percent / 100.0) * 10.0  # 100% = 10V
-    return _pwm_for_voltage(target_voltage, ACTIVE_CALIBRATION_EXHAUST)
+    return _pwm_for_voltage(target_voltage, ACTIVE_CALIBRATION_GPIO19)
 
 
 # Legacy function for backwards compatibility
 def percent_to_pwm(percent: float) -> float:
     """
     Convert desired output percent to calibrated PWM duty cycle.
-    Uses INTAKE calibration for backwards compatibility.
+    Uses GPIO 18 calibration for backwards compatibility.
 
     Args:
         percent: Desired output (0-100%, where 100% = 10V)
@@ -174,4 +178,4 @@ def percent_to_pwm(percent: float) -> float:
     Returns:
         PWM duty cycle to send to the module
     """
-    return percent_to_pwm_intake(percent)
+    return percent_to_pwm_gpio18(percent)

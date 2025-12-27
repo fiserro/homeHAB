@@ -178,15 +178,100 @@ if [ "$REMOTE_DEPLOY" = true ]; then
         echo -e "${YELLOW}No UI pages source found at: $PAGES_SOURCE${NC}"
     fi
 
+    # Step 6: Deploy Python HRV Bridge (if enabled)
+    if [ "${PYTHON_DEPLOY_ENABLED:-false}" = "true" ]; then
+        echo ""
+        echo -e "${BLUE}Step 6: Deploying Python HRV Bridge...${NC}"
+
+        PYTHON_HOST="${PYTHON_DEPLOY_HOST:-$REMOTE_USER_HOST}"
+        PYTHON_PKG_DIR="${PYTHON_PACKAGE_DIR:-src/main/python}"
+        PYTHON_SVC="${PYTHON_SERVICE_NAME:-dac-bridge}"
+
+        if [ ! -d "$PYTHON_PKG_DIR" ]; then
+            echo -e "${RED}Error: Python package directory not found: $PYTHON_PKG_DIR${NC}"
+        else
+            # Create temporary archive of Python package
+            PYTHON_ARCHIVE="/tmp/dac-bridge-deploy.tar.gz"
+            echo -e "${BLUE}Creating Python package archive...${NC}"
+            tar -czf "$PYTHON_ARCHIVE" -C "$PYTHON_PKG_DIR" .
+
+            # Upload and install on remote host
+            echo -e "${BLUE}Uploading to ${PYTHON_HOST}...${NC}"
+            scp $SSH_KEY "$PYTHON_ARCHIVE" "$PYTHON_HOST:/tmp/"
+
+            echo -e "${BLUE}Installing Python package...${NC}"
+            ssh $SSH_KEY "$PYTHON_HOST" "
+                cd /tmp && \
+                rm -rf /tmp/dac-bridge-install && \
+                mkdir -p /tmp/dac-bridge-install && \
+                tar -xzf dac-bridge-deploy.tar.gz -C /tmp/dac-bridge-install && \
+                cd /tmp/dac-bridge-install && \
+                sudo pip3 install --break-system-packages -e . && \
+                rm -rf /tmp/dac-bridge-deploy.tar.gz /tmp/dac-bridge-install
+            "
+
+            if [ $? -eq 0 ]; then
+                echo -e "${GREEN}✓ Python HRV Bridge deployed${NC}"
+            else
+                echo -e "${YELLOW}Warning: Python deployment may have failed${NC}"
+            fi
+
+            rm -f "$PYTHON_ARCHIVE"
+
+            # Deploy systemd service file
+            SYSTEMD_SERVICE_FILE="systemd/${PYTHON_SVC}.service"
+            if [ -f "$SYSTEMD_SERVICE_FILE" ]; then
+                echo -e "${BLUE}Deploying systemd service file...${NC}"
+                scp $SSH_KEY "$SYSTEMD_SERVICE_FILE" "$PYTHON_HOST:/tmp/${PYTHON_SVC}.service"
+                ssh $SSH_KEY "$PYTHON_HOST" "
+                    sudo mv /tmp/${PYTHON_SVC}.service /etc/systemd/system/${PYTHON_SVC}.service && \
+                    sudo systemctl daemon-reload
+                "
+                if [ $? -eq 0 ]; then
+                    echo -e "${GREEN}✓ Systemd service updated${NC}"
+                else
+                    echo -e "${YELLOW}Warning: Systemd service update may have failed${NC}"
+                fi
+            fi
+        fi
+    else
+        echo ""
+        echo -e "${YELLOW}Step 6: Skipping Python deployment (PYTHON_DEPLOY_ENABLED=false)${NC}"
+    fi
+
+    # Step 7: Restart services
+    echo ""
+    echo -e "${BLUE}Step 7: Restarting services...${NC}"
+
+    ssh $SSH_KEY "$REMOTE_USER_HOST" "
+        echo 'Restarting OpenHAB...'
+        sudo systemctl restart openhab
+        if [ '${PYTHON_DEPLOY_ENABLED:-false}' = 'true' ]; then
+            echo 'Restarting ${PYTHON_SERVICE_NAME:-dac-bridge}...'
+            sudo systemctl restart ${PYTHON_SERVICE_NAME:-dac-bridge}
+        fi
+        echo 'Services restarted'
+    "
+
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✓ Services restarted${NC}"
+    else
+        echo -e "${YELLOW}Warning: Service restart may have failed${NC}"
+    fi
+
     # Show next steps
     echo ""
     echo -e "${GREEN}=== Deployment Complete ===${NC}"
-    echo -e "${BLUE}Next steps:${NC}"
-    echo "  1. OpenHAB will automatically detect and load the new library"
-    echo "  2. Check logs: ssh $REMOTE_USER_HOST 'tail -f $REMOTE_PATH/../logs/openhab.log'"
-    echo "  3. If needed: ssh $REMOTE_USER_HOST 'sudo systemctl restart openhab'"
+    echo -e "${BLUE}Deployed components:${NC}"
+    echo "  - OpenHAB JAR: ${REMOTE_USER_HOST}:${REMOTE_LIB_DIR}/${JAR_BASENAME}"
+    if [ "${PYTHON_DEPLOY_ENABLED:-false}" = "true" ]; then
+        echo "  - Python HRV Bridge: ${PYTHON_DEPLOY_HOST:-$REMOTE_USER_HOST}"
+    fi
     echo ""
-    echo -e "${BLUE}Remote location:${NC} ${REMOTE_USER_HOST}:${REMOTE_LIB_DIR}/${JAR_BASENAME}"
+    echo -e "${BLUE}Useful commands:${NC}"
+    echo "  - OpenHAB logs: ssh $REMOTE_USER_HOST 'sudo journalctl -u openhab -f'"
+    echo "  - HRV Bridge logs: ssh $REMOTE_USER_HOST 'sudo journalctl -u ${PYTHON_SERVICE_NAME:-dac-bridge} -f'"
+    echo "  - Restart OpenHAB: ssh $REMOTE_USER_HOST 'sudo systemctl restart openhab'"
 
 else
     # Local deployment
