@@ -27,3 +27,8 @@ services:
       - EXTRA_JAVA_OPTS=${EXTRA_JAVA_OPTS}
       - JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-arm64
       - PATH=/usr/lib/jvm/temurin-21-jdk-arm64/bin:$PATH
+    extra_hosts:
+      - "zigbee.home:192.168.1.132"
+      - "openhab.home:192.168.1.132"
+      - "grafana.home:192.168.1.132"
+      - "rpi.local:192.168.1.132"

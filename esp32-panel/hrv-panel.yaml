@@ -4,6 +4,8 @@
 substitutions:
   name: hrv-panel
   friendly_name: HRV Control Panel
+  # Screen auto-dim timeout in seconds (0 = disabled)
+  screen_timeout: "60"
 
 esphome:
   name: ${name}
@@ -199,12 +201,17 @@ display:
 touchscreen:
   platform: gt911
   id: main_touch
+  on_touch:
+    # Reset inactivity counter on any touch
+    - lambda: 'id(inactivity_seconds) = 0;'
   on_release:
+    # Wake up screen if dimmed
     - if:
         condition: lvgl.is_paused
         then:
           - lvgl.resume:
           - light.turn_on: display_backlight
+          - lambda: 'id(inactivity_seconds) = 0;'
 
 # Backlight
 output:
@@ -239,6 +246,9 @@ globals:
   - id: ignore_slider_events
     type: bool
     initial_value: 'false'
+  - id: inactivity_seconds
+    type: int
+    initial_value: '0'
 
 # Colors
 color:
@@ -600,12 +610,22 @@ text_sensor:
           - lambda: |-
               lv_label_set_text(id(lbl_ip), x.c_str());
 
-# Interval for periodic tasks (currently empty, placeholder for future use)
-# interval:
-#   - interval: 1s
-#     then:
-#       - lambda: |-
-#           // Placeholder for future periodic updates
+# Interval for screen auto-dim
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          // Skip if timeout disabled
+          int timeout = ${screen_timeout};
+          if (timeout <= 0) return;
+          id(inactivity_seconds)++;
+      - if:
+          condition:
+            lambda: 'return id(inactivity_seconds) == ${screen_timeout} && ${screen_timeout} > 0;'
+          then:
+            - lambda: 'ESP_LOGI("panel", "Screen timeout - dimming display");'
+            - light.turn_off: display_backlight
+            - lvgl.pause:
 
 # Scripts
 script:

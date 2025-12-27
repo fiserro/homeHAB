@@ -8,6 +8,6 @@
 - [ ] Zprovoznit Grafanu pro sledování item values v čase
 
 ## Automaticke zhasinani a rozsviceni panelu
-- [ ] Konfigurovatelny casovy udaj pro automaticke zhasnuti panelu pri necinnosti
-- [ ] Panel automaticky zhasne po urcenem casu
-- [ ] Automaticke rozsviceni panelu po dotyku na obrazovku
+- [x] Konfigurovatelny casovy udaj pro automaticke zhasnuti panelu pri necinnosti (substitution: screen_timeout)
+- [x] Panel automaticky zhasne po urcenem casu (60s default)
+- [x] Automaticke rozsviceni panelu po dotyku na obrazovku
