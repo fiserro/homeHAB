@@ -24,6 +24,7 @@ import org.openhab.core.types.State;
 public class OpenHabItemsExtension extends AbstractOptionsExtension {
 
     private final Map<String, State> itemStates;
+    private volatile boolean initialized = false;
 
     public OpenHabItemsExtension(Map<String, State> itemStates) {
         super(OptionExtensionType.CUSTOM);
@@ -32,11 +33,15 @@ public class OpenHabItemsExtension extends AbstractOptionsExtension {
 
     @Override
     public void extend(OptionsBuilder<? extends Options<?>, ?> builder) {
+        if (initialized) {
+            return;
+        }
         builder.options().forEach(optionDef -> {
             if (shouldLoadValue(optionDef)) {
                 loadAndSetValue(builder, optionDef);
             }
         });
+        initialized = true;
     }
 
     private boolean shouldLoadValue(OptionDef optionDef) {

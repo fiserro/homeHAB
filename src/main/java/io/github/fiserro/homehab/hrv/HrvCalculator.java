@@ -28,6 +28,8 @@ public class HrvCalculator<T extends HrvModule<T>> implements Calculator<T> {
         int intakePower = adjustPower(basePower, ratio);
         int exhaustPower = adjustPower(basePower, -ratio);
 
+        log.debug("Calculated HRV power levels: base={}, intake={}, exhaust={}", basePower, intakePower, exhaustPower);
+
         return state
             .withHrvOutputPower(basePower)
             .withHrvOutputIntake(intakePower)

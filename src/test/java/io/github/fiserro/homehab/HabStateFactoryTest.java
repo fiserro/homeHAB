@@ -123,6 +123,31 @@ class HabStateFactoryTest {
     verify(events).sendCommand("hrvOutputPower", "75");
   }
 
+  @Test
+  void withHrvOutputPowerShouldReturnNewStateWithUpdatedValue() {
+    Map<String, State> itemStates = new HashMap<>();
+    itemStates.put("hrvOutputPower", mockState(new DecimalType(50)));
+    itemStates.put("hrvOutputIntake", mockState(new DecimalType(55)));
+    itemStates.put("hrvOutputExhaust", mockState(new DecimalType(45)));
+    TestHabState state = HabStateFactory.of(TestHabState.class, itemStates);
+
+    // Simulate what HrvCalculator does - set new output values
+    TestHabState newState = state
+        .withHrvOutputPower(75)
+        .withHrvOutputIntake(78)
+        .withHrvOutputExhaust(72);
+
+    // Original state should be unchanged
+    assertEquals(50, state.hrvOutputPower());
+    assertEquals(55, state.hrvOutputIntake());
+    assertEquals(45, state.hrvOutputExhaust());
+
+    // New state should have the updated values, NOT the original item values
+    assertEquals(75, newState.hrvOutputPower());
+    assertEquals(78, newState.hrvOutputIntake());
+    assertEquals(72, newState.hrvOutputExhaust());
+  }
+
   private State mockState(OnOffType type) {
     State state = mock(State.class);
     when(state.toString()).thenReturn(type == OnOffType.ON ? "ON" : "OFF");
