@@ -7,8 +7,8 @@ Wants=network-online.target
 Type=simple
 User=root
 Group=root
-# Dual motor mode: GPIO 18 (intake) + GPIO 19 (exhaust)
-ExecStart=/usr/local/bin/hrv-bridge --mqtt-host localhost --mode pwm --pwm-pin-intake 18 --pwm-pin-exhaust 19
+# PWM on GPIO 18 and GPIO 19
+ExecStart=/usr/local/bin/hrv-bridge --mqtt-host localhost --gpio18 18 --gpio19 19 --verbose
 Restart=always
 RestartSec=10
 StandardOutput=journal

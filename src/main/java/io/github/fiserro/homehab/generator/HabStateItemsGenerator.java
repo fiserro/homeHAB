@@ -15,6 +15,8 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
@@ -81,9 +83,14 @@ public class HabStateItemsGenerator {
     private static void processModule(Class<?> moduleClass, StringBuilder content,
             Set<String> processedMethods) {
 
+        // Sort methods by name for deterministic output
+        Method[] sortedMethods = Arrays.stream(moduleClass.getDeclaredMethods())
+                .sorted(Comparator.comparing(Method::getName))
+                .toArray(Method[]::new);
+
         // Generate input items
         content.append(String.format("%n// Input items from %s%n", moduleClass.getSimpleName()));
-        for (Method method : moduleClass.getDeclaredMethods()) {
+        for (Method method : sortedMethods) {
             if (processedMethods.contains(method.getName())) continue;
             if (!method.isAnnotationPresent(Option.class)) continue;
             if (method.isAnnotationPresent(InputItem.class)) {
@@ -94,7 +101,7 @@ public class HabStateItemsGenerator {
 
         // Generate output items
         content.append(String.format("%n// Output items from %s%n", moduleClass.getSimpleName()));
-        for (Method method : moduleClass.getDeclaredMethods()) {
+        for (Method method : sortedMethods) {
             if (processedMethods.contains(method.getName())) continue;
             if (!method.isAnnotationPresent(Option.class)) continue;
             if (method.isAnnotationPresent(OutputItem.class)) {
@@ -105,7 +112,7 @@ public class HabStateItemsGenerator {
 
         // Generate read-only items
         content.append(String.format("%n// Read-only items from %s%n", moduleClass.getSimpleName()));
-        for (Method method : moduleClass.getDeclaredMethods()) {
+        for (Method method : sortedMethods) {
             if (processedMethods.contains(method.getName())) continue;
             if (!method.isAnnotationPresent(Option.class)) continue;
             if (method.isAnnotationPresent(ReadOnlyItem.class)) {
@@ -126,7 +133,12 @@ public class HabStateItemsGenerator {
             // Try to load HabState from the default package
             Class<?> habStateClass = Class.forName("HabState");
 
-            for (Method method : habStateClass.getDeclaredMethods()) {
+            // Sort methods by name for deterministic output
+            Method[] sortedMethods = Arrays.stream(habStateClass.getDeclaredMethods())
+                    .sorted(Comparator.comparing(Method::getName))
+                    .toArray(Method[]::new);
+
+            for (Method method : sortedMethods) {
                 if (processedMethods.contains(method.getName())) continue;
 
                 MqttItem mqttItem = method.getAnnotation(MqttItem.class);
