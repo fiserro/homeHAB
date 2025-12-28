@@ -5,6 +5,7 @@ import helper.rules.annotations.Rule;
 import io.github.fiserro.homehab.Calculator;
 import io.github.fiserro.homehab.HabStateFactory;
 import io.github.fiserro.homehab.hrv.CalibrationCalculator;
+import io.github.fiserro.homehab.hrv.GpioMappingCalculator;
 import io.github.fiserro.homehab.hrv.HrvCalculator;
 import io.github.fiserro.homehab.hrv.IntakeExhaustCalculator;
 import io.github.fiserro.homehab.hrv.PowerCalculator;

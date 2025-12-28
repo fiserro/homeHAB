@@ -27,7 +27,7 @@ public class PowerCalculator<T extends HrvModule<T>> implements Calculator<T> {
   public T calculate(T state) {
     int power = calculatePower(state);
     log.debug("Calculated base power: {}", power);
-    return state.withValue("hrvOutputPower", power);
+    return state.withHrvOutputPower(power);
   }
 
   private int calculatePower(HrvModule<?> state) {

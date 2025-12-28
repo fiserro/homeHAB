@@ -10,37 +10,43 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvFileSource;
 
 /**
- * Parameterized tests for {@link CalibrationCalculator}.
+ * Parameterized tests for {@link GpioMappingCalculator}.
  *
- * <p>Tests the calibration logic that converts target percentage to actual PWM duty cycle
- * using linear interpolation between calibration points. Skips calibration for TEST/OFF sources.
+ * <p>Tests the mapping of source selection to GPIO output values:
+ * <ul>
+ *   <li>POWER → hrvOutputPower</li>
+ *   <li>INTAKE → hrvOutputIntake</li>
+ *   <li>EXHAUST → hrvOutputExhaust</li>
+ *   <li>TEST → hrvOutputTest</li>
+ *   <li>OFF → 0</li>
+ * </ul>
  */
-class CalibrationCalculatorTest {
+class GpioMappingCalculatorTest {
 
   @ParameterizedTest(name = "{0}")
-  @CsvFileSource(resources = "/calibration-calculator-scenarios.csv", numLinesToSkip = 1,
-      delimiter = ';', nullValues = {"-"})
-  @DisplayName("CalibrationCalculator scenario")
+  @CsvFileSource(resources = "/gpio-mapping-calculator-scenarios.csv", numLinesToSkip = 1,
+      delimiter = ';')
+  @DisplayName("GpioMappingCalculator scenario")
   void testScenario(
       String scenario,
-      int hrvOutputGpio18,
-      int hrvOutputGpio19,
       GpioSource sourceGpio18,
       GpioSource sourceGpio19,
-      String calibrationTableGpio18,
-      String calibrationTableGpio19,
+      int hrvOutputPower,
+      int hrvOutputIntake,
+      int hrvOutputExhaust,
+      int hrvOutputTest,
       int expectedGpio18,
       int expectedGpio19) {
 
     TestHabState state = OptionsFactory.create(TestHabState.class)
-        .withValue("hrvOutputGpio18", hrvOutputGpio18)
-        .withValue("hrvOutputGpio19", hrvOutputGpio19)
         .withValue("sourceGpio18", sourceGpio18)
         .withValue("sourceGpio19", sourceGpio19)
-        .withValue("calibrationTableGpio18", calibrationTableGpio18 != null ? calibrationTableGpio18 : "")
-        .withValue("calibrationTableGpio19", calibrationTableGpio19 != null ? calibrationTableGpio19 : "");
+        .withValue("hrvOutputPower", hrvOutputPower)
+        .withValue("hrvOutputIntake", hrvOutputIntake)
+        .withValue("hrvOutputExhaust", hrvOutputExhaust)
+        .withValue("hrvOutputTest", hrvOutputTest);
 
-    CalibrationCalculator<TestHabState> calculator = new CalibrationCalculator<>();
+    GpioMappingCalculator<TestHabState> calculator = new GpioMappingCalculator<>();
     TestHabState result = calculator.calculate(state);
 
     assertEquals(expectedGpio18, result.hrvOutputGpio18(),

@@ -3,8 +3,11 @@ package io.github.fiserro.homehab.hrv;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.github.fiserro.homehab.TestHabState;
+import io.github.fiserro.homehab.module.HrvModule;
 import io.github.fiserro.options.OptionsFactory;
+import lombok.val;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvFileSource;
 
@@ -15,6 +18,14 @@ import org.junit.jupiter.params.provider.CsvFileSource;
  * sensor values (humidity, CO2, smoke, gas), and threshold configurations.
  */
 class PowerCalculatorTest {
+
+  @Test
+  void test() {
+    val state = OptionsFactory.create(HrvModule.class)
+        .withHrvOutputExhaust(30);
+    System.out.println(state.hrvOutputPower());
+  }
+
 
   @ParameterizedTest(name = "{0}")
   @CsvFileSource(resources = "/power-calculator-scenarios.csv", numLinesToSkip = 1, delimiter = ';')

@@ -1,0 +1,11 @@
+scenario;sourceGpio18;sourceGpio19;hrvOutputPower;hrvOutputIntake;hrvOutputExhaust;hrvOutputTest;expectedGpio18;expectedGpio19
+POWER maps to hrvOutputPower;POWER;POWER;50;60;40;75;50;50
+INTAKE maps to hrvOutputIntake;INTAKE;INTAKE;50;60;40;75;60;60
+EXHAUST maps to hrvOutputExhaust;EXHAUST;EXHAUST;50;60;40;75;40;40
+TEST maps to hrvOutputTest;TEST;TEST;50;60;40;75;75;75
+OFF maps to 0;OFF;OFF;50;60;40;75;0;0
+Mixed sources - INTAKE and EXHAUST;INTAKE;EXHAUST;50;70;30;0;70;30
+Mixed sources - POWER and TEST;POWER;TEST;80;60;40;25;80;25
+Mixed sources - OFF and INTAKE;OFF;INTAKE;50;60;40;75;0;60
+All zeros;POWER;EXHAUST;0;0;0;0;0;0
+Max values;INTAKE;EXHAUST;100;100;100;100;100;100

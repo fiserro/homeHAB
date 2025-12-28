@@ -11,6 +11,7 @@ import java.util.function.Function;
  * <ol>
  *   <li>{@link PowerCalculator} - calculates base power from conditions</li>
  *   <li>{@link IntakeExhaustCalculator} - calculates intake/exhaust based on ratio</li>
+ *   <li>{@link GpioMappingCalculator} - maps source selection to GPIO values</li>
  *   <li>{@link CalibrationCalculator} - applies GPIO calibration</li>
  * </ol>
  *
@@ -20,6 +21,7 @@ public class HrvCalculator<T extends HrvModule<T>> implements Calculator<T> {
 
   private final Function<T, T> chain = new PowerCalculator<T>()
       .andThen(new IntakeExhaustCalculator<>())
+      .andThen(new GpioMappingCalculator<>())
       .andThen(new CalibrationCalculator<>());
 
   @Override

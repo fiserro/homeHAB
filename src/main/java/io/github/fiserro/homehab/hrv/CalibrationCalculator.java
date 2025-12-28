@@ -9,10 +9,10 @@ import java.util.TreeMap;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Applies calibration to calculate final GPIO PWM values.
+ * Applies calibration to GPIO PWM values.
  *
  * <p>Uses linear interpolation between calibration points to convert target percentage
- * to actual PWM duty cycle values.
+ * to actual PWM duty cycle values. Skips calibration for TEST and OFF sources.
  *
  * @param <T> the module type (extends HrvModule)
  */
@@ -21,41 +21,26 @@ public class CalibrationCalculator<T extends HrvModule<T>> implements Calculator
 
   @Override
   public T calculate(T state) {
-    int gpio18Pwm = calculateGpioPwm(
-        state.sourceGpio18(),
-        state.targetPWM(state.sourceGpio18()),
-        state.calibrationTableGpio18());
+    int gpio18 = calibrate(state.hrvOutputGpio18(), state.calibrationTableGpio18(), state.sourceGpio18());
+    int gpio19 = calibrate(state.hrvOutputGpio19(), state.calibrationTableGpio19(), state.sourceGpio19());
 
-    int gpio19Pwm = calculateGpioPwm(
-        state.sourceGpio19(),
-        state.targetPWM(state.sourceGpio19()),
-        state.calibrationTableGpio19());
-
-    log.debug("Calculated GPIO PWM values: gpio18={}, gpio19={}", gpio18Pwm, gpio19Pwm);
+    log.debug("Calibration applied: gpio18={}, gpio19={}", gpio18, gpio19);
 
     return state
-        .withValue("hrvOutputGpio18", gpio18Pwm)
-        .withValue("hrvOutputGpio19", gpio19Pwm);
+        .withHrvOutputGpio18(gpio18)
+        .withHrvOutputGpio19(gpio19);
+  }
+
+  private int calibrate(int value, String calibrationTable, GpioSource source) {
+    if (source == GpioSource.TEST || source == GpioSource.OFF) {
+      return value;
+    }
+    return applyCalibration(value, calibrationTable);
   }
 
   /**
-   * Calculate PWM value for a GPIO based on source and calibration.
-   *
-   * @param source the source selection (POWER, INTAKE, EXHAUST, TEST, OFF)
-   * @param targetPwm the target PWM percentage
-   * @param calibration calibration table string
-   * @return PWM duty cycle (0-100)
-   */
-  int calculateGpioPwm(GpioSource source, int targetPwm, String calibration) {
-    return switch (source) {
-      case TEST, OFF -> targetPwm;
-      default -> applyCalibration(targetPwm, calibration);
-    };
-  }
-
-  /**
-   * Apply calibration table to convert target percentage to PWM duty cycle. Uses linear
-   * interpolation between calibration points.
+   * Apply calibration table to convert target percentage to PWM duty cycle.
+   * Uses linear interpolation between calibration points.
    *
    * @param targetPercent desired output (0-100%)
    * @param calibrationTable calibration table in format "pwm:voltage,pwm:voltage,..."

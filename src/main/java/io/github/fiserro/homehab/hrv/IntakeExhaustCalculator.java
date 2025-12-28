@@ -33,8 +33,8 @@ public class IntakeExhaustCalculator<T extends HrvModule<T>> implements Calculat
         intakePower, exhaustPower, basePower, ratio);
 
     return state
-        .withValue("hrvOutputIntake", intakePower)
-        .withValue("hrvOutputExhaust", exhaustPower);
+        .withHrvOutputIntake(intakePower)
+        .withHrvOutputExhaust(exhaustPower);
   }
 
   private int adjustPower(int basePower, int delta) {

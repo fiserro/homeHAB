@@ -204,7 +204,7 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
   @InputItem
   @Option
   default String calibrationTableGpio18() {
-    return "{}";
+    return "";
   }
 
   /**
@@ -215,7 +215,7 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
   @InputItem
   @Option
   default String calibrationTableGpio19() {
-    return "{}";
+    return "";
   }
 
   /**
@@ -228,6 +228,8 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
     return 50;
   }
 
+  T withHrvOutputPower(int power);
+
   /**
    * Output power for intake (fresh air) motor. Calculated from hrvOutputPower adjusted by
    * intakeExhaustRatio.
@@ -238,6 +240,8 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
     return 50;
   }
 
+  T withHrvOutputIntake(int power);
+
   /**
    * Output power for exhaust (stale air) motor. Calculated from hrvOutputPower adjusted by
    * intakeExhaustRatio.
@@ -247,6 +251,8 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
   default int hrvOutputExhaust() {
     return 50;
   }
+
+  T withHrvOutputExhaust(int power);
 
   /**
    * Test output value for calibration. When sourceGpioXX="TEST", this value is used for PWM output
@@ -268,6 +274,8 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
     return 0;
   }
 
+  T withHrvOutputGpio18(int power);
+
   /**
    * Final PWM value for GPIO 19 (0-100%). Calculated from source value (power/intake/exhaust/test)
    * with calibration applied.
@@ -277,6 +285,8 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
   default int hrvOutputGpio19() {
     return 0;
   }
+
+  T withHrvOutputGpio19(int power);
 
   /**
    * Determines if the output state of the current module has changed compared to the given module.
