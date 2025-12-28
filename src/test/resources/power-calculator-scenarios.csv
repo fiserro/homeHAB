@@ -1,0 +1,24 @@
+scenario;manualMode;temporaryManualMode;temporaryBoostMode;humidityThreshold;co2ThresholdLow;co2ThresholdMid;co2ThresholdHigh;manualPower;powerLow;powerMid;powerHigh;airHumidity;co2;smoke;gas;expectedPower
+Manual mode returns manualPower;true;false;false;60;500;700;900;50;15;50;95;0;500;false;false;50
+Temporary manual mode returns manualPower;false;true;false;60;500;700;900;60;15;50;95;0;500;false;false;60
+Manual mode priority over all conditions;true;false;true;60;500;700;900;40;15;50;95;100;2000;true;true;40
+Temporary boost returns powerHigh;false;false;true;60;500;700;900;50;15;50;100;0;500;false;false;100
+Temporary boost priority over gas/smoke/humidity;false;false;true;60;500;700;900;50;15;50;95;100;500;true;true;95
+Gas detection returns powerHigh;false;false;false;60;500;700;900;50;15;50;100;0;500;false;true;100
+Gas priority over smoke;false;false;false;60;500;700;900;50;15;50;100;0;500;true;true;100
+Smoke detection returns POWER_OFF;false;false;false;60;500;700;900;50;15;50;95;0;500;true;false;0
+Smoke priority over humidity and CO2;false;false;false;60;500;700;900;50;15;50;95;100;2000;true;false;0
+Humidity at threshold returns powerHigh;false;false;false;60;500;700;900;50;15;50;100;60;400;false;false;100
+Humidity above threshold returns powerHigh;false;false;false;60;500;700;900;50;15;50;100;75;400;false;false;100
+Humidity below threshold continues to CO2;false;false;false;60;500;700;900;50;15;75;95;50;800;false;false;75
+CO2 at high threshold returns powerHigh;false;false;false;60;500;700;900;50;15;50;100;0;900;false;false;100
+CO2 above high threshold returns powerHigh;false;false;false;60;500;700;900;50;15;50;100;0;1200;false;false;100
+CO2 at mid threshold returns powerMid;false;false;false;60;500;700;900;50;15;75;100;0;700;false;false;75
+CO2 between mid and high returns powerMid;false;false;false;60;500;700;900;50;15;75;100;0;800;false;false;75
+CO2 at low threshold returns powerLow;false;false;false;60;500;700;900;50;50;75;100;0;500;false;false;50
+CO2 between low and mid returns powerLow;false;false;false;60;500;700;900;50;50;75;100;0;600;false;false;50
+CO2 below all thresholds returns powerLow;false;false;false;60;500;700;900;50;50;75;100;0;400;false;false;50
+All defaults returns powerLow;false;false;false;60;500;700;900;50;15;50;95;0;500;false;false;15
+Custom power levels are respected;false;false;false;60;500;700;900;50;15;50;80;0;1000;false;false;80
+Zero manual power is valid;true;false;false;60;500;700;900;0;15;50;95;0;500;false;false;0
+Maximum power 100 is valid;false;false;true;60;500;700;900;50;15;50;100;0;500;false;false;100

@@ -10,18 +10,23 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvFileSource;
 
 /**
- * Parameterized tests for {@link HrvCalculator} using CSV data source.
+ * Integration tests for {@link HrvCalculator} using CSV data source.
  *
- * <p>Each row in the CSV file represents one test scenario with all input values
- * and expected output values from HrvModule.
+ * <p>Tests the full calculation chain: PowerCalculator → IntakeExhaustCalculator → CalibrationCalculator.
+ * Each row represents a scenario that exercises multiple calculators together.
  *
- * <p>CSV file: src/test/resources/hrv-calculator-scenarios.csv
+ * <p>For unit tests of individual calculators, see:
+ * <ul>
+ *   <li>{@link PowerCalculatorTest}</li>
+ *   <li>{@link IntakeExhaustCalculatorTest}</li>
+ *   <li>{@link CalibrationCalculatorTest}</li>
+ * </ul>
  */
 class HrvCalculatorScenarioTest {
 
     @ParameterizedTest(name = "{0}")
     @CsvFileSource(resources = "/hrv-calculator-scenarios.csv", numLinesToSkip = 1,
-                   delimiter = ';', nullValues = {"-1"})
+                   delimiter = ';', nullValues = {"-", "-1"})
     @DisplayName("HrvCalculator scenario")
     void testScenario(
             String scenario,

@@ -1,0 +1,12 @@
+scenario;hrvOutputPower;intakeExhaustRatio;expectedIntake;expectedExhaust
+Balanced - zero ratio;50;0;50;50
+Positive ratio increases intake;50;5;55;45
+Negative ratio increases exhaust;50;-5;45;55
+Max positive ratio 10;50;10;60;40
+Max negative ratio -10;50;-10;40;60
+Low power with positive ratio;20;5;25;15
+High power with positive ratio;90;5;95;85
+High power clamped at 100;95;10;100;85
+Low power clamped at 0;5;-10;0;15
+Zero power stays zero;0;5;5;0
+Full power with ratio;100;5;100;95

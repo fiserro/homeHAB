@@ -32,24 +32,13 @@ public class HrvControl extends Java223Script {
   public void onZigbeeItemChanged() {
     HabState state = HabStateFactory.of(HabState.class, items);
     HabState calculated = calculator.apply(state);
-    logger.info("modes: manual={}, tempManual={}, tempBoost={}",
-        state.manualMode(), state.temporaryManualMode(), state.temporaryBoostMode());
-    logger.info("manualPower: {}, outputPower: {}/{}",
-        state.manualPower(), state.hrvOutputPower(), calculated.hrvOutputPower());
 
-    // Only send commands if values actually changed (prevents infinite loop)
-    int currentPower = state.hrvOutputPower();
-    int currentIntake = state.hrvOutputIntake();
-    int currentExhaust = state.hrvOutputExhaust();
-
-    if (calculated.hrvOutputPower() != currentPower) {
+    if (calculated.hasOutputChanged(state)) {
       events.sendCommand(_items.hrvOutputPower(), calculated.hrvOutputPower());
-    }
-    if (calculated.hrvOutputIntake() != currentIntake) {
       events.sendCommand(_items.hrvOutputIntake(), calculated.hrvOutputIntake());
-    }
-    if (calculated.hrvOutputExhaust() != currentExhaust) {
       events.sendCommand(_items.hrvOutputExhaust(), calculated.hrvOutputExhaust());
+      events.sendCommand(_items.hrvOutputGpio18(), calculated.hrvOutputGpio18());
+      events.sendCommand(_items.hrvOutputGpio19(), calculated.hrvOutputGpio19());
     }
   }
 
