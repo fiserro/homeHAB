@@ -59,16 +59,6 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
     @Min(800) @Max(1500) @InputItem @Option
     default int co2ThresholdHigh() { return 900; }
 
-    // Motor control mode
-    /**
-     * Dual motor mode flag:
-     * - false (default): Single motor mode - uses hrvOutputPower for both motors
-     * - true: Dual motor mode - uses hrvOutputIntake (GPIO 18) and hrvOutputExhaust (GPIO 19)
-     * When switching modes, manually update channel links in OpenHAB UI.
-     */
-    @InputItem @Option
-    default boolean dualMotorMode() { return false; }
-
     // Intake/Exhaust ratio control
     /**
      * Pressure balance control. 0 = balanced, negative = underpressure, positive = overpressure.
@@ -76,7 +66,6 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
      * -10 = underpressure (reduce exhaust by 10% of base power, intake unchanged)
      * +10 = overpressure (increase intake by 10% of base power, exhaust unchanged)
      * Example: base=20%, ratio=+10 → intake=22%, exhaust=20%
-     * Only effective when dualMotorMode=true.
      */
     @Min(-10) @Max(10) @InputItem @Option
     default int intakeExhaustRatio() { return 0; }
@@ -110,51 +99,109 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
     @Option
     default boolean gas() { return false; }
 
-    // Output
-    // Channel links for HRV Bridge (see hrv-bridge.things):
-    // - Single motor mode: use hrvOutputPower → power channel (controls both motors equally)
-    // - Dual motor mode: use hrvOutputIntake/Exhaust → intake/exhaust channels (independent control)
-    @OutputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:power") @Option
+    // ========== Intermediate output values (no MQTT channel) ==========
+    // These are calculated by HrvCalculator and used to derive final GPIO outputs.
+
+    /**
+     * Base output power before intake/exhaust ratio adjustment.
+     * Calculated based on modes, thresholds, and sensor values.
+     */
+    @OutputItem @Option
     default int hrvOutputPower() { return 50; }
 
     /**
      * Output power for intake (fresh air) motor.
      * Calculated from hrvOutputPower adjusted by intakeExhaustRatio.
      */
-    @OutputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:intake") @Option
+    @OutputItem @Option
     default int hrvOutputIntake() { return 50; }
 
     /**
      * Output power for exhaust (stale air) motor.
      * Calculated from hrvOutputPower adjusted by intakeExhaustRatio.
      */
-    @OutputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:exhaust") @Option
+    @OutputItem @Option
     default int hrvOutputExhaust() { return 50; }
 
-    T withHrvOutputPower(int power);
-    T withHrvOutputIntake(int power);
-    T withHrvOutputExhaust(int power);
+    /**
+     * Test output value for calibration.
+     * When sourceGpioXX="TEST", this value is used for PWM output (linear, no calibration).
+     */
+    @OutputItem @Option
+    default int hrvOutputTest() { return 0; }
+
+    // ========== Final GPIO outputs (with MQTT channel) ==========
+    // These are sent to Python HRV Bridge via MQTT.
+
+    /**
+     * Final PWM value for GPIO 18 (0-100%).
+     * Calculated from source value (power/intake/exhaust/test) with calibration applied.
+     */
+    @OutputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:pwmGpio18") @Option
+    default int hrvOutputGpio18() { return 0; }
+
+    /**
+     * Final PWM value for GPIO 19 (0-100%).
+     * Calculated from source value (power/intake/exhaust/test) with calibration applied.
+     */
+    @OutputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:pwmGpio19") @Option
+    default int hrvOutputGpio19() { return 0; }
 
     // ========== GPIO Configuration ==========
+
     /**
      * Source for GPIO 18 output value.
-     * Options: "power", "intake", "exhaust", "test", "off"
-     * - power: uses hrvOutputPower
-     * - intake: uses hrvOutputIntake
-     * - exhaust: uses hrvOutputExhaust
-     * - test: uses hrvOutputTest (for calibration)
-     * - off: disables GPIO output
+     * Options: POWER, INTAKE, EXHAUST, TEST, OFF
+     * - POWER: uses hrvOutputPower
+     * - INTAKE: uses hrvOutputIntake
+     * - EXHAUST: uses hrvOutputExhaust
+     * - TEST: uses hrvOutputTest (linear, no calibration)
+     * - OFF: disables GPIO output (0%)
      */
-    @InputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:gpio18Source") @Option
-    default GpioSource gpio18Source() { return GpioSource.INTAKE; }
+    @InputItem @Option
+    default GpioSource sourceGpio18() { return GpioSource.INTAKE; }
 
     /**
      * Source for GPIO 19 output value.
-     * Options: "power", "intake", "exhaust", "test", "off"
-     * - off: disables GPIO output
+     * Options: POWER, INTAKE, EXHAUST, TEST, OFF
      */
-    @InputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:gpio19Source") @Option
-    default GpioSource gpio19Source() { return GpioSource.EXHAUST; }
+    @InputItem @Option
+    default GpioSource sourceGpio19() { return GpioSource.EXHAUST; }
+
+    /**
+     * Calibration table for GPIO 18.
+     * JSON format: {"0": 0.0, "10": 1.48, "20": 2.63, ...}
+     * Maps PWM duty cycle (%) to measured output voltage (V).
+     * Used by HrvCalculator to convert target voltage to PWM %.
+     * Not applied when source is TEST.
+     */
+    @InputItem @Option
+    default String calibrationTableGpio18() { return "{}"; }
+
+    /**
+     * Calibration table for GPIO 19.
+     * JSON format: {"0": 0.0, "10": 1.48, "20": 2.63, ...}
+     * Maps PWM duty cycle (%) to measured output voltage (V).
+     * Used by HrvCalculator to convert target voltage to PWM %.
+     * Not applied when source is TEST.
+     */
+    @InputItem @Option
+    default String calibrationTableGpio19() { return "{}"; }
+
+    /**
+     * Returns the PWM duty cycle (%) for the given GPIO source.
+     * @param source the GPIO source
+     * @return the PWM duty cycle (%)
+     */
+    default int targetPWM(GpioSource source) {
+        return switch (source) {
+            case POWER -> manualPower();
+            case INTAKE -> hrvOutputIntake();
+            case EXHAUST -> hrvOutputExhaust();
+            case TEST -> hrvOutputTest();
+            case OFF -> POWER_OFF;
+        };
+    }
 
     enum GpioSource {
         POWER,
@@ -163,33 +210,4 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
         TEST,
         OFF
     }
-
-    /**
-     * Test output value for calibration.
-     * When gpioXXSource="test", this value is used for PWM output.
-     * Allows testing specific PWM values without affecting normal operation.
-     */
-    @OutputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:test") @Option
-    default int hrvOutputTest() { return 0; }
-
-    // ========== Calibration Tables ==========
-
-    /**
-     * Calibration table for GPIO 18.
-     * JSON format: {"0": 0.0, "10": 1.48, "20": 2.63, ...}
-     * Maps PWM duty cycle (%) to measured output voltage (V).
-     * Set to {"0":0, "100":10} for linear (uncalibrated) mode.
-     */
-    @InputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:calibrationGpio18") @Option
-    default String calibrationTableGpio18() { return "{}"; }
-
-    /**
-     * Calibration table for GPIO 19.
-     * JSON format: {"0": 0.0, "10": 1.48, "20": 2.63, ...}
-     * Maps PWM duty cycle (%) to measured output voltage (V).
-     * Set to {"0":0, "100":10} for linear (uncalibrated) mode.
-     */
-    @InputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:calibrationGpio19") @Option
-    default String calibrationTableGpio19() { return "{}"; }
-
 }

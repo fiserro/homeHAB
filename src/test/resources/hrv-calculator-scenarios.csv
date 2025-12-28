@@ -1,0 +1,41 @@
+scenario;manualMode;temporaryManualMode;temporaryBoostMode;humidityThreshold;co2ThresholdLow;co2ThresholdMid;co2ThresholdHigh;intakeExhaustRatio;manualPower;powerLow;powerMid;powerHigh;airHumidity;co2;smoke;gas;sourceGpio18;sourceGpio19;calibrationTableGpio18;calibrationTableGpio19;hrvOutputTest;expectedPower;expectedIntake;expectedExhaust;expectedGpio18;expectedGpio19
+Manual mode returns manualPower;true;false;false;60;500;700;900;0;50;15;50;95;0;500;false;false;INTAKE;EXHAUST;;;0;50;50;50;50;50
+Temporary manual mode returns manualPower;false;true;false;60;500;700;900;0;60;15;50;95;0;500;false;false;INTAKE;EXHAUST;;;0;60;60;60;60;60
+Manual mode priority over all conditions;true;false;true;60;500;700;900;0;40;15;50;95;100;2000;true;true;INTAKE;EXHAUST;;;0;40;40;40;40;40
+Temporary boost returns powerHigh;false;false;true;60;500;700;900;0;50;15;50;100;0;500;false;false;INTAKE;EXHAUST;;;0;100;100;100;100;100
+Temporary boost priority over gas/smoke/humidity;false;false;true;60;500;700;900;0;50;15;50;95;100;500;true;true;INTAKE;EXHAUST;;;0;95;95;95;95;95
+Gas detection returns powerHigh;false;false;false;60;500;700;900;0;50;15;50;100;0;500;false;true;INTAKE;EXHAUST;;;0;100;100;100;100;100
+Gas priority over smoke;false;false;false;60;500;700;900;0;50;15;50;100;0;500;true;true;INTAKE;EXHAUST;;;0;100;100;100;100;100
+Smoke detection returns POWER_OFF;false;false;false;60;500;700;900;0;50;15;50;95;0;500;true;false;INTAKE;EXHAUST;;;0;0;0;0;0;0
+Smoke priority over humidity and CO2;false;false;false;60;500;700;900;0;50;15;50;95;100;2000;true;false;INTAKE;EXHAUST;;;0;0;0;0;0;0
+Humidity at threshold returns powerHigh;false;false;false;60;500;700;900;0;50;15;50;100;60;400;false;false;INTAKE;EXHAUST;;;0;100;100;100;100;100
+Humidity above threshold returns powerHigh;false;false;false;60;500;700;900;0;50;15;50;100;75;400;false;false;INTAKE;EXHAUST;;;0;100;100;100;100;100
+Humidity below threshold continues to CO2;false;false;false;60;500;700;900;0;50;15;75;95;50;800;false;false;INTAKE;EXHAUST;;;0;75;75;75;75;75
+CO2 at high threshold returns powerHigh;false;false;false;60;500;700;900;0;50;15;50;100;0;900;false;false;INTAKE;EXHAUST;;;0;100;100;100;100;100
+CO2 above high threshold returns powerHigh;false;false;false;60;500;700;900;0;50;15;50;100;0;1200;false;false;INTAKE;EXHAUST;;;0;100;100;100;100;100
+CO2 at mid threshold returns powerMid;false;false;false;60;500;700;900;0;50;15;75;100;0;700;false;false;INTAKE;EXHAUST;;;0;75;75;75;75;75
+CO2 between mid and high returns powerMid;false;false;false;60;500;700;900;0;50;15;75;100;0;800;false;false;INTAKE;EXHAUST;;;0;75;75;75;75;75
+CO2 at low threshold returns powerLow;false;false;false;60;500;700;900;0;50;50;75;100;0;500;false;false;INTAKE;EXHAUST;;;0;50;50;50;50;50
+CO2 between low and mid returns powerLow;false;false;false;60;500;700;900;0;50;50;75;100;0;600;false;false;INTAKE;EXHAUST;;;0;50;50;50;50;50
+CO2 below all thresholds returns powerLow;false;false;false;60;500;700;900;0;50;50;75;100;0;400;false;false;INTAKE;EXHAUST;;;0;50;50;50;50;50
+All defaults returns powerLow;false;false;false;60;500;700;900;0;50;15;50;95;0;500;false;false;INTAKE;EXHAUST;;;0;15;15;15;15;15
+Custom power levels are respected;false;false;false;60;500;700;900;0;50;15;50;80;0;1000;false;false;INTAKE;EXHAUST;;;0;80;80;80;80;80
+Zero manual power is valid;true;false;false;60;500;700;900;0;0;15;50;95;0;500;false;false;INTAKE;EXHAUST;;;0;0;0;0;0;0
+Maximum power 100 is valid;false;false;true;60;500;700;900;0;50;15;50;100;0;500;false;false;INTAKE;EXHAUST;;;0;100;100;100;100;100
+Positive ratio increases intake;false;false;false;60;500;700;900;5;50;50;75;100;0;600;false;false;INTAKE;EXHAUST;;;0;50;55;45;55;45
+Negative ratio decreases exhaust;false;false;false;60;500;700;900;-5;50;50;75;100;0;600;false;false;INTAKE;EXHAUST;;;0;50;45;55;45;55
+Max positive ratio;false;false;false;60;500;700;900;10;50;50;75;100;0;600;false;false;INTAKE;EXHAUST;;;0;50;60;40;60;40
+GPIO18 source POWER uses manualPower;true;false;false;60;500;700;900;0;30;15;50;95;0;500;false;false;POWER;EXHAUST;;;0;30;30;30;30;30
+GPIO source OFF returns 0;false;false;false;60;500;700;900;0;50;50;75;100;0;600;false;false;OFF;OFF;;;0;50;50;50;0;0
+GPIO source TEST uses hrvOutputTest;false;false;false;60;500;700;900;0;50;50;75;100;0;600;false;false;TEST;TEST;;;75;50;50;50;75;75
+Calibration - linear (identity);true;false;false;60;500;700;900;0;50;15;50;95;0;400;false;false;INTAKE;EXHAUST;0:0,50:5,100:10;0:0,50:5,100:10;0;50;50;50;50;50
+Calibration - sparse 3-point;true;false;false;60;500;700;900;0;25;15;50;95;0;400;false;false;INTAKE;EXHAUST;0:0,50:5,100:10;0:0,50:5,100:10;0;25;25;25;25;25
+Calibration - half scale (compressed);true;false;false;60;500;700;900;0;50;15;50;95;0;400;false;false;INTAKE;EXHAUST;0:0,50:10;0:0,50:10;0;50;50;50;25;25
+Calibration - double scale (clamped);true;false;false;60;500;700;900;0;50;15;50;95;0;400;false;false;INTAKE;EXHAUST;0:0,100:5;0:0,100:5;0;50;50;50;100;100
+Calibration - high PWM clamp at 80;true;false;false;60;500;700;900;0;90;15;50;95;0;400;false;false;INTAKE;EXHAUST;0:0,80:10;0:0,80:10;0;90;90;90;72;72
+Calibration - non-linear DAC curve;true;false;false;60;500;700;900;0;50;15;50;95;0;400;false;false;INTAKE;EXHAUST;0:0,25:2,50:5,75:7.5,100:10;0:0,25:2,50:5,75:7.5,100:10;0;50;50;50;50;50
+Calibration - different per GPIO;true;false;false;60;500;700;900;0;50;15;50;95;0;400;false;false;INTAKE;EXHAUST;0:0,50:10;0:0,100:10;0;50;50;50;25;50
+Calibration - with ratio adjustment;true;false;false;60;500;700;900;10;50;15;50;95;0;400;false;false;INTAKE;EXHAUST;0:0,50:10;0:0,50:10;0;50;60;40;30;20
+Calibration - interpolation at 30pct;true;false;false;60;500;700;900;0;30;15;50;95;0;400;false;false;INTAKE;EXHAUST;0:0,20:2,40:4,60:6,80:8,100:10;0:0,20:2,40:4,60:6,80:8,100:10;0;30;30;30;30;30
+Calibration - real DAC simplified;true;false;false;60;500;700;900;0;50;15;50;95;0;400;false;false;INTAKE;EXHAUST;0:0,10:1,30:3,50:5,70:7,90:9,100:10;0:0,10:1,30:3,50:5,70:7,90:9,100:10;0;50;50;50;50;50
+Calibration - only 2 points;true;false;false;60;500;700;900;0;50;15;50;95;0;400;false;false;INTAKE;EXHAUST;0:0,100:10;0:0,100:10;0;50;50;50;50;50

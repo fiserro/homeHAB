@@ -1,29 +1,17 @@
 #!/usr/bin/env python3
 """
-HRV Bridge - MQTT to PWM/DAC bridge for HRV power output control.
+HRV Bridge - Simple MQTT to PWM bridge for HRV power output control.
 
-New architecture with configurable GPIO routing:
-- Four source values: power, intake, exhaust, test
-- Each GPIO (18, 19) can be configured to use any source or "off" to disable
-- Calibration tables per GPIO for PWM-to-voltage mapping
+Receives PWM duty cycle values (0-100) from OpenHAB via MQTT and sets
+them directly on GPIO pins. All calculation (source selection, calibration)
+is done in OpenHAB/HrvCalculator.
 
-Input: 0-100 (percentage from OpenHAB)
-Output: PWM signal (default) or DAC voltage
+Input: 0-100 (PWM duty cycle percentage from OpenHAB)
+Output: PWM signal on GPIO pins
 
 MQTT Topics:
-  Source values (OpenHAB → Bridge):
-    - {prefix}/value/power    -> Base power value
-    - {prefix}/value/intake   -> Intake power value
-    - {prefix}/value/exhaust  -> Exhaust power value
-    - {prefix}/value/test     -> Test power value (for calibration)
-
-  GPIO configuration (bidirectional, retained):
-    - {prefix}/source/gpio18  -> Source: "power"|"intake"|"exhaust"|"test"|"off"
-    - {prefix}/source/gpio19  -> Source: "power"|"intake"|"exhaust"|"test"|"off"
-
-  Calibration tables (bidirectional, retained):
-    - {prefix}/calibration/gpio18 -> JSON calibration table
-    - {prefix}/calibration/gpio19 -> JSON calibration table
+  - {prefix}/pwm/gpio18  -> PWM value for GPIO 18 (0-100)
+  - {prefix}/pwm/gpio19  -> PWM value for GPIO 19 (0-100)
 """
 
 import argparse
@@ -40,33 +28,14 @@ try:
 except ImportError:
     LGPIO_AVAILABLE = False
 
-# Try to import Waveshare library for DAC
-try:
-    from . import waveshare_dac8532 as DAC8532
-    from . import waveshare_config as waveshare_config
-    DAC_AVAILABLE = True
-except ImportError:
-    DAC_AVAILABLE = False
-
-# Import PWM calibration
-from .pwm_calibration import CalibrationManager
-
 # Default configuration
 DEFAULT_MQTT_HOST = "localhost"
 DEFAULT_MQTT_PORT = 1883
 DEFAULT_TOPIC_PREFIX = "homehab/hrv"
 DEFAULT_CLIENT_ID = "hrv-bridge"
-DEFAULT_MODE = "pwm"
-DEFAULT_PWM_PIN_INTAKE = 18
-DEFAULT_PWM_PIN_EXHAUST = 19
+DEFAULT_GPIO18 = 18
+DEFAULT_GPIO19 = 19
 DEFAULT_PWM_FREQ = 2000
-
-# Output parameters
-PERCENT_MIN = 0
-PERCENT_MAX = 100
-
-# Valid source names (including "off" to disable GPIO)
-VALID_SOURCES = ("power", "intake", "exhaust", "test", "off")
 
 # Logging setup
 logging.basicConfig(
@@ -77,15 +46,12 @@ log = logging.getLogger("hrv-bridge")
 
 
 class PwmOutput:
-    """PWM output driver using lgpio for dual-channel HRV control."""
+    """PWM output driver using lgpio."""
 
-    def __init__(self, calibration_manager: CalibrationManager,
-                 pin_intake: int = DEFAULT_PWM_PIN_INTAKE,
-                 pin_exhaust: int = DEFAULT_PWM_PIN_EXHAUST,
+    def __init__(self, gpio18: int = DEFAULT_GPIO18, gpio19: int = DEFAULT_GPIO19,
                  freq: int = DEFAULT_PWM_FREQ):
-        self.calibration = calibration_manager
-        self.pin_intake = pin_intake
-        self.pin_exhaust = pin_exhaust
+        self.gpio18 = gpio18
+        self.gpio19 = gpio19
         self.freq = freq
         self.handle = None
 
@@ -93,89 +59,36 @@ class PwmOutput:
             raise RuntimeError("lgpio library not available")
 
         self.handle = lgpio.gpiochip_open(0)
-        lgpio.gpio_claim_output(self.handle, self.pin_intake)
-        lgpio.gpio_claim_output(self.handle, self.pin_exhaust)
-        log.info(f"PWM initialized: GPIO{self.pin_intake}, GPIO{self.pin_exhaust} at {self.freq} Hz")
+        lgpio.gpio_claim_output(self.handle, self.gpio18)
+        lgpio.gpio_claim_output(self.handle, self.gpio19)
+        log.info(f"PWM initialized: GPIO{self.gpio18}, GPIO{self.gpio19} at {self.freq} Hz")
 
-    def set_gpio(self, gpio: int, percent: float, source: str = ""):
-        """Set PWM duty cycle for specified GPIO with calibration."""
+    def set_pwm(self, gpio: int, duty: float):
+        """Set PWM duty cycle for specified GPIO."""
         if self.handle is None:
             return
-        percent = max(0, min(100, percent))
-        calibrated_duty = self.calibration.get_pwm_for_percent(gpio, percent, source)
-        pin = self.pin_intake if gpio == 18 else self.pin_exhaust
-        lgpio.tx_pwm(self.handle, pin, self.freq, calibrated_duty)
+        duty = max(0, min(100, duty))
+        pin = self.gpio18 if gpio == 18 else self.gpio19
+        lgpio.tx_pwm(self.handle, pin, self.freq, duty)
+        log.debug(f"GPIO{gpio} PWM set to {duty:.1f}%")
 
     def stop(self):
         """Stop PWM and cleanup."""
         if self.handle is not None:
-            lgpio.tx_pwm(self.handle, self.pin_intake, self.freq, 0)
-            lgpio.tx_pwm(self.handle, self.pin_exhaust, self.freq, 0)
+            lgpio.tx_pwm(self.handle, self.gpio18, self.freq, 0)
+            lgpio.tx_pwm(self.handle, self.gpio19, self.freq, 0)
             lgpio.gpiochip_close(self.handle)
             self.handle = None
 
 
-class DacOutput:
-    """DAC output driver using Waveshare DAC8532."""
-
-    def __init__(self):
-        if not DAC_AVAILABLE:
-            raise RuntimeError("Waveshare DAC8532 library not available")
-
-        waveshare_config.module_init()
-        self.dac = DAC8532.DAC8532()
-        self.v_max = 5.0
-        log.info("DAC8532 initialized")
-
-    def set_gpio(self, gpio: int, percent: float):
-        """Set DAC output for specified GPIO."""
-        percent = max(0, min(100, percent))
-        voltage = (percent / 100.0) * self.v_max
-        channel = DAC8532.channel_A if gpio == 18 else DAC8532.channel_B
-        self.dac.DAC8532_Out_Voltage(channel, voltage)
-
-    def stop(self):
-        """Set outputs to 0 and cleanup."""
-        self.dac.DAC8532_Out_Voltage(DAC8532.channel_A, 0.0)
-        self.dac.DAC8532_Out_Voltage(DAC8532.channel_B, 0.0)
-        try:
-            waveshare_config.module_exit()
-        except Exception:
-            pass
-
-
-class GpioConfig:
-    """Configuration for a single GPIO."""
-
-    def __init__(self, gpio: int, source: str = "power"):
-        self.gpio = gpio
-        self.source = source if source in VALID_SOURCES else "power"
-
-
 class HrvBridge:
-    """MQTT to PWM/DAC bridge for HRV control with configurable GPIO routing."""
+    """Simple MQTT to PWM bridge for HRV control."""
 
     def __init__(self, mqtt_host: str, mqtt_port: int, topic_prefix: str,
-                 client_id: str, mode: str, pwm_pin_intake: int,
-                 pwm_pin_exhaust: int, pwm_freq: int):
+                 client_id: str, gpio18: int, gpio19: int, pwm_freq: int):
         self.mqtt_host = mqtt_host
         self.mqtt_port = mqtt_port
         self.topic_prefix = topic_prefix.rstrip('/')
-        self.mode = mode
-
-        # Current source values
-        self.sources = {
-            "power": 0.0,
-            "intake": 0.0,
-            "exhaust": 0.0,
-            "test": 0.0,
-        }
-
-        # GPIO configuration (default: GPIO18=intake, GPIO19=exhaust)
-        self.gpio_config = {
-            18: GpioConfig(18, source="intake"),
-            19: GpioConfig(19, source="exhaust"),
-        }
 
         # MQTT client
         self.client = mqtt.Client(client_id=client_id)
@@ -183,25 +96,12 @@ class HrvBridge:
         self.client.on_disconnect = self._on_disconnect
         self.client.on_message = self._on_message
 
-        # Initialize calibration manager
-        self.calibration_manager = CalibrationManager()
-
         # Initialize output driver
         self.output = None
         try:
-            if mode == "pwm":
-                self.output = PwmOutput(
-                    calibration_manager=self.calibration_manager,
-                    pin_intake=pwm_pin_intake,
-                    pin_exhaust=pwm_pin_exhaust,
-                    freq=pwm_freq
-                )
-            elif mode == "dac":
-                self.output = DacOutput()
-            else:
-                raise ValueError(f"Unknown mode: {mode}")
+            self.output = PwmOutput(gpio18=gpio18, gpio19=gpio19, freq=pwm_freq)
         except Exception as e:
-            log.warning(f"Output initialization failed: {e} - running in simulation mode")
+            log.warning(f"PWM initialization failed: {e} - running in simulation mode")
 
         self.running = False
 
@@ -209,23 +109,10 @@ class HrvBridge:
         if rc == 0:
             log.info(f"Connected to MQTT broker at {self.mqtt_host}:{self.mqtt_port}")
 
-            # Subscribe to source value topics
-            for source in VALID_SOURCES:
-                if source != "off":
-                    topic = f"{self.topic_prefix}/value/{source}"
-                    client.subscribe(topic)
-            log.info(f"Subscribed to value topics: power, intake, exhaust, test")
-
-            # Subscribe to GPIO config topics (source only, "off" disables GPIO)
-            for gpio in (18, 19):
-                client.subscribe(f"{self.topic_prefix}/source/gpio{gpio}")
-            log.info(f"Subscribed to source config topics")
-
-            # Subscribe to calibration table topics
-            client.subscribe(f"{self.topic_prefix}/calibration/gpio18")
-            client.subscribe(f"{self.topic_prefix}/calibration/gpio19")
-            log.info(f"Subscribed to calibration topics")
-
+            # Subscribe to PWM topics
+            client.subscribe(f"{self.topic_prefix}/pwm/gpio18")
+            client.subscribe(f"{self.topic_prefix}/pwm/gpio19")
+            log.info(f"Subscribed to PWM topics: {self.topic_prefix}/pwm/gpio18, gpio19")
         else:
             log.error(f"Connection failed with code {rc}")
 
@@ -238,89 +125,29 @@ class HrvBridge:
             payload = msg.payload.decode("utf-8").strip()
             topic = msg.topic
 
-            # Calibration table updates
-            if topic == f"{self.topic_prefix}/calibration/gpio18":
-                self.calibration_manager.update_from_mqtt(18, payload)
-                self._update_gpio(18)  # Re-apply with new calibration
-                return
-            elif topic == f"{self.topic_prefix}/calibration/gpio19":
-                self.calibration_manager.update_from_mqtt(19, payload)
-                self._update_gpio(19)  # Re-apply with new calibration
-                return
-
-            # GPIO config: source (including "off" to disable)
-            if topic == f"{self.topic_prefix}/source/gpio18":
-                self._handle_gpio_source(18, payload)
-                return
-            elif topic == f"{self.topic_prefix}/source/gpio19":
-                self._handle_gpio_source(19, payload)
-                return
-
-            # Source value updates
-            for source in VALID_SOURCES:
-                if source != "off" and topic == f"{self.topic_prefix}/value/{source}":
-                    self._handle_source_value(source, payload)
-                    return
-
-            log.warning(f"Unknown topic: {topic}")
-
-        except Exception as e:
-            log.exception(f"Error processing message: {e}")
-
-    def _handle_gpio_source(self, gpio: int, payload: str):
-        """Handle GPIO source config change."""
-        source = payload.lower()
-        if source not in VALID_SOURCES:
-            log.warning(f"Invalid source '{source}' for GPIO{gpio}, ignoring")
-            return
-
-        old_source = self.gpio_config[gpio].source
-        self.gpio_config[gpio].source = source
-
-        if source != old_source:
-            log.info(f"GPIO{gpio} source changed: {old_source} -> {source}")
-            self._update_gpio(gpio)
-
-    def _handle_source_value(self, source: str, payload: str):
-        """Handle source value update."""
-        try:
+            # Parse PWM value
             payload = payload.replace(",", ".")
             value = float(payload)
-            value = max(PERCENT_MIN, min(PERCENT_MAX, value))
+            value = max(0, min(100, value))
 
-            old_value = self.sources[source]
-            self.sources[source] = value
+            # Determine GPIO from topic
+            if topic == f"{self.topic_prefix}/pwm/gpio18":
+                gpio = 18
+            elif topic == f"{self.topic_prefix}/pwm/gpio19":
+                gpio = 19
+            else:
+                log.warning(f"Unknown topic: {topic}")
+                return
 
-            if value != old_value:
-                log.info(f"Source '{source}' set to {value:.1f}%")
-                # Update any GPIO using this source
-                self._update_gpios_using_source(source)
+            log.info(f"GPIO{gpio} PWM set to {value:.1f}%")
+
+            if self.output:
+                self.output.set_pwm(gpio, value)
 
         except ValueError as e:
-            log.error(f"Invalid value for source '{source}': {payload}")
-
-    def _update_gpios_using_source(self, source: str):
-        """Update all GPIOs that are using the specified source."""
-        for gpio in (18, 19):
-            if self.gpio_config[gpio].source == source:
-                self._update_gpio(gpio)
-
-    def _update_gpio(self, gpio: int):
-        """Update a single GPIO based on its config and source value."""
-        config = self.gpio_config[gpio]
-
-        # "off" source disables the GPIO (sets to 0)
-        if config.source == "off":
-            if self.output:
-                self.output.set_gpio(gpio, 0)
-                log.debug(f"GPIO{gpio} disabled (source: off)")
-            return
-
-        value = self.sources.get(config.source, 0)
-
-        if self.output:
-            self.output.set_gpio(gpio, value, config.source)
-            log.debug(f"GPIO{gpio} set to {value:.1f}% (source: {config.source})")
+            log.error(f"Invalid value: {msg.payload}")
+        except Exception as e:
+            log.exception(f"Error processing message: {e}")
 
     def start(self):
         """Start the bridge."""
@@ -328,8 +155,8 @@ class HrvBridge:
 
         # Initialize GPIOs to 0
         if self.output:
-            self.output.set_gpio(18, 0)
-            self.output.set_gpio(19, 0)
+            self.output.set_pwm(18, 0)
+            self.output.set_pwm(19, 0)
 
         log.info(f"Connecting to MQTT broker at {self.mqtt_host}:{self.mqtt_port}")
         self.client.connect(self.mqtt_host, self.mqtt_port, keepalive=60)
@@ -347,8 +174,8 @@ class HrvBridge:
         log.info("Shutting down - setting outputs to 0")
 
         if self.output:
-            self.output.set_gpio(18, 0)
-            self.output.set_gpio(19, 0)
+            self.output.set_pwm(18, 0)
+            self.output.set_pwm(19, 0)
             self.output.stop()
 
         self.client.disconnect()
@@ -357,7 +184,7 @@ class HrvBridge:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="HRV Bridge - MQTT to PWM/DAC bridge with configurable GPIO routing"
+        description="HRV Bridge - Simple MQTT to PWM bridge"
     )
     parser.add_argument(
         "--mqtt-host", "-H",
@@ -381,22 +208,16 @@ def main():
         help=f"MQTT client ID (default: {DEFAULT_CLIENT_ID})"
     )
     parser.add_argument(
-        "--mode", "-m",
-        choices=["pwm", "dac"],
-        default=DEFAULT_MODE,
-        help=f"Output mode: pwm or dac (default: {DEFAULT_MODE})"
+        "--gpio18",
+        type=int,
+        default=DEFAULT_GPIO18,
+        help=f"GPIO pin 18 (default: {DEFAULT_GPIO18})"
     )
     parser.add_argument(
-        "--pwm-pin-intake",
+        "--gpio19",
         type=int,
-        default=DEFAULT_PWM_PIN_INTAKE,
-        help=f"GPIO pin for intake motor PWM (default: {DEFAULT_PWM_PIN_INTAKE})"
-    )
-    parser.add_argument(
-        "--pwm-pin-exhaust",
-        type=int,
-        default=DEFAULT_PWM_PIN_EXHAUST,
-        help=f"GPIO pin for exhaust motor PWM (default: {DEFAULT_PWM_PIN_EXHAUST})"
+        default=DEFAULT_GPIO19,
+        help=f"GPIO pin 19 (default: {DEFAULT_GPIO19})"
     )
     parser.add_argument(
         "--pwm-freq",
@@ -420,9 +241,8 @@ def main():
         mqtt_port=args.mqtt_port,
         topic_prefix=args.topic_prefix,
         client_id=args.client_id,
-        mode=args.mode,
-        pwm_pin_intake=args.pwm_pin_intake,
-        pwm_pin_exhaust=args.pwm_pin_exhaust,
+        gpio18=args.gpio18,
+        gpio19=args.gpio19,
         pwm_freq=args.pwm_freq
     )
 

@@ -133,9 +133,9 @@ class HabStateFactoryTest {
 
     // Simulate what HrvCalculator does - set new output values
     TestHabState newState = state
-        .withHrvOutputPower(75)
-        .withHrvOutputIntake(78)
-        .withHrvOutputExhaust(72);
+        .withValue("hrvOutputPower", 75)
+        .withValue("hrvOutputIntake", 78)
+        .withValue("hrvOutputExhaust", 72);
 
     // Original state should be unchanged
     assertEquals(50, state.hrvOutputPower());

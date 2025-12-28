@@ -8,85 +8,40 @@
 - [ ] zvazit moznost template
 
 
-## MQTT
+## Presun kalibrace na stranu openhabu
+### Uloha python scriptu
+- prijmout PWM value pro GPIO pres MQTT a nastavit tuto hodnotu na vystupni pin
+- komunikacni protokol MQTT: 
+  - /homehab/hrv/pwm/gpio18 # number hodnota 0-100
+  - /homehab/hrv/pwm/gpio19 # number hodnota 0-100
+### Uloha openhabu
+- HrvCalculator vypocita vystupni hodnoty pro GPIO18 a GPIO19 na zaklade vsech vstupu
+- zohlednuje source GPIO18 a GPIO19
+- zohlednuje kalibracni tabulku
 
-### Cílová struktura
-```
-homehab/
-├── hrv/                      # HRV Bridge (Python na RPi)
-│   ├── value/                # výstupní hodnoty (command only)
-│   │   ├── power             # base power (0-100)
-│   │   ├── intake            # intake power
-│   │   ├── exhaust           # exhaust power
-│   │   └── test              # test power (pro kalibraci)
-│   ├── source/               # GPIO source mapping (bidirectional, retained)
-│   │   ├── gpio18            # power|intake|exhaust|test|off
-│   │   └── gpio19            # power|intake|exhaust|test|off
-│   └── calibration/          # kalibrační tabulky (bidirectional, retained)
-│       ├── gpio18            # JSON {"pwm%": voltage}
-│       └── gpio19            # JSON {"pwm%": voltage}
-├── panel/                    # ESP32 Panel
-│   ├── command/              # příkazy z panelu do OpenHAB
-│   │   ├── temporaryManualMode   # ON/OFF
-│   │   ├── temporaryBoostMode    # ON/OFF
-│   │   └── manualPower           # 0-100
-│   └── status                # online/offline (birth/will)
-├── state/                    # OpenHAB → Panel (stavy pro zobrazení)
-│   ├── hrvOutputPower
-│   ├── temperature
-│   ├── airHumidity
-│   ├── co2
-│   ├── pressure
-│   ├── manualMode
-│   ├── temporaryBoostMode
-│   ├── temporaryManualMode
-│   ├── smoke
-│   └── manualPower
-└── zigbee2mqtt/              # Zigbee senzory (neměnit - spravuje Z2M)
-    ├── <device>              # state JSON
-    ├── <device>/set          # command
-    └── bridge/devices        # seznam zařízení
-```
+2. **pwm-settings.html**: Test slider posila hodnoty do `hrvOutputTest` itemu.
+   Kdyz je source nastaven na "TEST", Python bridge pouzije linearni kalibraci.
 
-### Co je potřeba změnit
+**Instrukce pro kalibraci:**
+1. V pwm-settings.html nastavit GPIO source na "Test"
+2. Pridat radek s PWM % (napr. 50%)
+3. Kliknout na zelene ▶ tlacitko - nastavi PWM a automaticky prepne na TEST mode
+4. Zmerit skutecne napeti na vystupu multimetrem
+5. Zadat namerou hodnotu do "Voltage" pole
+6. Opakovat pro vice hodnot PWM (0%, 25%, 50%, 75%, 100%)
+7. Ulozit kalibraci a prepnout source zpet na pozadovany rezim
 
-#### HRV Bridge
-| Současný | Nový |
-|----------|------|
-| `homehab/hrv/power/set` | `homehab/hrv/value/power` |
-| `homehab/hrv/intake/set` | `homehab/hrv/value/intake` |
-| `homehab/hrv/exhaust/set` | `homehab/hrv/value/exhaust` |
-| `homehab/hrv/test/set` | `homehab/hrv/value/test` |
-| `homehab/hrv/gpio18/source` | `homehab/hrv/source/gpio18` |
-| `homehab/hrv/gpio19/source` | `homehab/hrv/source/gpio19` |
-| `homehab/hrv/calibration/gpio18/table` | `homehab/hrv/calibration/gpio18` |
-| `homehab/hrv/calibration/gpio19/table` | `homehab/hrv/calibration/gpio19` |
-
-#### Panel commands
-| Současný | Nový |
-|----------|------|
-| `homehab/panel/temporaryManualMode/command` | `homehab/panel/command/temporaryManualMode` |
-| `homehab/panel/temporaryBoostMode/command` | `homehab/panel/command/temporaryBoostMode` |
-| `homehab/panel/manualPower/command` | `homehab/panel/command/manualPower` |
-
-#### OpenHAB → Panel states
-| Současný | Nový |
-|----------|------|
-| `homehab/hrvOutputPower/state` | `homehab/state/hrvOutputPower` |
-| `homehab/temperature/state` | `homehab/state/temperature` |
-| `homehab/airHumidity/state` | `homehab/state/airHumidity` |
-| `homehab/co2/state` | `homehab/state/co2` |
-| `homehab/pressure/state` | `homehab/state/pressure` |
-| `homehab/manualMode/state` | `homehab/state/manualMode` |
-| `homehab/temporaryBoostMode/state` | `homehab/state/temporaryBoostMode` |
-| `homehab/temporaryManualMode/state` | `homehab/state/temporaryManualMode` |
-| `homehab/smoke/state` | `homehab/state/smoke` |
-| `homehab/manualPower/state` | `homehab/state/manualPower` |
-
-### Soubory k úpravě
-- [x] `src/main/python/dac_bridge/__init__.py` - Python HRV bridge
-- [x] `openhab-dev/conf/things/hrv-bridge.things` - OpenHAB MQTT thing
-- [x] `openhab-dev/conf/things/panel-mqtt.things` - Panel commands thing
-- [x] `openhab-dev/conf/rules/panel-mqtt.rules` - Panel state publishing
-- [x] `openhab-dev/conf/automation/jsr223/PanelMqttBridge.java` - Panel state publishing (Java)
-- [x] `esp32-panel/hrv-panel.yaml` - ESP32 panel firmware
+### TODO List
+- [x] Zjistit na jakem miste se nastavuje linearni kalibracni tabulka pro test output
+- [x] HrvModule: hrvOutput* uz nemaji svuj output mqtt channel
+- [x] HrvModule: hrvOutputGpio18, hrvOutputGpio19 - maji output channel viz zmeny komunikacniho protokolu
+- [x] HrvModule: prejmenovat gpio18Source -> sourceGpio18, gpio19Source -> sourceGpio19
+- [x] HrvModule: smazat dualMotorMode - neni potreba
+- [x] HrvCalculator: po vypocteni power, intake a exhaust, vypocist i hodnoty pro gpio18 a gpio19
+- [x] HrvCalculator: pro namapovani mezi output value a gpio se pouzije source [power, intake, exhaust, test, off]
+- [x] HrvCalculator: pro finalni korekci se pouzije kalibracni tabulka, kdyz je gpio 18 nebo 19 nastaven na test, nepouziva se kalibracni tabulka
+- [x] pwm-settings.html - aktualizovat po zmenach v HrvModule
+- [x] python script - vsechno smazat a nechat jen primitivni funkcionalitu - prijmuti mqtt zpravy nastavit pwm vystupni hodnotu
+- [x] aktualizovat dokumentaci MQTT
+- [x] pridat dokumentaci popisujici kalibraci (docs/PWM-CALIBRATION.md)
+- [ ] aktualizovat dokumentaci big picture

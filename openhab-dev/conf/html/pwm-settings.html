@@ -250,8 +250,8 @@
                     <h2>GPIO 18</h2>
 
                     <div class="form-group">
-                        <label for="gpio18Source">Source</label>
-                        <select id="gpio18Source">
+                        <label for="sourceGpio18">Source</label>
+                        <select id="sourceGpio18">
                             <option value="POWER">Power</option>
                             <option value="INTAKE">Intake</option>
                             <option value="EXHAUST">Exhaust</option>
@@ -279,8 +279,8 @@
                     <h2>GPIO 19</h2>
 
                     <div class="form-group">
-                        <label for="gpio19Source">Source</label>
-                        <select id="gpio19Source">
+                        <label for="sourceGpio19">Source</label>
+                        <select id="sourceGpio19">
                             <option value="POWER">Power</option>
                             <option value="INTAKE">Intake</option>
                             <option value="EXHAUST">Exhaust</option>
@@ -336,7 +336,7 @@
 
     <script>
         // Item names for this page
-        const SELECT_ITEMS = ['gpio18Source', 'gpio19Source'];
+        const SELECT_ITEMS = ['sourceGpio18', 'sourceGpio19'];
         const CALIBRATION_ITEMS = ['calibrationTableGpio18', 'calibrationTableGpio19'];
 
         // Load all items on page load
@@ -381,7 +381,7 @@
             }
         }
 
-        // Load calibration table from JSON
+        // Load calibration table from format "pwm:voltage,pwm:voltage,..."
         async function loadCalibrationTable(itemName) {
             try {
                 const response = await fetch(`/rest/items/${itemName}`, {
@@ -392,16 +392,23 @@
                 const container = document.getElementById(itemName);
                 container.innerHTML = '';
 
-                if (item.state && item.state !== 'NULL' && item.state !== '{}') {
+                if (item.state && item.state !== 'NULL' && item.state.trim() !== '') {
                     try {
-                        const data = JSON.parse(item.state);
+                        // Parse format "pwm:voltage,pwm:voltage,..."
+                        const entries = [];
+                        for (const pair of item.state.split(',')) {
+                            const [pwm, voltage] = pair.split(':');
+                            if (pwm !== undefined && voltage !== undefined) {
+                                entries.push([parseInt(pwm.trim()), parseFloat(voltage.trim())]);
+                            }
+                        }
                         // Sort by PWM value
-                        const entries = Object.entries(data).sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
+                        entries.sort((a, b) => a[0] - b[0]);
                         for (const [pwm, voltage] of entries) {
-                            addCalibrationRow(itemName, parseInt(pwm), parseFloat(voltage));
+                            addCalibrationRow(itemName, pwm, voltage);
                         }
                     } catch (e) {
-                        console.error(`Invalid JSON in ${itemName}:`, e);
+                        console.error(`Invalid calibration format in ${itemName}:`, e);
                     }
                 }
             } catch (error) {
@@ -441,9 +448,9 @@
             const pwmValue = parseInt(pwmInput.value) || 0;
 
             // Determine source item name from container id
-            // calibrationTableGpio18 -> gpio18Source
-            const gpioNum = containerId.replace('calibrationTable', '').toLowerCase();
-            const sourceItemName = gpioNum + 'Source';
+            // calibrationTableGpio18 -> sourceGpio18
+            const gpioNum = containerId.replace('calibrationTable', '');
+            const sourceItemName = 'source' + gpioNum;
             const sourceSelect = document.getElementById(sourceItemName);
 
             // Store original source value
@@ -494,11 +501,11 @@
             }
         }
 
-        // Save calibration table and source - build JSON from rows
+        // Save calibration table and source - build "pwm:voltage,pwm:voltage,..." format
         async function saveCalibration(itemName) {
             const container = document.getElementById(itemName);
             const rows = container.querySelectorAll('.calibration-row');
-            const data = {};
+            const entries = [];
 
             for (const row of rows) {
                 const pwmInput = row.querySelector('.pwm-input');
@@ -519,19 +526,24 @@
                         return;
                     }
 
-                    data[pwmVal] = voltageVal;
+                    entries.push([pwmVal, voltageVal]);
                 }
             }
 
+            // Sort by PWM value and build string
+            entries.sort((a, b) => a[0] - b[0]);
+            const calibrationString = entries.map(([pwm, voltage]) => `${pwm}:${voltage}`).join(',');
+
             // Get source item name and value
-            const gpioNum = itemName.replace('calibrationTable', '').toLowerCase();
-            const sourceItemName = gpioNum + 'Source';
+            // calibrationTableGpio18 -> sourceGpio18
+            const gpioNum = itemName.replace('calibrationTable', '');
+            const sourceItemName = 'source' + gpioNum;
             const sourceValue = document.getElementById(sourceItemName).value;
 
             showStatus(itemName, 'loading', 'Saving...');
 
             try {
-                await updateItem(itemName, JSON.stringify(data));
+                await updateItem(itemName, calibrationString);
                 await updateItem(sourceItemName, sourceValue);
                 showStatus(itemName, 'success', 'Saved!');
             } catch (error) {

@@ -1,12 +1,13 @@
 # HRV Bridge
 
-MQTT to PWM/DAC bridge for HRV power output control on Raspberry Pi.
+Simple MQTT to PWM bridge for HRV power output control on Raspberry Pi.
 
 ## Overview
 
-This service subscribes to MQTT messages and controls HRV output:
-- **Input**: 0-100 (percentage from OpenHAB `hrvOutputPower`)
-- **Output**: PWM signal (default) or DAC voltage
+This service is a **simple pass-through bridge** that receives PWM values from OpenHAB and sets them directly on GPIO pins. It does NOT perform any calculation or calibration - that is done in OpenHAB (`HrvCalculator.java`).
+
+- **Input**: 0-100 (PWM duty cycle from OpenHAB, already calibrated)
+- **Output**: PWM signal on GPIO 18 and GPIO 19
 
 ## Output Modes
 
@@ -48,8 +49,10 @@ Raspberry Pi SPI
 
 | Topic | Direction | Description |
 |-------|-----------|-------------|
-| `homehab/hrv/power/set` | Subscribe | Set power level (0-100) |
-| `homehab/hrv/power/state` | Publish | Current power level |
+| `homehab/hrv/pwm/gpio18` | Subscribe | PWM duty cycle for GPIO 18 (0-100) |
+| `homehab/hrv/pwm/gpio19` | Subscribe | PWM duty cycle for GPIO 19 (0-100) |
+
+**Note:** OpenHAB calculates the final PWM values (including source selection and calibration) and publishes them to these topics. The bridge simply sets the received values on the GPIO pins.
 
 ## Deployment
 
@@ -62,14 +65,8 @@ cd src/main/python
 
 Edit `/etc/systemd/system/dac-bridge.service` on Raspberry Pi:
 
-### PWM Mode (default)
 ```
-ExecStart=/usr/local/bin/hrv-bridge --mqtt-host localhost --mode pwm --pwm-pin 18
-```
-
-### DAC Mode
-```
-ExecStart=/usr/local/bin/hrv-bridge --mqtt-host localhost --mode dac
+ExecStart=/usr/local/bin/hrv-bridge --mqtt-host localhost
 ```
 
 ## Command Line Options
@@ -81,8 +78,9 @@ Options:
   -H, --mqtt-host HOST     MQTT broker host (default: localhost)
   -p, --mqtt-port PORT     MQTT broker port (default: 1883)
   -t, --topic-prefix PRE   MQTT topic prefix (default: homehab/hrv)
-  -m, --mode {pwm,dac}     Output mode (default: pwm)
-  --pwm-pin PIN            GPIO pin for PWM (default: 18)
+  -c, --client-id ID       MQTT client ID (default: hrv-bridge)
+  --gpio18 PIN             GPIO pin for channel 18 (default: 18)
+  --gpio19 PIN             GPIO pin for channel 19 (default: 19)
   --pwm-freq FREQ          PWM frequency in Hz (default: 2000)
   -v, --verbose            Enable verbose logging
 ```
@@ -166,67 +164,22 @@ cp High-Precision-AD-DA-Board-master/RaspberryPI/AD-DA/python/config.py dac_brid
 
 ## PWM Calibration
 
-PWM modules have non-linear output. The bridge uses a calibration table to correct this.
+**Calibration is handled by OpenHAB**, not by this bridge. The bridge simply passes through the PWM values it receives.
 
-### Calibration file
-
-`dac_bridge/pwm_calibration.py` contains:
-
-```python
-PWM_CALIBRATION = {
-    0: 0.0,      # at 0% PWM, measured 0.0V
-    5: 0.37,     # at 5% PWM, measured 0.37V
-    10: 1.48,    # at 10% PWM, measured 1.48V
-    ...
-    100: 10.19,  # at 100% PWM, measured 10.19V
-}
-
-PWM_CALIBRATION_LINEAR = {
-    0: 0.0,
-    100: 10.0,
-}
-
-ACTIVE_CALIBRATION = PWM_CALIBRATION  # switch for measuring
-```
-
-### How to calibrate
-
-1. **Switch to linear mode** for raw PWM output:
-   ```python
-   # ACTIVE_CALIBRATION = PWM_CALIBRATION
-   ACTIVE_CALIBRATION = PWM_CALIBRATION_LINEAR
-   ```
-
-2. **Deploy:**
-   ```bash
-   ./deploy-dac-bridge.sh robertfiser@openhab.home
-   ```
-
-3. **Measure:** Set OpenHAB `hrvOutputPower` to 0%, 5%, 10%, ... 100% and record voltages
-
-4. **Update calibration table** with measured values
-
-5. **Switch back to calibrated mode:**
-   ```python
-   ACTIVE_CALIBRATION = PWM_CALIBRATION
-   # ACTIVE_CALIBRATION = PWM_CALIBRATION_LINEAR
-   ```
-
-6. **Deploy again** and verify output matches expected values
-
-### When to recalibrate
-
-- After changing PWM module
-- After changing power supply voltage (e.g., 24V → 12V)
-- If output doesn't match expected values
+For calibration instructions, see:
+- `docs/PWM-CALIBRATION.md` - Full calibration guide
+- `openhab-dev/conf/html/pwm-settings.html` - Calibration UI
 
 ## Testing
 
 ```bash
-# Set power to 50%
-mosquitto_pub -h openhab.home -t 'homehab/hrv/power/set' -m '50'
+# Set GPIO18 PWM to 50%
+mosquitto_pub -h openhab.home -t 'homehab/hrv/pwm/gpio18' -m '50'
 
-# Monitor state
+# Set GPIO19 PWM to 75%
+mosquitto_pub -h openhab.home -t 'homehab/hrv/pwm/gpio19' -m '75'
+
+# Monitor all HRV topics
 mosquitto_sub -h openhab.home -t 'homehab/hrv/#' -v
 
 # Check service logs
