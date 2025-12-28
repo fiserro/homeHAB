@@ -4,6 +4,10 @@
 // Panel -> OpenHAB (commands from panel linked to existing items)
 Thing mqtt:topic:mosquitto:panel_commands "ESP32 Panel Commands" (mqtt:broker:mosquitto) {
     Channels:
+        // Panel "AUTO" button -> manualMode OFF (turns off permanent manual)
+        Type switch : manualMode "Panel Manual Mode" [
+            stateTopic="homehab/panel/command/manualMode"
+        ]
         // Panel "MANUAL" button -> temporaryManualMode (not permanent manualMode!)
         Type switch : tempManualMode "Panel Temp Manual Mode" [
             stateTopic="homehab/panel/command/temporaryManualMode"

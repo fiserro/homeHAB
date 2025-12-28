@@ -24,7 +24,7 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
   int POWER_OFF = 0;
 
   // Control modes
-  @InputItem
+  @InputItem(channel = "mqtt:topic:mosquitto:panel_commands:manualMode")
   @Option
   default boolean manualMode() {
     return false;
