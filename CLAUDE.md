@@ -91,26 +91,29 @@ openhab-dev/                    # Shared directory mounted into Docker
 
 **Deployment process:**
 ```bash
-# Build and deploy to local Docker OpenHAB
-./deploy.sh dev
+# Build and deploy all components to local Docker OpenHAB
+./scripts/deploy-all.sh dev
+
+# Or deploy individual components:
+./scripts/deploy-build.sh           # Maven build only
+./scripts/deploy-generator.sh dev   # Run generator (items, things, UI)
+./scripts/deploy-jar.sh dev         # Deploy JAR to OpenHAB
+./scripts/deploy-ui-pages.sh dev    # Deploy UI pages
+./scripts/deploy-panel.sh           # Compile ESP32 panel firmware
+./scripts/deploy-restart.sh dev     # Restart services
+
+# Skip panel or restart:
+./scripts/deploy-all.sh dev --skip-panel
+./scripts/deploy-all.sh dev --skip-restart
 ```
 
-This script:
+This process:
 1. Builds fat JAR with `mvn clean package`
-2. Copies JAR to `openhab-dev/conf/automation/lib/java/`
-3. OpenHAB automatically detects and loads the library
-
-**Manual deployment:**
-```bash
-# Build the project
-mvn clean package
-
-# Copy fat JAR to shared directory
-cp target/homeHAB-1.0-SNAPSHOT-shaded.jar openhab-dev/conf/automation/lib/java/
-
-# Copy rule scripts
-cp openhab-dev/conf/automation/jsr223/*.java openhab-dev/conf/automation/jsr223/
-```
+2. Runs generator for items, things, UI configs
+3. Copies JAR to `openhab-dev/conf/automation/lib/java/`
+4. Deploys UI pages
+5. Compiles ESP32 panel firmware
+6. Restarts OpenHAB
 
 **Docker commands:**
 ```bash
