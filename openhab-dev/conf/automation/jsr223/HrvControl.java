@@ -2,9 +2,14 @@ import helper.generated.Items;
 import helper.generated.Java223Script;
 import helper.rules.annotations.ItemStateChangeTrigger;
 import helper.rules.annotations.Rule;
+import io.github.fiserro.homehab.Calculator;
 import io.github.fiserro.homehab.HabStateFactory;
+import io.github.fiserro.homehab.hrv.CalibrationCalculator;
 import io.github.fiserro.homehab.hrv.HrvCalculator;
+import io.github.fiserro.homehab.hrv.IntakeExhaustCalculator;
+import io.github.fiserro.homehab.hrv.PowerCalculator;
 import java.time.Instant;
+import org.openhab.automation.java223.common.InjectBinding;
 import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.types.State;
@@ -18,11 +23,15 @@ import org.openhab.core.types.State;
  */
 public class HrvControl extends Java223Script {
 
+
+  @InjectBinding(enable = false)
+  private final Calculator<HabState> calculator = new HrvCalculator<>();
+
   @Rule(name = "item.changed", description = "Handle item changes")
   @ItemStateChangeTrigger(itemName = "*")
   public void onZigbeeItemChanged() {
     HabState state = HabStateFactory.of(HabState.class, items);
-    HabState calculated = new HrvCalculator<HabState>().calculate(state);
+    HabState calculated = calculator.apply(state);
     logger.info("modes: manual={}, tempManual={}, tempBoost={}",
         state.manualMode(), state.temporaryManualMode(), state.temporaryBoostMode());
     logger.info("manualPower: {}, outputPower: {}/{}",
