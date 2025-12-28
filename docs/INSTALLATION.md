@@ -435,6 +435,7 @@ configure
 set service dns forwarding options "host-record=openhab.home,192.168.1.132"
 set service dns forwarding options "host-record=zigbee.home,192.168.1.132"
 set service dns forwarding options "host-record=grafana.home,192.168.1.132"
+set service dns forwarding options "host-record=panel.home,192.168.1.134"
 set service dns forwarding listen-on switch0
 
 commit
