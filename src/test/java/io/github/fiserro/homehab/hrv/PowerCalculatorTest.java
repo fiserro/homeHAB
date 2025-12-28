@@ -19,14 +19,6 @@ import org.junit.jupiter.params.provider.CsvFileSource;
  */
 class PowerCalculatorTest {
 
-  @Test
-  void test() {
-    val state = OptionsFactory.create(HrvModule.class)
-        .withHrvOutputExhaust(30);
-    System.out.println(state.hrvOutputPower());
-  }
-
-
   @ParameterizedTest(name = "{0}")
   @CsvFileSource(resources = "/power-calculator-scenarios.csv", numLinesToSkip = 1, delimiter = ';')
   @DisplayName("PowerCalculator scenario")
