@@ -9,6 +9,7 @@ import java.util.function.Function;
  *
  * <p>This calculator delegates to:
  * <ol>
+ *   <li>{@link BypassCalculator} - calculates automatic bypass based on temperatures</li>
  *   <li>{@link PowerCalculator} - calculates base power from conditions</li>
  *   <li>{@link IntakeExhaustCalculator} - calculates intake/exhaust based on ratio</li>
  *   <li>{@link GpioMappingCalculator} - maps source selection to GPIO values</li>
@@ -19,7 +20,8 @@ import java.util.function.Function;
  */
 public class HrvCalculator<T extends HrvModule<T>> implements Calculator<T> {
 
-  private final Function<T, T> chain = new PowerCalculator<T>()
+  private final Function<T, T> chain = new BypassCalculator<T>()
+      .andThen(new PowerCalculator<>())
       .andThen(new IntakeExhaustCalculator<>())
       .andThen(new GpioMappingCalculator<>())
       .andThen(new CalibrationCalculator<>());

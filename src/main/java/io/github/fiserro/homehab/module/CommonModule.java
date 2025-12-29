@@ -18,7 +18,10 @@ import io.github.fiserro.options.Options;
 public interface CommonModule<T extends CommonModule<T>> extends Options<T> {
 
     @Option
-    default int temperature() { return 20; }
+    default float insideTemperature() { return 20; }
+
+    @ReadOnlyItem @Option
+    default float outsideTemperature() { return 0; }
 
     @Option
     default int pressure() { return 1000; }

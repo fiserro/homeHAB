@@ -19,15 +19,14 @@ import jakarta.validation.constraints.Min;
  *
  * @param <T> the implementing type (self-referential)
  */
-public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
+public interface HrvModule<T extends HrvModule<T>> extends CommonModule<T> {
 
   int POWER_OFF = 0;
 
-  /** Outside temperature from 1-Wire sensor (DS18B20) on GPIO27. */
-  @ReadOnlyItem
+  @InputItem
   @Option
-  default float outsideTemperature() {
-    return 0;
+  default float preferredTemperature() {
+    return 22;
   }
 
   // Control modes
@@ -310,9 +309,22 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
   T withBypass(boolean bypass);
 
   /**
+   * Hysteresis for automatic bypass control in °C.
+   * Bypass turns ON when insideTemp > preferredTemp + hysteresis/2 AND insideTemp > outsideTemp + hysteresis/2.
+   * Bypass turns OFF when insideTemp < preferredTemp - hysteresis/2 OR insideTemp < outsideTemp - hysteresis/2.
+   */
+  @Min(0)
+  @Max(5)
+  @InputItem
+  @Option
+  default float bypassHysteresis() {
+    return 1.0f;
+  }
+
+  /**
    * Determines if the output state of the current module has changed compared to the given module.
    * The comparison is performed across multiple output-related properties, including
-   * hrvOutputPower, hrvOutputIntake, hrvOutputExhaust, hrvOutputGpio18, and hrvOutputGpio19.
+   * hrvOutputPower, hrvOutputIntake, hrvOutputExhaust, hrvOutputGpio18, hrvOutputGpio19, and bypass.
    *
    * @param other the module to compare against
    * @return true if any of the output-related properties have different values between
@@ -323,7 +335,8 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
         || hrvOutputIntake() != other.hrvOutputIntake()
         || hrvOutputExhaust() != other.hrvOutputExhaust()
         || hrvOutputGpio18() != other.hrvOutputGpio18()
-        || hrvOutputGpio19() != other.hrvOutputGpio19();
+        || hrvOutputGpio19() != other.hrvOutputGpio19()
+        || bypass() != other.bypass();
   }
 
   /**

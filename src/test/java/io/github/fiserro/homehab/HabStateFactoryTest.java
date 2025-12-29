@@ -59,14 +59,14 @@ class HabStateFactoryTest {
     Map<String, State> itemStates = new HashMap<>();
     itemStates.put("airHumidity", mockState(new DecimalType(65)));
     itemStates.put("co2", mockState(new DecimalType(800)));
-    itemStates.put("temperature", mockState(new DecimalType(21)));
+    itemStates.put("insideTemperature", mockState(new DecimalType(21)));
     itemStates.put("smoke", mockState(OnOffType.ON));
 
     TestHabState habState = HabStateFactory.of(TestHabState.class, itemStates);
 
     assertEquals(65, habState.airHumidity());
     assertEquals(800, habState.co2());
-    assertEquals(21, habState.temperature());
+    assertEquals(21, habState.insideTemperature(), 0.01);
     assertTrue(habState.smoke());
   }
 

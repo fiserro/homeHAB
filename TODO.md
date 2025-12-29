@@ -23,9 +23,9 @@
 - [X] Rule - vypne rekuperaci pri detekci koure
 
 ## Bypass
-- [ ] teplomer venkovniho vzduchu
+- [X] teplomer venkovniho vzduchu
 - [ ] teplomer vychazejiciho vzduchu
-- [ ] Rule pro automaticky bypass v letnich teplotach
+- [X] Rule pro automaticky bypass v letnich teplotach
 
 ## Casovac pro vycisteni filtru
 - [ ] Items

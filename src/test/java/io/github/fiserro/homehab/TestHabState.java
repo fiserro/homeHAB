@@ -1,6 +1,5 @@
 package io.github.fiserro.homehab;
 
-import io.github.fiserro.homehab.module.CommonModule;
 import io.github.fiserro.homehab.module.FlowerModule;
 import io.github.fiserro.homehab.module.HrvModule;
 
@@ -13,14 +12,16 @@ import io.github.fiserro.homehab.module.HrvModule;
  *
  * <p>Note: No @OptionsExtensions annotation here because extensions are
  * passed explicitly via HabStateFactory.
+ *
+ * <p>Note: HrvModule extends CommonModule, so we don't need to extend it directly.
  */
-public interface TestHabState extends CommonModule<TestHabState>, HrvModule<TestHabState>, FlowerModule<TestHabState> {
+public interface TestHabState extends HrvModule<TestHabState>, FlowerModule<TestHabState> {
 
     @Override @MqttItem(value = {"aqara*Temperature", "soil*Temperature"}, numAgg = NumericAggregation.AVG)
-    default int temperature() { return CommonModule.super.temperature(); }
+    default float insideTemperature() { return HrvModule.super.insideTemperature(); }
 
     @Override @MqttItem(value = "aqara*Pressure", numAgg = NumericAggregation.AVG)
-    default int pressure() { return CommonModule.super.pressure(); }
+    default int pressure() { return HrvModule.super.pressure(); }
 
     @Override @MqttItem(value = {"aqara*Humidity"}, numAgg = NumericAggregation.MAX)
     default int airHumidity() { return HrvModule.super.airHumidity(); }

@@ -208,8 +208,8 @@
                     "default" : [ {
                       "component" : "oh-label-card",
                       "config" : {
-                        "title" : "Temperature",
-                        "item" : "temperature",
+                        "title" : "Inside Temp",
+                        "item" : "insideTemperature",
                         "icon" : "f7:thermometer",
                         "iconColor" : "orange"
                       }
@@ -550,6 +550,84 @@
                             "max" : 1500,
                             "step" : 50,
                             "icon" : "f7:wind"
+                          }
+                        } ]
+                      }
+                    } ]
+                  }
+                } ]
+              }
+            } ]
+          }
+        }, {
+          "component" : "oh-block",
+          "config" : {
+            "title" : "Bypass Settings"
+          },
+          "slots" : {
+            "default" : [ {
+              "component" : "oh-grid-row",
+              "config" : { },
+              "slots" : {
+                "default" : [ {
+                  "component" : "oh-grid-col",
+                  "config" : {
+                    "width" : "100"
+                  },
+                  "slots" : {
+                    "default" : [ {
+                      "component" : "oh-list-card",
+                      "config" : {
+                        "title" : "Automatic Bypass Control",
+                        "subtitle" : "Bypass heat exchanger when inside temp > preferred AND inside temp > outside",
+                        "icon" : "f7:arrow_right_to_line"
+                      },
+                      "slots" : {
+                        "default" : [ {
+                          "component" : "oh-stepper-item",
+                          "config" : {
+                            "title" : "Preferred Temperature",
+                            "subtitle" : "Target indoor temperature (°C)",
+                            "item" : "preferredTemperature",
+                            "min" : 15,
+                            "max" : 28,
+                            "step" : 0.5,
+                            "icon" : "f7:thermometer"
+                          }
+                        }, {
+                          "component" : "oh-stepper-item",
+                          "config" : {
+                            "title" : "Bypass Hysteresis",
+                            "subtitle" : "Temperature deadband to prevent rapid switching (°C)",
+                            "item" : "bypassHysteresis",
+                            "min" : 0,
+                            "max" : 5,
+                            "step" : 0.5,
+                            "icon" : "f7:arrow_left_right"
+                          }
+                        }, {
+                          "component" : "oh-label-item",
+                          "config" : {
+                            "title" : "Inside Temperature",
+                            "item" : "insideTemperature",
+                            "icon" : "f7:thermometer",
+                            "iconColor" : "orange"
+                          }
+                        }, {
+                          "component" : "oh-label-item",
+                          "config" : {
+                            "title" : "Outside Temperature",
+                            "item" : "outsideTemperature",
+                            "icon" : "f7:thermometer_sun",
+                            "iconColor" : "cyan"
+                          }
+                        }, {
+                          "component" : "oh-label-item",
+                          "config" : {
+                            "title" : "Bypass Status",
+                            "item" : "bypass",
+                            "icon" : "f7:arrow_right_to_line",
+                            "iconColor" : "=items.bypass.state === 'ON' ? 'blue' : 'gray'"
                           }
                         } ]
                       }

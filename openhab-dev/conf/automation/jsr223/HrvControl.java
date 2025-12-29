@@ -4,11 +4,7 @@ import helper.rules.annotations.ItemStateChangeTrigger;
 import helper.rules.annotations.Rule;
 import io.github.fiserro.homehab.Calculator;
 import io.github.fiserro.homehab.HabStateFactory;
-import io.github.fiserro.homehab.hrv.CalibrationCalculator;
-import io.github.fiserro.homehab.hrv.GpioMappingCalculator;
 import io.github.fiserro.homehab.hrv.HrvCalculator;
-import io.github.fiserro.homehab.hrv.IntakeExhaustCalculator;
-import io.github.fiserro.homehab.hrv.PowerCalculator;
 import java.time.Instant;
 import org.openhab.automation.java223.common.InjectBinding;
 import org.openhab.core.library.types.DecimalType;
@@ -40,6 +36,7 @@ public class HrvControl extends Java223Script {
       events.sendCommand(_items.hrvOutputExhaust(), calculated.hrvOutputExhaust());
       events.sendCommand(_items.hrvOutputGpio18(), calculated.hrvOutputGpio18());
       events.sendCommand(_items.hrvOutputGpio19(), calculated.hrvOutputGpio19());
+      events.sendCommand(_items.bypass(), calculated.bypass() ? OnOffType.ON : OnOffType.OFF);
     }
   }
 

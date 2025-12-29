@@ -1,0 +1,18 @@
+scenario;manualMode;temporaryManualMode;insideTemperature;outsideTemperature;preferredTemperature;bypassHysteresis;currentBypass;expectedBypass
+Manual mode active - bypass unchanged (was false);true;false;25.0;15.0;20.0;1.0;false;false
+Manual mode active - bypass unchanged (was true);true;false;18.0;20.0;20.0;1.0;true;true
+Temporary manual mode active - bypass unchanged (was false);false;true;25.0;15.0;20.0;1.0;false;false
+Temporary manual mode active - bypass unchanged (was true);false;true;18.0;20.0;20.0;1.0;true;true
+Inside > preferred + hysteresis AND > outside + hysteresis - bypass ON;false;false;22.0;15.0;20.0;1.0;false;true
+Inside > preferred + hysteresis AND > outside + hysteresis - already ON stays ON;false;false;22.0;15.0;20.0;1.0;true;true
+Inside < preferred - hysteresis - bypass OFF;false;false;19.0;15.0;20.0;1.0;true;false
+Inside < outside - hysteresis - bypass OFF;false;false;22.0;25.0;20.0;1.0;true;false
+Inside in hysteresis zone - keeps current state (false);false;false;20.3;15.0;20.0;1.0;false;false
+Inside in hysteresis zone - keeps current state (true);false;false;20.3;15.0;20.0;1.0;true;true
+Zero hysteresis - bypass ON at exact threshold;false;false;20.1;15.0;20.0;0.0;false;true
+Zero hysteresis - bypass OFF at exact threshold;false;false;19.9;15.0;20.0;0.0;true;false
+Large hysteresis - bypass stays OFF in wide zone;false;false;22.0;15.0;20.0;5.0;false;false
+Large hysteresis - bypass stays ON in wide zone;false;false;22.0;15.0;20.0;5.0;true;true
+Inside > preferred but < outside - bypass OFF;false;false;22.0;25.0;20.0;1.0;false;false
+Negative outside temperature - bypass ON;false;false;22.0;-5.0;20.0;1.0;false;true
+Both conditions just met - bypass ON;false;false;21.0;15.0;20.0;1.0;false;true

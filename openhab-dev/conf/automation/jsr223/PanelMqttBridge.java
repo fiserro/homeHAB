@@ -35,10 +35,10 @@ public class PanelMqttBridge extends Java223Script {
         publish("hrvOutputPower", _items.hrvOutputPower().getState());
     }
 
-    @Rule(name = "panel.temperature", description = "Publish temperature to panel")
-    @ItemStateChangeTrigger(itemName = Items.temperature)
-    public void onTemperatureChanged() {
-        publish("temperature", _items.temperature().getState());
+    @Rule(name = "panel.temperature", description = "Publish inside temperature to panel")
+    @ItemStateChangeTrigger(itemName = Items.insideTemperature)
+    public void onInsideTemperatureChanged() {
+        publish("temperature", _items.insideTemperature().getState());
     }
 
     @Rule(name = "panel.humidity", description = "Publish air humidity to panel")
