@@ -1,10 +1,10 @@
-# HRV Control Panel for OpenHAB
+# HRV Control Panel for OpenHAB - New Design
 # ESP32-P4-86-Panel-ETH-2RO
+# Screen: 720x720px
 
 substitutions:
   name: hrv-panel
   friendly_name: HRV Control Panel
-  # Screen auto-dim timeout in seconds (0 = disabled)
   screen_timeout: "60"
 
 esphome:
@@ -13,9 +13,9 @@ esphome:
   platformio_options:
     board_build.flash_mode: dio
   on_boot:
-    priority: -100  # Run after network is connected
+    priority: -100
     then:
-      - delay: 5s  # Wait for network to be ready
+      - delay: 5s
       - script.execute: fetch_initial_states
 
 esp32:
@@ -40,17 +40,26 @@ web_server:
 psram:
   speed: 200MHz
 
-# LDO for display
 esp_ldo:
   - channel: 3
     voltage: 2.5V
 
-# HTTP Request for REST API
 http_request:
   verify_ssl: false
   timeout: 10s
 
-# Ethernet (IP101 PHY)
+# Time sync
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: Europe/Prague
+    servers:
+      - 0.pool.ntp.org
+      - 1.pool.ntp.org
+    on_time_sync:
+      - lambda: 'ESP_LOGI("panel", "Time synchronized");'
+
+# Ethernet
 ethernet:
   type: IP101
   mdc_pin: GPIO31
@@ -61,12 +70,11 @@ ethernet:
   phy_addr: 1
   power_pin: GPIO51
 
-# MQTT for OpenHAB
+# MQTT
 mqtt:
   broker: zigbee.home
   port: 1883
   topic_prefix: homehab/panel
-
   birth_message:
     topic: homehab/panel/status
     payload: online
@@ -75,34 +83,42 @@ mqtt:
     payload: offline
 
   on_message:
-    # HRV Output Power
+    # HRV Output Power - display on slider
     - topic: homehab/state/hrvOutputPower
       then:
         - lambda: |-
             int power = atoi(x.c_str());
             id(power_value) = power;
-            lv_arc_set_value(id(arc_power), power);
-            lv_label_set_text_fmt(id(lbl_power_value), "%d%%", power);
-            // Color based on value
-            lv_color_t color;
-            if (power > 80) color = lv_color_hex(0xFF0000);
-            else if (power > 50) color = lv_color_hex(0xFFA500);
-            else color = lv_color_hex(0x00FF00);
-            lv_obj_set_style_arc_color(id(arc_power), color, LV_PART_INDICATOR);
+            lv_bar_set_value(id(fan_bar), power, LV_ANIM_ON);
+            lv_label_set_text_fmt(id(lbl_fan_value), "%d%%", power);
 
-    # Temperature
+    # Manual Power - sync slider position
+    - topic: homehab/state/manualPower
+      then:
+        - lambda: |-
+            id(ignore_slider_events) = true;
+            int power = atoi(x.c_str());
+            id(manual_power_value) = power;
+        - delay: 100ms
+        - lambda: 'id(ignore_slider_events) = false;'
+
+    # Inside Temperature
     - topic: homehab/state/temperature
       then:
         - lambda: |-
-            ESP_LOGI("panel", "MQTT temperature: '%s'", x.c_str());
             float temp = atof(x.c_str());
-            int temp_int = (int)(temp * 10);
-            int whole = temp_int / 10;
-            int frac = temp_int % 10;
-            if (frac < 0) frac = -frac;
-            lv_label_set_text_fmt(id(lbl_temp_value), "%d.%d", whole, frac);
+            id(inside_temp) = temp;
+            lv_label_set_text_fmt(id(lbl_indoor_value), "%.0f", temp);
 
-    # Air Humidity
+    # Outside Temperature
+    - topic: homehab/state/outsideTemperature
+      then:
+        - lambda: |-
+            float temp = atof(x.c_str());
+            id(outside_temp) = temp;
+            lv_label_set_text_fmt(id(lbl_outdoor_value), "%.0f", temp);
+
+    # Humidity
     - topic: homehab/state/airHumidity
       then:
         - lambda: |-
@@ -115,101 +131,55 @@ mqtt:
         - lambda: |-
             int co2 = atoi(x.c_str());
             lv_label_set_text_fmt(id(lbl_co2_value), "%d", co2);
-            // Color based on level
-            lv_color_t color;
-            if (co2 > 900) color = lv_color_hex(0xFF0000);
-            else if (co2 > 700) color = lv_color_hex(0xFFA500);
-            else color = lv_color_hex(0x00FF00);
-            lv_obj_set_style_text_color(id(lbl_co2_value), color, 0);
 
-    # Manual Mode state (permanent manual)
+    # Manual Mode
     - topic: homehab/state/manualMode
       then:
-        - lambda: |-
-            ESP_LOGI("panel", "MQTT manualMode = %s", x.c_str());
-            id(manual_mode_active) = (x == "ON");
-        - script.execute: update_button_colors
+        - lambda: 'id(manual_mode_active) = (x == "ON");'
+        - script.execute: update_mode_buttons
 
-    # Temporary Manual Mode state
+    # Temporary Manual Mode
     - topic: homehab/state/temporaryManualMode
       then:
-        - lambda: |-
-            ESP_LOGI("panel", "MQTT temporaryManualMode = %s", x.c_str());
-            id(temp_manual_mode_active) = (x == "ON");
-        - script.execute: update_button_colors
+        - lambda: 'id(temp_manual_mode_active) = (x == "ON");'
+        - script.execute: update_mode_buttons
 
-    # Temporary Boost Mode state
+    # Boost Mode
     - topic: homehab/state/temporaryBoostMode
       then:
-        - lambda: |-
-            ESP_LOGI("panel", "MQTT temporaryBoostMode = %s", x.c_str());
-            id(boost_mode_active) = (x == "ON");
-        - script.execute: update_button_colors
+        - lambda: 'id(boost_mode_active) = (x == "ON");'
+        - script.execute: update_mode_buttons
 
-    # Smoke detector (color only: green = OK, red = alarm)
-    - topic: homehab/state/smoke
-      then:
-        - lambda: |-
-            bool alarm = (x == "ON");
-            lv_obj_set_style_bg_color(id(smoke_indicator),
-              alarm ? lv_color_hex(0xFF0000) : lv_color_hex(0x00c853), 0);
-
-    # Gas detector (color only: green = OK, red = alarm)
-    - topic: homehab/state/gas
-      then:
-        - lambda: |-
-            bool alarm = (x == "ON");
-            lv_obj_set_style_bg_color(id(gas_indicator),
-              alarm ? lv_color_hex(0xFF0000) : lv_color_hex(0x00c853), 0);
-
-    # Filter cleaning (color only: green = OK, orange = clean needed)
-    - topic: homehab/state/filterCleaningRequired
-      then:
-        - lambda: |-
-            bool needs_cleaning = (x == "ON");
-            lv_obj_set_style_bg_color(id(filter_indicator),
-              needs_cleaning ? lv_color_hex(0xFFA500) : lv_color_hex(0x00c853), 0);
-
-    # Bypass state (color only: gray = off, blue = on)
+    # Bypass
     - topic: homehab/state/bypass
       then:
         - lambda: |-
-            ESP_LOGI("panel", "MQTT bypass = %s", x.c_str());
             id(bypass_active) = (x == "ON");
-            lv_obj_set_style_bg_color(id(btn_bypass),
-              id(bypass_active) ? lv_color_hex(0x2196F3) : lv_color_hex(0x37474F), 0);
+            // Update toggle visual
+            lv_obj_set_style_bg_color(id(bypass_toggle),
+              id(bypass_active) ? lv_color_hex(0x00d68f) : lv_color_hex(0x1a2332), 0);
+            // Move toggle knob
+            lv_obj_set_x(id(bypass_knob), id(bypass_active) ? 32 : 4);
+            lv_obj_set_style_bg_color(id(bypass_knob),
+              id(bypass_active) ? lv_color_hex(0xFFFFFF) : lv_color_hex(0x8892a4), 0);
 
-    # Manual Power (sync slider with OpenHAB value)
-    - topic: homehab/state/manualPower
+    # Smoke
+    - topic: homehab/state/smoke
       then:
-        - lambda: |-
-            // Set flag to ignore slider events triggered by programmatic update
-            id(ignore_slider_events) = true;
-            int power = atoi(x.c_str());
-            lv_slider_set_value(id(slider_manual_power), power, LV_ANIM_ON);
-        - delay: 200ms
-        - lambda: |-
-            id(ignore_slider_events) = false;
+        - lambda: 'id(smoke_alarm) = (x == "ON");'
+        - script.execute: update_alerts
 
-    # Pressure
-    - topic: homehab/state/pressure
+    # Gas
+    - topic: homehab/state/gas
       then:
-        - lambda: |-
-            ESP_LOGI("panel", "MQTT pressure: '%s'", x.c_str());
-            int pressure = (int)(atof(x.c_str()) + 0.5);
-            lv_label_set_text_fmt(id(lbl_pressure_value), "%d", pressure);
+        - lambda: 'id(gas_alarm) = (x == "ON");'
+        - script.execute: update_alerts
 
-    # Outside Temperature
-    - topic: homehab/state/outsideTemperature
+    # Filter
+    - topic: homehab/state/filterCleaningRequired
       then:
-        - lambda: |-
-            ESP_LOGI("panel", "MQTT outsideTemperature: '%s'", x.c_str());
-            float temp = atof(x.c_str());
-            int temp_int = (int)(temp * 10);
-            int whole = temp_int / 10;
-            int frac = temp_int % 10;
-            if (frac < 0) frac = -frac;
-            lv_label_set_text_fmt(id(lbl_outside_temp), "%d.%d", whole, frac);
+        - lambda: 'id(filter_cleaning_required) = (x == "ON");'
+        - script.execute: update_alerts
 
 # I2C for touchscreen
 i2c:
@@ -218,7 +188,7 @@ i2c:
   scan: true
   frequency: 400kHz
 
-# Display (MIPI DSI)
+# Display
 external_components:
   - source: github://pr#10562
     components: [mipi_dsi]
@@ -232,21 +202,22 @@ display:
       number: GPIO27
       inverted: false
 
-# Touchscreen (GT911)
+# Touchscreen
 touchscreen:
   platform: gt911
   id: main_touch
   on_touch:
-    # Reset inactivity counter on any touch
     - lambda: 'id(inactivity_seconds) = 0;'
   on_release:
-    # Wake up screen if dimmed
     - if:
-        condition: lvgl.is_paused
+        condition:
+          lambda: 'return id(screen_off);'
         then:
           - lvgl.resume:
           - light.turn_on: display_backlight
-          - lambda: 'id(inactivity_seconds) = 0;'
+          - lambda: |-
+              id(inactivity_seconds) = 0;
+              id(screen_off) = false;
 
 # Backlight
 output:
@@ -269,6 +240,15 @@ globals:
   - id: power_value
     type: int
     initial_value: '0'
+  - id: manual_power_value
+    type: int
+    initial_value: '50'
+  - id: inside_temp
+    type: float
+    initial_value: '0'
+  - id: outside_temp
+    type: float
+    initial_value: '0'
   - id: manual_mode_active
     type: bool
     initial_value: 'false'
@@ -281,35 +261,29 @@ globals:
   - id: bypass_active
     type: bool
     initial_value: 'false'
+  - id: smoke_alarm
+    type: bool
+    initial_value: 'false'
+  - id: gas_alarm
+    type: bool
+    initial_value: 'false'
+  - id: filter_cleaning_required
+    type: bool
+    initial_value: 'false'
+  - id: network_connected
+    type: bool
+    initial_value: 'false'
   - id: ignore_slider_events
     type: bool
     initial_value: 'false'
   - id: inactivity_seconds
     type: int
     initial_value: '0'
+  - id: screen_off
+    type: bool
+    initial_value: 'false'
 
-# Colors
-color:
-  - id: color_bg
-    hex: "1a1a2e"
-  - id: color_card
-    hex: "16213e"
-  - id: color_accent
-    hex: "0f3460"
-  - id: color_text
-    hex: "e8e8e8"
-  - id: color_text_dim
-    hex: "888888"
-  - id: color_green
-    hex: "00c853"
-  - id: color_orange
-    hex: "ff9800"
-  - id: color_red
-    hex: "f44336"
-  - id: color_blue
-    hex: "2196f3"
-
-# LVGL UI
+# LVGL UI - New Design
 lvgl:
   id: lvgl_main
   buffer_size: 100%
@@ -319,586 +293,735 @@ lvgl:
 
   style_definitions:
     - id: style_card
-      bg_color: 0x16213e
-      radius: 12
-      pad_all: 12
-      border_width: 0
-
-    - id: style_btn
-      bg_color: 0x37474F
-      radius: 8
-      pad_all: 10
-      text_color: 0xFFFFFF
+      bg_color: 0x151c25
+      radius: 24
+      pad_all: 24
+      border_width: 1
+      border_color: 0x1f2937
 
   pages:
-    # ==================== MAIN PAGE ====================
     - id: page_main
-      bg_color: 0x1a1a2e
+      bg_color: 0x0a0e14
       widgets:
-        # Header
+        # ==================== HEADER ====================
+        # Time (large)
         - label:
-            align: TOP_MID
-            y: 15
-            text: "HRV Control"
-            text_font: montserrat_24
-            text_color: 0xe8e8e8
+            id: lbl_time
+            x: 28
+            y: 20
+            text: "00:00"
+            text_font: montserrat_48
+            text_color: 0x4facfe
 
-        # ========== POWER ARC (center top) ==========
+        # Date
+        - label:
+            id: lbl_date
+            x: 200
+            y: 42
+            text: "PO 1. LEDNA"
+            text_font: montserrat_14
+            text_color: 0x8892a4
+
+        # Mode selector background
         - obj:
-            align: TOP_MID
-            y: 50
-            width: 200
-            height: 200
+            x: 380
+            y: 20
+            width: 260
+            height: 48
+            bg_color: 0x151c25
+            radius: 14
+            border_width: 1
+            border_color: 0x1f2937
+            widgets:
+              # VYP button
+              - button:
+                  id: btn_off
+                  x: 4
+                  y: 4
+                  width: 58
+                  height: 40
+                  bg_color: 0x151c25
+                  radius: 10
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "VYP"
+                        text_font: montserrat_12
+                        text_color: 0x5a6578
+                  on_click:
+                    - mqtt.publish:
+                        topic: homehab/panel/command/manualMode
+                        payload: "ON"
+                    - mqtt.publish:
+                        topic: homehab/panel/command/manualPower
+                        payload: "0"
+
+              # MAN button
+              - button:
+                  id: btn_man
+                  x: 66
+                  y: 4
+                  width: 58
+                  height: 40
+                  bg_color: 0x151c25
+                  radius: 10
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "MAN"
+                        text_font: montserrat_12
+                        text_color: 0x5a6578
+                  on_click:
+                    - mqtt.publish:
+                        topic: homehab/panel/command/temporaryManualMode
+                        payload: "ON"
+
+              # BOOST button
+              - button:
+                  id: btn_boost
+                  x: 128
+                  y: 4
+                  width: 58
+                  height: 40
+                  bg_color: 0x151c25
+                  radius: 10
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "BOOST"
+                        text_font: montserrat_12
+                        text_color: 0x5a6578
+                  on_click:
+                    - mqtt.publish:
+                        topic: homehab/panel/command/temporaryBoostMode
+                        payload: "ON"
+
+              # AUTO button
+              - button:
+                  id: btn_auto
+                  x: 190
+                  y: 4
+                  width: 62
+                  height: 40
+                  bg_color: 0x00d68f
+                  radius: 10
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "AUTO"
+                        text_font: montserrat_12
+                        text_color: 0xFFFFFF
+                  on_click:
+                    - mqtt.publish:
+                        topic: homehab/panel/command/manualMode
+                        payload: "OFF"
+                    - mqtt.publish:
+                        topic: homehab/panel/command/temporaryManualMode
+                        payload: "OFF"
+                    - mqtt.publish:
+                        topic: homehab/panel/command/temporaryBoostMode
+                        payload: "OFF"
+
+        # Network indicator
+        - obj:
+            id: network_indicator
+            x: 652
+            y: 20
+            width: 48
+            height: 48
+            bg_color: 0x112233
+            radius: 12
+            border_width: 1
+            border_color: 0x4facfe33
+            widgets:
+              - label:
+                  id: lbl_network_icon
+                  align: CENTER
+                  text: "W"
+                  text_font: montserrat_24
+                  text_color: 0x4facfe
+
+        # Header separator line
+        - obj:
+            x: 28
+            y: 82
+            width: 664
+            height: 1
+            bg_color: 0x1f2937
+
+        # ==================== STATS GRID (2x2) ====================
+        # Outdoor Temperature (top left)
+        - obj:
+            x: 28
+            y: 100
+            width: 322
+            height: 150
             styles: style_card
             widgets:
-              - arc:
-                  id: arc_power
-                  align: CENTER
-                  width: 160
-                  height: 160
-                  min_value: 0
-                  max_value: 100
-                  value: 0
-                  rotation: 135
-                  end_angle: 270
-                  arc_width: 15
-                  indicator:
-                    arc_width: 15
-                    arc_color: 0x00c853
-                  knob:
-                    bg_opa: TRANSP
+              # Top colored bar
+              - obj:
+                  x: 0
+                  y: -24
+                  width: 322
+                  height: 4
+                  bg_color: 0x4facfe
+                  radius: 2
+              # Icon + Label row
+              - obj:
+                  x: 0
+                  y: 0
+                  width: 40
+                  height: 40
+                  bg_color: 0x4facfe26
+                  radius: 12
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "O"
+                        text_font: montserrat_18
+                        text_color: 0x00f2fe
               - label:
-                  id: lbl_power_value
-                  align: CENTER
-                  text: "0%"
-                  text_font: montserrat_36
-                  text_color: 0xFFFFFF
-              - label:
-                  align: CENTER
-                  y: 35
-                  text: "Power"
+                  x: 52
+                  y: 10
+                  text: "VENKOVNI"
                   text_font: montserrat_14
-                  text_color: 0x888888
-
-        # ========== SENSOR CARDS (row below arc) ==========
-        # Inside Temperature
-        - obj:
-            x: 20
-            y: 270
-            width: 130
-            height: 100
-            styles: style_card
-            widgets:
+                  text_color: 0x8892a4
+              # Value
               - label:
-                  align: TOP_LEFT
-                  text: "Inside"
-                  text_font: montserrat_14
-                  text_color: 0x888888
-              - label:
-                  id: lbl_temp_value
-                  align: CENTER
-                  y: 5
+                  id: lbl_outdoor_value
+                  x: 0
+                  y: 60
                   text: "--"
-                  text_font: montserrat_34
-                  text_color: 0xFFA500
+                  text_font: montserrat_48
+                  text_color: 0x00f2fe
               - label:
-                  align: CENTER
-                  y: 35
+                  x: 100
+                  y: 70
                   text: "°C"
-                  text_font: montserrat_14
-                  text_color: 0x888888
+                  text_font: montserrat_24
+                  text_color: 0x8892a4
 
-        # Outside Temperature
+        # Indoor Temperature (top right)
         - obj:
-            x: 160
-            y: 270
-            width: 130
-            height: 100
+            x: 370
+            y: 100
+            width: 322
+            height: 150
             styles: style_card
             widgets:
+              - obj:
+                  x: 0
+                  y: -24
+                  width: 322
+                  height: 4
+                  bg_color: 0x00d68f
+                  radius: 2
+              - obj:
+                  x: 0
+                  y: 0
+                  width: 40
+                  height: 40
+                  bg_color: 0x00d68f26
+                  radius: 12
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "#"
+                        text_font: montserrat_18
+                        text_color: 0x00d68f
               - label:
-                  align: TOP_LEFT
-                  text: "Outside"
+                  x: 52
+                  y: 10
+                  text: "VNITRNI"
                   text_font: montserrat_14
-                  text_color: 0x888888
+                  text_color: 0x8892a4
               - label:
-                  id: lbl_outside_temp
-                  align: CENTER
-                  y: 5
+                  id: lbl_indoor_value
+                  x: 0
+                  y: 60
                   text: "--"
-                  text_font: montserrat_34
-                  text_color: 0x00BCD4
+                  text_font: montserrat_48
+                  text_color: 0x00d68f
               - label:
-                  align: CENTER
-                  y: 35
+                  x: 100
+                  y: 70
                   text: "°C"
-                  text_font: montserrat_14
-                  text_color: 0x888888
+                  text_font: montserrat_24
+                  text_color: 0x8892a4
 
-        # Humidity
+        # Humidity (bottom left)
         - obj:
-            x: 300
-            y: 270
-            width: 130
-            height: 100
+            x: 28
+            y: 268
+            width: 322
+            height: 150
             styles: style_card
             widgets:
+              - obj:
+                  x: 0
+                  y: -24
+                  width: 322
+                  height: 4
+                  bg_color: 0xa78bfa
+                  radius: 2
+              - obj:
+                  x: 0
+                  y: 0
+                  width: 40
+                  height: 40
+                  bg_color: 0xa78bfa26
+                  radius: 12
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "~"
+                        text_font: montserrat_18
+                        text_color: 0xa78bfa
               - label:
-                  align: TOP_LEFT
-                  text: "Humidity"
+                  x: 52
+                  y: 10
+                  text: "VLHKOST"
                   text_font: montserrat_14
-                  text_color: 0x888888
+                  text_color: 0x8892a4
               - label:
                   id: lbl_humidity_value
-                  align: CENTER
-                  y: 5
+                  x: 0
+                  y: 60
                   text: "--"
-                  text_font: montserrat_34
-                  text_color: 0x2196F3
+                  text_font: montserrat_48
+                  text_color: 0xa78bfa
               - label:
-                  align: CENTER
-                  y: 35
+                  x: 100
+                  y: 70
                   text: "%"
-                  text_font: montserrat_14
-                  text_color: 0x888888
+                  text_font: montserrat_24
+                  text_color: 0x8892a4
 
-        # CO2
+        # CO2 (bottom right)
         - obj:
-            x: 440
-            y: 270
-            width: 130
-            height: 100
+            x: 370
+            y: 268
+            width: 322
+            height: 150
             styles: style_card
             widgets:
+              - obj:
+                  x: 0
+                  y: -24
+                  width: 322
+                  height: 4
+                  bg_color: 0xff9f43
+                  radius: 2
+              - obj:
+                  x: 0
+                  y: 0
+                  width: 40
+                  height: 40
+                  bg_color: 0xff9f4326
+                  radius: 12
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "o"
+                        text_font: montserrat_18
+                        text_color: 0xff9f43
               - label:
-                  align: TOP_LEFT
+                  x: 52
+                  y: 10
                   text: "CO2"
                   text_font: montserrat_14
-                  text_color: 0x888888
+                  text_color: 0x8892a4
               - label:
                   id: lbl_co2_value
-                  align: CENTER
-                  y: 5
+                  x: 0
+                  y: 60
                   text: "--"
-                  text_font: montserrat_34
-                  text_color: 0x00c853
+                  text_font: montserrat_48
+                  text_color: 0xff9f43
               - label:
-                  align: CENTER
-                  y: 35
+                  x: 150
+                  y: 70
                   text: "ppm"
-                  text_font: montserrat_14
-                  text_color: 0x888888
+                  text_font: montserrat_24
+                  text_color: 0x8892a4
 
-        # Pressure
+        # ==================== FAN SPEED SECTION ====================
         - obj:
-            x: 580
-            y: 270
-            width: 130
-            height: 100
+            x: 28
+            y: 436
+            width: 664
+            height: 110
             styles: style_card
             widgets:
+              # Icon
+              - obj:
+                  x: 0
+                  y: 8
+                  width: 40
+                  height: 40
+                  bg_color: 0x4facfe26
+                  radius: 12
+                  widgets:
+                    - label:
+                        id: lbl_fan_icon
+                        align: CENTER
+                        text: "@"
+                        text_font: montserrat_18
+                        text_color: 0x4facfe
+              # Label
               - label:
-                  align: TOP_LEFT
-                  text: "Pressure"
+                  x: 52
+                  y: 18
+                  text: "RYCHLOST VENTILATORU"
                   text_font: montserrat_14
-                  text_color: 0x888888
+                  text_color: 0x8892a4
+              # Value
               - label:
-                  id: lbl_pressure_value
-                  align: CENTER
-                  y: 5
-                  text: "--"
-                  text_font: montserrat_26
-                  text_color: 0x888888
-              - label:
-                  align: CENTER
-                  y: 30
-                  text: "hPa"
-                  text_font: montserrat_14
-                  text_color: 0x888888
-
-        # ========== SAFETY INDICATORS ==========
-        # Smoke (green = OK, red = alarm)
-        - obj:
-            id: smoke_indicator
-            x: 20
-            y: 380
-            width: 110
-            height: 65
-            bg_color: 0x00c853
-            radius: 8
-            widgets:
-              - label:
-                  align: CENTER
-                  text: "Smoke"
-                  text_font: montserrat_18
-                  text_color: 0xFFFFFF
-
-        # Gas (green = OK, red = alarm)
-        - obj:
-            id: gas_indicator
-            x: 135
-            y: 380
-            width: 110
-            height: 65
-            bg_color: 0x00c853
-            radius: 8
-            widgets:
-              - label:
-                  align: CENTER
-                  text: "Gas"
-                  text_font: montserrat_18
-                  text_color: 0xFFFFFF
-
-        # Filter (green = OK, orange = clean needed)
-        - obj:
-            id: filter_indicator
-            x: 250
-            y: 380
-            width: 110
-            height: 65
-            bg_color: 0x00c853
-            radius: 8
-            widgets:
-              - label:
-                  align: CENTER
-                  text: "Filter"
-                  text_font: montserrat_18
-                  text_color: 0xFFFFFF
-
-        # ========== BYPASS TOGGLE ==========
-        # (gray = off, blue = on)
-        - button:
-            id: btn_bypass
-            x: 250
-            y: 380
-            width: 130
-            height: 65
-            bg_color: 0x37474F
-            radius: 8
-            widgets:
-              - label:
-                  align: CENTER
-                  text: "Bypass"
-                  text_font: montserrat_18
-                  text_color: 0xFFFFFF
-            on_click:
-              then:
-                - mqtt.publish:
-                    topic: homehab/panel/command/bypass
-                    payload: !lambda |-
-                      return id(bypass_active) ? "OFF" : "ON";
-
-        # ========== MANUAL POWER SLIDER (full width above buttons) ==========
-        - obj:
-            align: BOTTOM_MID
-            y: -115
-            width: 760
-            height: 50
-            styles: style_card
-            widgets:
-              - slider:
-                  id: slider_manual_power
-                  align: CENTER
-                  width: 720
-                  height: 35
-                  min_value: 0
-                  max_value: 100
-                  value: 50
-                  indicator:
-                    bg_color: 0x2196F3
-                  knob:
-                    bg_color: 0xFFFFFF
-                  on_release:
+                  id: lbl_fan_value
+                  align: TOP_RIGHT
+                  y: 8
+                  text: "0%"
+                  text_font: montserrat_36
+                  text_color: 0x4facfe
+              # Progress bar (clickable)
+              - obj:
+                  id: fan_bar_container
+                  x: 0
+                  y: 58
+                  width: 616
+                  height: 20
+                  bg_color: 0x4facfe1a
+                  radius: 10
+                  widgets:
+                    - bar:
+                        id: fan_bar
+                        align: LEFT_MID
+                        x: 0
+                        y: 0
+                        width: 616
+                        height: 20
+                        min_value: 0
+                        max_value: 100
+                        value: 0
+                        indicator:
+                          bg_color: 0x4facfe
+                          radius: 10
+                  on_click:
                     then:
-                      - if:
-                          condition:
-                            lambda: 'return !id(ignore_slider_events);'
-                          then:
-                            - mqtt.publish:
-                                topic: homehab/panel/command/manualPower
-                                payload: !lambda |-
-                                  return to_string((int)x);
+                      - mqtt.publish:
+                          topic: homehab/panel/command/manualPower
+                          payload: !lambda |-
+                            if (id(ignore_slider_events)) return std::string("0");
+                            lv_point_t point;
+                            lv_indev_get_point(lv_indev_get_act(), &point);
+                            int power = ((point.x - 56) * 100) / 616;
+                            if (power < 0) power = 0;
+                            if (power > 100) power = 100;
+                            ESP_LOGI("panel", "Fan bar clicked: power=%d", power);
+                            return to_string(power);
 
-        # ========== MODE BUTTONS ==========
-        # Auto Mode Button - turns off all manual modes
-        - button:
-            id: btn_auto
-            align: BOTTOM_LEFT
-            x: 30
-            y: -40
-            width: 200
-            height: 65
-            bg_color: 0x00c853
-            radius: 10
+        # ==================== BOTTOM ROW ====================
+        # Bypass Toggle (left)
+        - obj:
+            x: 28
+            y: 564
+            width: 322
+            height: 80
+            styles: style_card
+            on_click:
+              - mqtt.publish:
+                  topic: homehab/panel/command/bypass
+                  payload: !lambda 'return id(bypass_active) ? "OFF" : "ON";'
+            widgets:
+              # Icon
+              - obj:
+                  x: 0
+                  y: 8
+                  width: 44
+                  height: 44
+                  bg_color: 0x00d68f1a
+                  radius: 14
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "<>"
+                        text_font: montserrat_20
+                        text_color: 0x00d68f
+              # Label
+              - label:
+                  x: 58
+                  y: 18
+                  text: "BYPASS"
+                  text_font: montserrat_14
+                  text_color: 0x8892a4
+              # Toggle switch
+              - obj:
+                  id: bypass_toggle
+                  align: RIGHT_MID
+                  x: -10
+                  width: 60
+                  height: 32
+                  bg_color: 0x1a2332
+                  radius: 16
+                  widgets:
+                    - obj:
+                        id: bypass_knob
+                        x: 4
+                        y: 4
+                        width: 24
+                        height: 24
+                        bg_color: 0x8892a4
+                        radius: 12
+
+        # Alert Area (right)
+        - obj:
+            id: alert_area
+            x: 370
+            y: 564
+            width: 322
+            height: 80
+            styles: style_card
+            bg_color: 0x151c25
             widgets:
               - label:
-                  align: CENTER
-                  text: "AUTO"
-                  text_font: montserrat_24
-                  text_color: 0xFFFFFF
-            on_click:
-              then:
-                # Turn off all manual modes
-                - mqtt.publish:
-                    topic: homehab/panel/command/manualMode
-                    payload: "OFF"
-                - mqtt.publish:
-                    topic: homehab/panel/command/temporaryManualMode
-                    payload: "OFF"
-                - mqtt.publish:
-                    topic: homehab/panel/command/temporaryBoostMode
-                    payload: "OFF"
-
-        # Boost Mode Button - activates temporaryBoostMode
-        - button:
-            id: btn_boost
-            align: BOTTOM_MID
-            y: -40
-            width: 200
-            height: 65
-            bg_color: 0x37474F
-            radius: 10
-            widgets:
+                  id: lbl_alert_icon
+                  x: 10
+                  y: 16
+                  text: ""
+                  text_font: montserrat_28
+                  text_color: 0x5a6578
               - label:
+                  id: lbl_alert_text
                   align: CENTER
-                  text: "BOOST"
-                  text_font: montserrat_24
-                  text_color: 0xFFFFFF
-            on_click:
-              then:
-                - mqtt.publish:
-                    topic: homehab/panel/command/temporaryBoostMode
-                    payload: "ON"
+                  text: "Zadna upozorneni"
+                  text_font: montserrat_14
+                  text_color: 0x5a6578
 
-        # Manual Mode Button - activates temporaryManualMode
-        - button:
-            id: btn_manual
-            align: BOTTOM_RIGHT
-            x: -30
-            y: -40
-            width: 200
-            height: 65
-            bg_color: 0x37474F
-            radius: 10
-            widgets:
-              - label:
-                  align: CENTER
-                  text: "MANUAL"
-                  text_font: montserrat_24
-                  text_color: 0xFFFFFF
-            on_click:
-              then:
-                - mqtt.publish:
-                    topic: homehab/panel/command/temporaryManualMode
-                    payload: "ON"
-
-        # ========== FOOTER (IP address) ==========
-        - label:
-            id: lbl_ip
-            align: BOTTOM_MID
-            y: -10
-            text: "Connecting..."
-            text_font: montserrat_14
-            text_color: 0x888888
-
-# Sensors publishing to MQTT
+# Sensors
 sensor:
   - platform: uptime
     name: "Uptime"
     update_interval: 60s
 
+binary_sensor:
+  - platform: status
+    name: "Status"
+    id: device_status
+    on_state:
+      - lambda: 'id(network_connected) = x;'
+      - script.execute: update_network_indicator
+
 text_sensor:
   - platform: ethernet_info
     ip_address:
       name: "IP Address"
-      on_value:
-        then:
-          - lambda: |-
-              lv_label_set_text(id(lbl_ip), x.c_str());
 
-# Interval for screen auto-dim
+# Intervals
 interval:
+  # Update time display every second
   - interval: 1s
     then:
       - lambda: |-
-          // Skip if timeout disabled
+          auto time = id(sntp_time).now();
+          if (time.is_valid()) {
+            lv_label_set_text_fmt(id(lbl_time), "%02d:%02d", time.hour, time.minute);
+
+            // Czech day names
+            const char* days[] = {"NE", "PO", "UT", "ST", "CT", "PA", "SO"};
+            const char* months[] = {"LEDNA", "UNORA", "BREZNA", "DUBNA", "KVETNA", "CERVNA",
+                                    "CERVENCE", "SRPNA", "ZARI", "RIJNA", "LISTOPADU", "PROSINCE"};
+            int dow = time.day_of_week - 1;  // 1=Sunday in ESPHome
+            if (dow < 0) dow = 6;
+            lv_label_set_text_fmt(id(lbl_date), "%s %d. %s", days[dow], time.day_of_month, months[time.month - 1]);
+          }
+
+          // Screen timeout
           int timeout = ${screen_timeout};
-          if (timeout <= 0) return;
-          id(inactivity_seconds)++;
+          if (timeout > 0) {
+            id(inactivity_seconds)++;
+          }
       - if:
           condition:
-            lambda: 'return id(inactivity_seconds) == ${screen_timeout} && ${screen_timeout} > 0;'
+            lambda: 'return id(inactivity_seconds) >= ${screen_timeout} && !id(screen_off);'
           then:
-            - lambda: 'ESP_LOGI("panel", "Screen timeout - dimming display");'
+            - lambda: 'id(screen_off) = true;'
             - light.turn_off: display_backlight
             - lvgl.pause:
 
 # Scripts
 script:
-  # Update button colors based on current mode states
-  - id: update_button_colors
+  - id: update_mode_buttons
     then:
       - lambda: |-
-          ESP_LOGI("panel", "update_button_colors: manual=%d, temp_manual=%d, boost=%d",
-                   id(manual_mode_active), id(temp_manual_mode_active), id(boost_mode_active));
-          // AUTO button: green if no manual modes active
-          bool auto_active = !id(manual_mode_active) && !id(temp_manual_mode_active) && !id(boost_mode_active);
-          if (auto_active) {
-            lv_obj_set_style_bg_color(id(btn_auto), lv_color_hex(0x00c853), 0);  // Green
+          // Determine active mode
+          bool off_mode = id(manual_mode_active) && (id(manual_power_value) == 0);
+          bool manual_mode = id(temp_manual_mode_active);
+          bool boost_mode = id(boost_mode_active);
+          bool auto_mode = !id(manual_mode_active) && !id(temp_manual_mode_active) && !id(boost_mode_active);
+
+          // VYP button
+          lv_obj_set_style_bg_color(id(btn_off),
+            off_mode ? lv_color_hex(0x5a6578) : lv_color_hex(0x151c25), 0);
+
+          // MAN button
+          lv_obj_set_style_bg_color(id(btn_man),
+            manual_mode ? lv_color_hex(0x4facfe) : lv_color_hex(0x151c25), 0);
+
+          // BOOST button
+          lv_obj_set_style_bg_color(id(btn_boost),
+            boost_mode ? lv_color_hex(0xff9f43) : lv_color_hex(0x151c25), 0);
+
+          // AUTO button
+          lv_obj_set_style_bg_color(id(btn_auto),
+            auto_mode ? lv_color_hex(0x00d68f) : lv_color_hex(0x151c25), 0);
+
+  - id: update_network_indicator
+    then:
+      - lambda: |-
+          if (id(network_connected)) {
+            lv_obj_set_style_bg_color(id(network_indicator), lv_color_hex(0x4facfe1a), 0);
+            lv_obj_set_style_border_color(id(network_indicator), lv_color_hex(0x4facfe33), 0);
+            lv_obj_set_style_text_color(id(lbl_network_icon), lv_color_hex(0x4facfe), 0);
           } else {
-            lv_obj_set_style_bg_color(id(btn_auto), lv_color_hex(0x37474F), 0);  // Gray
+            lv_obj_set_style_bg_color(id(network_indicator), lv_color_hex(0xff6b6b1a), 0);
+            lv_obj_set_style_border_color(id(network_indicator), lv_color_hex(0xff6b6b33), 0);
+            lv_obj_set_style_text_color(id(lbl_network_icon), lv_color_hex(0xff6b6b), 0);
           }
 
-          // BOOST button: orange if temporaryBoostMode active
-          if (id(boost_mode_active)) {
-            lv_obj_set_style_bg_color(id(btn_boost), lv_color_hex(0xFF9800), 0);  // Orange
+  - id: update_alerts
+    then:
+      - lambda: |-
+          // Priority: gas > smoke > filter
+          if (id(gas_alarm)) {
+            lv_obj_set_style_bg_color(id(alert_area), lv_color_hex(0xff6b6b14), 0);
+            lv_obj_set_style_border_color(id(alert_area), lv_color_hex(0xff6b6b40), 0);
+            lv_label_set_text(id(lbl_alert_icon), "!!");
+            lv_obj_set_style_text_color(id(lbl_alert_icon), lv_color_hex(0xff6b6b), 0);
+            lv_label_set_text(id(lbl_alert_text), "UNIK PLYNU!");
+            lv_obj_set_style_text_color(id(lbl_alert_text), lv_color_hex(0xff6b6b), 0);
+          } else if (id(smoke_alarm)) {
+            lv_obj_set_style_bg_color(id(alert_area), lv_color_hex(0xff6b6b14), 0);
+            lv_obj_set_style_border_color(id(alert_area), lv_color_hex(0xff6b6b40), 0);
+            lv_label_set_text(id(lbl_alert_icon), "^");
+            lv_obj_set_style_text_color(id(lbl_alert_icon), lv_color_hex(0xff6b6b), 0);
+            lv_label_set_text(id(lbl_alert_text), "DETEKCE KOURE!");
+            lv_obj_set_style_text_color(id(lbl_alert_text), lv_color_hex(0xff6b6b), 0);
+          } else if (id(filter_cleaning_required)) {
+            lv_obj_set_style_bg_color(id(alert_area), lv_color_hex(0xff9f4314), 0);
+            lv_obj_set_style_border_color(id(alert_area), lv_color_hex(0xff9f4340), 0);
+            lv_label_set_text(id(lbl_alert_icon), "[]");
+            lv_obj_set_style_text_color(id(lbl_alert_icon), lv_color_hex(0xff9f43), 0);
+            lv_label_set_text(id(lbl_alert_text), "Vycistete filtr");
+            lv_obj_set_style_text_color(id(lbl_alert_text), lv_color_hex(0xff9f43), 0);
           } else {
-            lv_obj_set_style_bg_color(id(btn_boost), lv_color_hex(0x37474F), 0);  // Gray
+            lv_obj_set_style_bg_color(id(alert_area), lv_color_hex(0x151c25), 0);
+            lv_obj_set_style_border_color(id(alert_area), lv_color_hex(0x1f2937), 0);
+            lv_label_set_text(id(lbl_alert_icon), "");
+            lv_label_set_text(id(lbl_alert_text), "Zadna upozorneni");
+            lv_obj_set_style_text_color(id(lbl_alert_text), lv_color_hex(0x5a6578), 0);
           }
 
-          // MANUAL button: blue if temporaryManualMode active
-          if (id(temp_manual_mode_active)) {
-            lv_obj_set_style_bg_color(id(btn_manual), lv_color_hex(0x2196F3), 0);  // Blue
-          } else {
-            lv_obj_set_style_bg_color(id(btn_manual), lv_color_hex(0x37474F), 0);  // Gray
-          }
-
-  # Fetch initial states from OpenHAB REST API
   - id: fetch_initial_states
     then:
-      - lambda: |-
-          ESP_LOGI("panel", "Fetching initial states from OpenHAB...");
-      # Fetch HRV Output Power
+      - lambda: 'ESP_LOGI("panel", "Fetching initial states...");'
       - http_request.get:
           url: "http://openhab.home:8888/rest/items/hrvOutputPower/state"
           capture_response: true
           on_response:
             - lambda: |-
-                ESP_LOGI("panel", "HTTP hrvOutputPower: status=%d, body='%s'", response->status_code, body.c_str());
                 if (response->status_code == 200) {
                   int power = atoi(body.c_str());
                   id(power_value) = power;
-                  lv_arc_set_value(id(arc_power), power);
-                  lv_label_set_text_fmt(id(lbl_power_value), "%d%%", power);
+                  lv_bar_set_value(id(fan_bar), power, LV_ANIM_OFF);
+                  lv_label_set_text_fmt(id(lbl_fan_value), "%d%%", power);
                 }
-          on_error:
-            - lambda: |-
-                ESP_LOGE("panel", "HTTP hrvOutputPower FAILED");
-      # Fetch Temperature
       - http_request.get:
-          url: "http://openhab.home:8888/rest/items/temperature/state"
+          url: "http://openhab.home:8888/rest/items/insideTemperature/state"
           capture_response: true
           on_response:
             - lambda: |-
-                ESP_LOGI("panel", "HTTP temperature: status=%d, body='%s'", response->status_code, body.c_str());
                 if (response->status_code == 200) {
                   float temp = atof(body.c_str());
-                  int temp_int = (int)(temp * 10);
-                  int whole = temp_int / 10;
-                  int frac = temp_int % 10;
-                  if (frac < 0) frac = -frac;
-                  lv_label_set_text_fmt(id(lbl_temp_value), "%d.%d", whole, frac);
+                  id(inside_temp) = temp;
+                  lv_label_set_text_fmt(id(lbl_indoor_value), "%.0f", temp);
                 }
-          on_error:
+      - http_request.get:
+          url: "http://openhab.home:8888/rest/items/outsideTemperature/state"
+          capture_response: true
+          on_response:
             - lambda: |-
-                ESP_LOGE("panel", "HTTP temperature FAILED");
-      # Fetch Air Humidity
+                if (response->status_code == 200) {
+                  float temp = atof(body.c_str());
+                  id(outside_temp) = temp;
+                  lv_label_set_text_fmt(id(lbl_outdoor_value), "%.0f", temp);
+                }
       - http_request.get:
           url: "http://openhab.home:8888/rest/items/airHumidity/state"
           capture_response: true
           on_response:
             - lambda: |-
-                ESP_LOGI("panel", "HTTP airHumidity: status=%d, body='%s'", response->status_code, body.c_str());
                 if (response->status_code == 200) {
                   int hum = atoi(body.c_str());
                   lv_label_set_text_fmt(id(lbl_humidity_value), "%d", hum);
                 }
-          on_error:
-            - lambda: |-
-                ESP_LOGE("panel", "HTTP airHumidity FAILED");
-      # Fetch CO2
       - http_request.get:
           url: "http://openhab.home:8888/rest/items/co2/state"
           capture_response: true
           on_response:
             - lambda: |-
-                ESP_LOGI("panel", "HTTP co2: status=%d, body='%s'", response->status_code, body.c_str());
                 if (response->status_code == 200) {
                   int co2 = atoi(body.c_str());
                   lv_label_set_text_fmt(id(lbl_co2_value), "%d", co2);
                 }
-          on_error:
-            - lambda: |-
-                ESP_LOGE("panel", "HTTP co2 FAILED");
-      # Fetch Pressure
-      - http_request.get:
-          url: "http://openhab.home:8888/rest/items/pressure/state"
-          capture_response: true
-          on_response:
-            - lambda: |-
-                ESP_LOGI("panel", "HTTP pressure: status=%d, body='%s'", response->status_code, body.c_str());
-                if (response->status_code == 200) {
-                  int pressure = (int)(atof(body.c_str()) + 0.5);
-                  lv_label_set_text_fmt(id(lbl_pressure_value), "%d", pressure);
-                }
-          on_error:
-            - lambda: |-
-                ESP_LOGE("panel", "HTTP pressure FAILED");
-      # Fetch Manual Mode
       - http_request.get:
           url: "http://openhab.home:8888/rest/items/manualMode/state"
           capture_response: true
           on_response:
-            - lambda: |-
-                ESP_LOGI("panel", "HTTP manualMode: status=%d, body='%s'", response->status_code, body.c_str());
-                if (response->status_code == 200) {
-                  id(manual_mode_active) = (body == "ON");
-                }
-          on_error:
-            - lambda: |-
-                ESP_LOGE("panel", "HTTP manualMode FAILED");
-      # Fetch Temporary Manual Mode
+            - lambda: 'if (response->status_code == 200) id(manual_mode_active) = (body == "ON");'
       - http_request.get:
           url: "http://openhab.home:8888/rest/items/temporaryManualMode/state"
           capture_response: true
           on_response:
-            - lambda: |-
-                ESP_LOGI("panel", "HTTP temporaryManualMode: status=%d, body='%s'", response->status_code, body.c_str());
-                if (response->status_code == 200) {
-                  id(temp_manual_mode_active) = (body == "ON");
-                }
-          on_error:
-            - lambda: |-
-                ESP_LOGE("panel", "HTTP temporaryManualMode FAILED");
-      # Fetch Boost Mode
+            - lambda: 'if (response->status_code == 200) id(temp_manual_mode_active) = (body == "ON");'
       - http_request.get:
           url: "http://openhab.home:8888/rest/items/temporaryBoostMode/state"
           capture_response: true
           on_response:
-            - lambda: |-
-                ESP_LOGI("panel", "HTTP temporaryBoostMode: status=%d, body='%s'", response->status_code, body.c_str());
-                if (response->status_code == 200) {
-                  id(boost_mode_active) = (body == "ON");
-                }
-          on_error:
-            - lambda: |-
-                ESP_LOGE("panel", "HTTP temporaryBoostMode FAILED");
-      # Fetch Bypass
+            - lambda: 'if (response->status_code == 200) id(boost_mode_active) = (body == "ON");'
       - http_request.get:
           url: "http://openhab.home:8888/rest/items/bypass/state"
           capture_response: true
           on_response:
             - lambda: |-
-                ESP_LOGI("panel", "HTTP bypass: status=%d, body='%s'", response->status_code, body.c_str());
                 if (response->status_code == 200) {
                   id(bypass_active) = (body == "ON");
-                  lv_obj_set_style_bg_color(id(btn_bypass),
-                    id(bypass_active) ? lv_color_hex(0x2196F3) : lv_color_hex(0x37474F), 0);
+                  lv_obj_set_style_bg_color(id(bypass_toggle),
+                    id(bypass_active) ? lv_color_hex(0x00d68f) : lv_color_hex(0x1a2332), 0);
+                  lv_obj_set_x(id(bypass_knob), id(bypass_active) ? 32 : 4);
+                  lv_obj_set_style_bg_color(id(bypass_knob),
+                    id(bypass_active) ? lv_color_hex(0xFFFFFF) : lv_color_hex(0x8892a4), 0);
                 }
-          on_error:
-            - lambda: |-
-                ESP_LOGE("panel", "HTTP bypass FAILED");
-      # Update button colors after all states loaded
-      - script.execute: update_button_colors
-      - lambda: |-
-          ESP_LOGI("panel", "Initial states fetched successfully");
+      - http_request.get:
+          url: "http://openhab.home:8888/rest/items/smoke/state"
+          capture_response: true
+          on_response:
+            - lambda: 'if (response->status_code == 200) id(smoke_alarm) = (body == "ON");'
+      - http_request.get:
+          url: "http://openhab.home:8888/rest/items/gas/state"
+          capture_response: true
+          on_response:
+            - lambda: 'if (response->status_code == 200) id(gas_alarm) = (body == "ON");'
+      - http_request.get:
+          url: "http://openhab.home:8888/rest/items/filterCleaningRequired/state"
+          capture_response: true
+          on_response:
+            - lambda: 'if (response->status_code == 200) id(filter_cleaning_required) = (body == "ON");'
+      - http_request.get:
+          url: "http://openhab.home:8888/rest/items/manualPower/state"
+          capture_response: true
+          on_response:
+            - lambda: 'if (response->status_code == 200) id(manual_power_value) = atoi(body.c_str());'
+      - script.execute: update_mode_buttons
+      - script.execute: update_alerts
+      - script.execute: update_network_indicator
+      - lambda: 'ESP_LOGI("panel", "Initial states loaded");'
