@@ -95,4 +95,15 @@ public class HrvControl extends Java223Script {
       events.postUpdate(_items.temporaryBoostModeOffTime(), (State) new DecimalType(0));
     }
   }
+
+  @Rule(name = "bypass.changed", description = "Forward bypass state to HRV bridge")
+  @ItemStateChangeTrigger(itemName = Items.bypass)
+  public void onBypassChanged() {
+    // When bypass state changes (e.g., from panel command), send command to trigger
+    // the hrv_bridge channel's commandTopic (stateTopic updates don't trigger commandTopic)
+    OnOffType state = _items.bypass().getStateAs(OnOffType.class);
+    if (state != null) {
+      events.sendCommand(_items.bypass(), state);
+    }
+  }
 }

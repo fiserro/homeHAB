@@ -7,6 +7,7 @@ This document describes the MQTT topic structure used by the homeHAB system.
 ```
 homehab/
 ├── hrv/                      # HRV Bridge (Python on RPi)
+│   ├── gpio17                # Bypass valve ON/OFF (digital)
 │   └── pwm/                  # Final PWM values (command only)
 │       ├── gpio18            # PWM duty cycle 0-100
 │       └── gpio19            # PWM duty cycle 0-100
@@ -26,7 +27,8 @@ homehab/
 │   ├── temporaryBoostMode
 │   ├── temporaryManualMode
 │   ├── smoke
-│   └── manualPower
+│   ├── manualPower
+│   └── bypass
 └── zigbee2mqtt/              # Zigbee sensors (managed by Z2M - do not modify)
     ├── <device>              # state JSON
     ├── <device>/set          # command
@@ -35,19 +37,25 @@ homehab/
 
 ## HRV Bridge Topics
 
-The HRV Bridge runs on Raspberry Pi and controls PWM outputs for ventilation.
+The HRV Bridge runs on Raspberry Pi and controls GPIO outputs for ventilation.
 
-### PWM Output Topics (Command Only)
+### GPIO Output Topics (Command Only)
 
+| Topic | Type | Values | Description |
+|-------|------|--------|-------------|
+| `homehab/hrv/gpio17` | Switch | ON/OFF | Bypass valve control (digital output) |
+| `homehab/hrv/pwm/gpio18` | Number | 0-100 | PWM duty cycle for GPIO18 |
+| `homehab/hrv/pwm/gpio19` | Number | 0-100 | PWM duty cycle for GPIO19 |
+
+**Bypass Valve (GPIO17):**
+- OFF = valve closed, air flows through heat exchanger (default, winter mode)
+- ON = valve open, air bypasses heat exchanger (summer mode)
+
+**PWM Outputs (GPIO18/19):**
 OpenHAB calculates the final PWM values (including source selection and calibration)
-and sends them directly to the bridge:
-
-- `homehab/hrv/pwm/gpio18` - Final PWM duty cycle for GPIO18 (0-100)
-- `homehab/hrv/pwm/gpio19` - Final PWM duty cycle for GPIO19 (0-100)
-
-The Python bridge simply receives these values and sets them on the GPIO pins.
-All calculation logic (source mapping, calibration interpolation) is handled
-by HrvCalculator in OpenHAB.
+and sends them directly to the bridge. The Python bridge simply receives these values
+and sets them on the GPIO pins. All calculation logic (source mapping, calibration
+interpolation) is handled by HrvCalculator in OpenHAB.
 
 ### Configuration (OpenHAB Items, not MQTT)
 
@@ -81,6 +89,7 @@ These topics publish OpenHAB item states for display on the ESP32 panel:
 - `homehab/state/temporaryManualMode`
 - `homehab/state/smoke`
 - `homehab/state/manualPower`
+- `homehab/state/bypass`
 
 ## Related Files
 

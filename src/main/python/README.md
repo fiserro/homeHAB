@@ -1,13 +1,17 @@
 # HRV Bridge
 
-Simple MQTT to PWM bridge for HRV power output control on Raspberry Pi.
+Simple MQTT to GPIO bridge for HRV control on Raspberry Pi.
 
 ## Overview
 
-This service is a **simple pass-through bridge** that receives PWM values from OpenHAB and sets them directly on GPIO pins. It does NOT perform any calculation or calibration - that is done in OpenHAB (`HrvCalculator.java`).
+This service is a **simple pass-through bridge** that receives commands from OpenHAB and sets them directly on GPIO pins. It does NOT perform any calculation or calibration - that is done in OpenHAB (`HrvCalculator.java`).
 
-- **Input**: 0-100 (PWM duty cycle from OpenHAB, already calibrated)
-- **Output**: PWM signal on GPIO 18 and GPIO 19
+**GPIO Outputs:**
+| GPIO | Type | Input | Description |
+|------|------|-------|-------------|
+| GPIO 17 | Digital | ON/OFF | Bypass valve control |
+| GPIO 18 | PWM | 0-100 | Fan speed (intake or exhaust) |
+| GPIO 19 | PWM | 0-100 | Fan speed (intake or exhaust) |
 
 ## Output Modes
 
@@ -47,12 +51,13 @@ Raspberry Pi SPI
 
 ## MQTT Topics
 
-| Topic | Direction | Description |
-|-------|-----------|-------------|
-| `homehab/hrv/pwm/gpio18` | Subscribe | PWM duty cycle for GPIO 18 (0-100) |
-| `homehab/hrv/pwm/gpio19` | Subscribe | PWM duty cycle for GPIO 19 (0-100) |
+| Topic | Direction | Values | Description |
+|-------|-----------|--------|-------------|
+| `homehab/hrv/gpio17` | Subscribe | ON/OFF | Bypass valve (digital output) |
+| `homehab/hrv/pwm/gpio18` | Subscribe | 0-100 | PWM duty cycle for GPIO 18 |
+| `homehab/hrv/pwm/gpio19` | Subscribe | 0-100 | PWM duty cycle for GPIO 19 |
 
-**Note:** OpenHAB calculates the final PWM values (including source selection and calibration) and publishes them to these topics. The bridge simply sets the received values on the GPIO pins.
+**Note:** OpenHAB calculates the final values (including source selection and calibration) and publishes them to these topics. The bridge simply sets the received values on the GPIO pins.
 
 ## Deployment
 
@@ -79,8 +84,9 @@ Options:
   -p, --mqtt-port PORT     MQTT broker port (default: 1883)
   -t, --topic-prefix PRE   MQTT topic prefix (default: homehab/hrv)
   -c, --client-id ID       MQTT client ID (default: hrv-bridge)
-  --gpio18 PIN             GPIO pin for channel 18 (default: 18)
-  --gpio19 PIN             GPIO pin for channel 19 (default: 19)
+  --gpio17 PIN             GPIO pin for bypass valve (default: 17)
+  --gpio18 PIN             GPIO pin for PWM channel 18 (default: 18)
+  --gpio19 PIN             GPIO pin for PWM channel 19 (default: 19)
   --pwm-freq FREQ          PWM frequency in Hz (default: 2000)
   -v, --verbose            Enable verbose logging
 ```
@@ -173,6 +179,12 @@ For calibration instructions, see:
 ## Testing
 
 ```bash
+# Set bypass valve ON (open, summer mode)
+mosquitto_pub -h openhab.home -t 'homehab/hrv/gpio17' -m 'ON'
+
+# Set bypass valve OFF (closed, through heat exchanger)
+mosquitto_pub -h openhab.home -t 'homehab/hrv/gpio17' -m 'OFF'
+
 # Set GPIO18 PWM to 50%
 mosquitto_pub -h openhab.home -t 'homehab/hrv/pwm/gpio18' -m '50'
 

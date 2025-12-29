@@ -207,9 +207,23 @@ public class HabStateItemsGenerator {
         String icon = getInputIcon(itemName);
         String defaultValue = getDefaultValue(method);
 
-        InputItem annotation = method.getAnnotation(InputItem.class);
-        String channel = annotation != null ? annotation.channel() : "";
-        String channelBinding = channel.isEmpty() ? "" : String.format(" { channel=\"%s\" }", channel);
+        // Get channels from both @InputItem and @OutputItem (some items need both)
+        InputItem inputAnnotation = method.getAnnotation(InputItem.class);
+        OutputItem outputAnnotation = method.getAnnotation(OutputItem.class);
+        String inputChannel = inputAnnotation != null ? inputAnnotation.channel() : "";
+        String outputChannel = outputAnnotation != null ? outputAnnotation.channel() : "";
+
+        // Combine channels if both exist, otherwise use whichever is available
+        String channelBinding;
+        if (!inputChannel.isEmpty() && !outputChannel.isEmpty()) {
+            channelBinding = String.format(" { channel=\"%s\", channel=\"%s\" }", inputChannel, outputChannel);
+        } else if (!inputChannel.isEmpty()) {
+            channelBinding = String.format(" { channel=\"%s\" }", inputChannel);
+        } else if (!outputChannel.isEmpty()) {
+            channelBinding = String.format(" { channel=\"%s\" }", outputChannel);
+        } else {
+            channelBinding = "";
+        }
 
         return String.format("%s %s \"HRV - %s\" <%s> %s%s  // default: %s%n",
             itemType, itemName, label, icon, INPUT_TAGS, channelBinding, defaultValue);

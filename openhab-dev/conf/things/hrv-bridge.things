@@ -22,4 +22,9 @@ Thing mqtt:topic:mosquitto:hrv_bridge "HRV Bridge" (mqtt:broker:mosquitto) {
             min=0,
             max=100
         ]
+        // GPIO 17 digital output (used for bypass valve)
+        // OFF = 0 (low), ON = 1 (high)
+        Type switch : gpio17 "HRV GPIO17" [
+            commandTopic="homehab/hrv/gpio17"
+        ]
 }

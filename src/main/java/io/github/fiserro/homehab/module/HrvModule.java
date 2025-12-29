@@ -289,6 +289,20 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
   T withHrvOutputGpio19(int power);
 
   /**
+   * Bypass valve control (GPIO 17).
+   * OFF = valve closed, air flows through heat exchanger (default)
+   * ON = valve open, air bypasses heat exchanger
+   */
+  @InputItem(channel = "mqtt:topic:mosquitto:panel_commands:bypass")
+  @OutputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:gpio17")
+  @Option
+  default boolean bypass() {
+    return false;
+  }
+
+  T withBypass(boolean bypass);
+
+  /**
    * Determines if the output state of the current module has changed compared to the given module.
    * The comparison is performed across multiple output-related properties, including
    * hrvOutputPower, hrvOutputIntake, hrvOutputExhaust, hrvOutputGpio18, and hrvOutputGpio19.

@@ -146,18 +146,30 @@ mqtt:
             id(boost_mode_active) = (x == "ON");
         - script.execute: update_button_colors
 
-    # Smoke detector
+    # Smoke detector (color only: green = OK, red = alarm)
     - topic: homehab/state/smoke
       then:
         - lambda: |-
             bool alarm = (x == "ON");
-            if (alarm) {
-              lv_obj_set_style_bg_color(id(smoke_indicator), lv_color_hex(0xFF0000), 0);
-              lv_label_set_text(id(lbl_smoke), "SMOKE!");
-            } else {
-              lv_obj_set_style_bg_color(id(smoke_indicator), lv_color_hex(0x00FF00), 0);
-              lv_label_set_text(id(lbl_smoke), "OK");
-            }
+            lv_obj_set_style_bg_color(id(smoke_indicator),
+              alarm ? lv_color_hex(0xFF0000) : lv_color_hex(0x00c853), 0);
+
+    # Gas detector (color only: green = OK, red = alarm)
+    - topic: homehab/state/gas
+      then:
+        - lambda: |-
+            bool alarm = (x == "ON");
+            lv_obj_set_style_bg_color(id(gas_indicator),
+              alarm ? lv_color_hex(0xFF0000) : lv_color_hex(0x00c853), 0);
+
+    # Bypass state (color only: gray = off, blue = on)
+    - topic: homehab/state/bypass
+      then:
+        - lambda: |-
+            ESP_LOGI("panel", "MQTT bypass = %s", x.c_str());
+            id(bypass_active) = (x == "ON");
+            lv_obj_set_style_bg_color(id(btn_bypass),
+              id(bypass_active) ? lv_color_hex(0x2196F3) : lv_color_hex(0x37474F), 0);
 
     # Manual Power (sync slider with OpenHAB value)
     - topic: homehab/state/manualPower
@@ -244,6 +256,9 @@ globals:
     type: bool
     initial_value: 'false'
   - id: boost_mode_active
+    type: bool
+    initial_value: 'false'
+  - id: bypass_active
     type: bool
     initial_value: 'false'
   - id: ignore_slider_events
@@ -454,50 +469,75 @@ lvgl:
                   text_font: montserrat_14
                   text_color: 0x888888
 
-        # ========== SAFETY INDICATOR ==========
+        # ========== SAFETY INDICATORS ==========
+        # Smoke (green = OK, red = alarm)
         - obj:
             id: smoke_indicator
             x: 20
-            y: 385
-            width: 160
-            height: 60
+            y: 380
+            width: 110
+            height: 65
             bg_color: 0x00c853
             radius: 8
             widgets:
               - label:
-                  align: LEFT_MID
-                  x: 10
+                  align: CENTER
                   text: "Smoke"
-                  text_font: montserrat_14
-                  text_color: 0xFFFFFF
-              - label:
-                  id: lbl_smoke
-                  align: RIGHT_MID
-                  x: -10
-                  text: "OK"
                   text_font: montserrat_18
                   text_color: 0xFFFFFF
 
-        # ========== MANUAL POWER SLIDER ==========
+        # Gas (green = OK, red = alarm)
         - obj:
-            x: 195
-            y: 385
-            width: 510
-            height: 60
-            styles: style_card
+            id: gas_indicator
+            x: 135
+            y: 380
+            width: 110
+            height: 65
+            bg_color: 0x00c853
+            radius: 8
             widgets:
               - label:
-                  align: LEFT_MID
-                  x: 5
-                  text: "Manual"
-                  text_font: montserrat_14
-                  text_color: 0x888888
+                  align: CENTER
+                  text: "Gas"
+                  text_font: montserrat_18
+                  text_color: 0xFFFFFF
+
+        # ========== BYPASS TOGGLE ==========
+        # (gray = off, blue = on)
+        - button:
+            id: btn_bypass
+            x: 250
+            y: 380
+            width: 130
+            height: 65
+            bg_color: 0x37474F
+            radius: 8
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "Bypass"
+                  text_font: montserrat_18
+                  text_color: 0xFFFFFF
+            on_click:
+              then:
+                - mqtt.publish:
+                    topic: homehab/panel/command/bypass
+                    payload: !lambda |-
+                      return id(bypass_active) ? "OFF" : "ON";
+
+        # ========== MANUAL POWER SLIDER (full width above buttons) ==========
+        - obj:
+            align: BOTTOM_MID
+            y: -115
+            width: 760
+            height: 50
+            styles: style_card
+            widgets:
               - slider:
                   id: slider_manual_power
-                  align: RIGHT_MID
-                  x: -10
-                  width: 380
-                  height: 30
+                  align: CENTER
+                  width: 720
+                  height: 35
                   min_value: 0
                   max_value: 100
                   value: 50
@@ -780,6 +820,21 @@ script:
           on_error:
             - lambda: |-
                 ESP_LOGE("panel", "HTTP temporaryBoostMode FAILED");
+      # Fetch Bypass
+      - http_request.get:
+          url: "http://openhab.home:8888/rest/items/bypass/state"
+          capture_response: true
+          on_response:
+            - lambda: |-
+                ESP_LOGI("panel", "HTTP bypass: status=%d, body='%s'", response->status_code, body.c_str());
+                if (response->status_code == 200) {
+                  id(bypass_active) = (body == "ON");
+                  lv_obj_set_style_bg_color(id(btn_bypass),
+                    id(bypass_active) ? lv_color_hex(0x2196F3) : lv_color_hex(0x37474F), 0);
+                }
+          on_error:
+            - lambda: |-
+                ESP_LOGE("panel", "HTTP bypass FAILED");
       # Update button colors after all states loaded
       - script.execute: update_button_colors
       - lambda: |-

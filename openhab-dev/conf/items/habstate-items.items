@@ -18,6 +18,7 @@
 Number tickSecond "HRV - Tick Second" <none> ["readonly", "computed"]
 
 // Input items from HrvModule
+Switch bypass "HRV - Bypass" <settings> ["user"] { channel="mqtt:topic:mosquitto:panel_commands:bypass", channel="mqtt:topic:mosquitto:hrv_bridge:gpio17" }  // default: ?
 String calibrationTableGpio18 "HRV - Calibration Table Gpio18" <settings> ["user"]  // default: ?
 String calibrationTableGpio19 "HRV - Calibration Table Gpio19" <settings> ["user"]  // default: ?
 Number co2ThresholdHigh "HRV - Co2 Threshold High" <energy> ["user"]  // default: ?

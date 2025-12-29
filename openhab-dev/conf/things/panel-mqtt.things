@@ -20,4 +20,8 @@ Thing mqtt:topic:mosquitto:panel_commands "ESP32 Panel Commands" (mqtt:broker:mo
         Type number : manualPower "Panel Manual Power" [
             stateTopic="homehab/panel/command/manualPower"
         ]
+        // Panel bypass button -> bypass
+        Type switch : bypass "Panel Bypass" [
+            stateTopic="homehab/panel/command/bypass"
+        ]
 }

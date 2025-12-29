@@ -83,10 +83,22 @@ public class PanelMqttBridge extends Java223Script {
         publish("smoke", _items.smoke().getState());
     }
 
+    @Rule(name = "panel.gas", description = "Publish gas alarm to panel")
+    @ItemStateChangeTrigger(itemName = Items.gas)
+    public void onGasChanged() {
+        publish("gas", _items.gas().getState());
+    }
+
     @Rule(name = "panel.manual.power", description = "Publish manual power to panel")
     @ItemStateChangeTrigger(itemName = Items.manualPower)
     public void onManualPowerChanged() {
         publish("manualPower", _items.manualPower().getState());
+    }
+
+    @Rule(name = "panel.bypass", description = "Publish bypass state to panel")
+    @ItemStateChangeTrigger(itemName = Items.bypass)
+    public void onBypassChanged() {
+        publish("bypass", _items.bypass().getState());
     }
 
 }

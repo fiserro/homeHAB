@@ -87,3 +87,12 @@ if [ -f "$SYSTEMD_SERVICE_FILE" ]; then
         print_warning "Systemd service update may have failed"
     fi
 fi
+
+# Restart service
+echo -e "${BLUE}Restarting ${PYTHON_SVC} service...${NC}"
+ssh $SSH_KEY_OPT "$PYTHON_HOST" "sudo systemctl restart ${PYTHON_SVC}"
+if [ $? -eq 0 ]; then
+    print_success "${PYTHON_SVC} service restarted"
+else
+    print_warning "Service restart may have failed"
+fi

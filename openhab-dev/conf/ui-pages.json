@@ -283,6 +283,14 @@
                             "icon" : "f7:bolt",
                             "iconColor" : "=items.temporaryBoostMode.state === 'ON' ? 'orange' : 'gray'"
                           }
+                        }, {
+                          "component" : "oh-label-item",
+                          "config" : {
+                            "title" : "Bypass (Summer Mode)",
+                            "item" : "bypass",
+                            "icon" : "f7:arrow_right_to_line",
+                            "iconColor" : "=items.bypass.state === 'ON' ? 'blue' : 'gray'"
+                          }
                         } ]
                       }
                     } ]
@@ -442,6 +450,14 @@
                             "subtitle" : "Maximum ventilation with auto-off",
                             "item" : "temporaryBoostMode",
                             "icon" : "f7:bolt"
+                          }
+                        }, {
+                          "component" : "oh-toggle-item",
+                          "config" : {
+                            "title" : "Bypass",
+                            "subtitle" : "Bypass heat exchanger (summer mode)",
+                            "item" : "bypass",
+                            "icon" : "f7:arrow_right_to_line"
                           }
                         } ]
                       }

@@ -12,6 +12,7 @@ Output: PWM signal on GPIO pins
 MQTT Topics:
   - {prefix}/pwm/gpio18  -> PWM value for GPIO 18 (0-100)
   - {prefix}/pwm/gpio19  -> PWM value for GPIO 19 (0-100)
+  - {prefix}/gpio17      -> Digital output GPIO 17 (ON/OFF)
 """
 
 import argparse
@@ -33,8 +34,9 @@ DEFAULT_MQTT_HOST = "localhost"
 DEFAULT_MQTT_PORT = 1883
 DEFAULT_TOPIC_PREFIX = "homehab/hrv"
 DEFAULT_CLIENT_ID = "hrv-bridge"
-DEFAULT_GPIO18 = 18
-DEFAULT_GPIO19 = 19
+DEFAULT_GPIO17 = 17  # Bypass valve (digital output)
+DEFAULT_GPIO18 = 18  # PWM output
+DEFAULT_GPIO19 = 19  # PWM output
 DEFAULT_PWM_FREQ = 2000
 
 # Logging setup
@@ -48,10 +50,11 @@ log = logging.getLogger("hrv-bridge")
 class PwmOutput:
     """PWM output driver using lgpio."""
 
-    def __init__(self, gpio18: int = DEFAULT_GPIO18, gpio19: int = DEFAULT_GPIO19,
-                 freq: int = DEFAULT_PWM_FREQ):
-        self.gpio18 = gpio18
-        self.gpio19 = gpio19
+    def __init__(self, gpio17: int = DEFAULT_GPIO17, gpio18: int = DEFAULT_GPIO18,
+                 gpio19: int = DEFAULT_GPIO19, freq: int = DEFAULT_PWM_FREQ):
+        self.gpio17 = gpio17  # Bypass valve (digital)
+        self.gpio18 = gpio18  # PWM
+        self.gpio19 = gpio19  # PWM
         self.freq = freq
         self.handle = None
 
@@ -59,9 +62,10 @@ class PwmOutput:
             raise RuntimeError("lgpio library not available")
 
         self.handle = lgpio.gpiochip_open(0)
+        lgpio.gpio_claim_output(self.handle, self.gpio17)
         lgpio.gpio_claim_output(self.handle, self.gpio18)
         lgpio.gpio_claim_output(self.handle, self.gpio19)
-        log.info(f"PWM initialized: GPIO{self.gpio18}, GPIO{self.gpio19} at {self.freq} Hz")
+        log.info(f"GPIO initialized: GPIO{self.gpio17} (bypass), GPIO{self.gpio18}, GPIO{self.gpio19} (PWM at {self.freq} Hz)")
 
     def set_pwm(self, gpio: int, duty: float):
         """Set PWM duty cycle for specified GPIO."""
@@ -72,9 +76,18 @@ class PwmOutput:
         lgpio.tx_pwm(self.handle, pin, self.freq, duty)
         log.debug(f"GPIO{gpio} PWM set to {duty:.1f}%")
 
+    def set_digital(self, gpio: int, value: bool):
+        """Set digital output for specified GPIO (0 or 1)."""
+        if self.handle is None:
+            return
+        pin = self.gpio17 if gpio == 17 else gpio
+        lgpio.gpio_write(self.handle, pin, 1 if value else 0)
+        log.debug(f"GPIO{gpio} set to {1 if value else 0}")
+
     def stop(self):
         """Stop PWM and cleanup."""
         if self.handle is not None:
+            lgpio.gpio_write(self.handle, self.gpio17, 0)
             lgpio.tx_pwm(self.handle, self.gpio18, self.freq, 0)
             lgpio.tx_pwm(self.handle, self.gpio19, self.freq, 0)
             lgpio.gpiochip_close(self.handle)
@@ -85,7 +98,7 @@ class HrvBridge:
     """Simple MQTT to PWM bridge for HRV control."""
 
     def __init__(self, mqtt_host: str, mqtt_port: int, topic_prefix: str,
-                 client_id: str, gpio18: int, gpio19: int, pwm_freq: int):
+                 client_id: str, gpio17: int, gpio18: int, gpio19: int, pwm_freq: int):
         self.mqtt_host = mqtt_host
         self.mqtt_port = mqtt_port
         self.topic_prefix = topic_prefix.rstrip('/')
@@ -99,9 +112,9 @@ class HrvBridge:
         # Initialize output driver
         self.output = None
         try:
-            self.output = PwmOutput(gpio18=gpio18, gpio19=gpio19, freq=pwm_freq)
+            self.output = PwmOutput(gpio17=gpio17, gpio18=gpio18, gpio19=gpio19, freq=pwm_freq)
         except Exception as e:
-            log.warning(f"PWM initialization failed: {e} - running in simulation mode")
+            log.warning(f"GPIO initialization failed: {e} - running in simulation mode")
 
         self.running = False
 
@@ -109,10 +122,11 @@ class HrvBridge:
         if rc == 0:
             log.info(f"Connected to MQTT broker at {self.mqtt_host}:{self.mqtt_port}")
 
-            # Subscribe to PWM topics
+            # Subscribe to topics
+            client.subscribe(f"{self.topic_prefix}/gpio17")
             client.subscribe(f"{self.topic_prefix}/pwm/gpio18")
             client.subscribe(f"{self.topic_prefix}/pwm/gpio19")
-            log.info(f"Subscribed to PWM topics: {self.topic_prefix}/pwm/gpio18, gpio19")
+            log.info(f"Subscribed to topics: {self.topic_prefix}/gpio17, pwm/gpio18, pwm/gpio19")
         else:
             log.error(f"Connection failed with code {rc}")
 
@@ -125,7 +139,15 @@ class HrvBridge:
             payload = msg.payload.decode("utf-8").strip()
             topic = msg.topic
 
-            # Parse PWM value
+            # Handle GPIO17 digital output (ON/OFF)
+            if topic == f"{self.topic_prefix}/gpio17":
+                value = payload.upper() in ("ON", "1", "TRUE")
+                log.info(f"GPIO17 set to {1 if value else 0}")
+                if self.output:
+                    self.output.set_digital(17, value)
+                return
+
+            # Parse PWM value for GPIO18/19
             payload = payload.replace(",", ".")
             value = float(payload)
             value = max(0, min(100, value))
@@ -155,6 +177,7 @@ class HrvBridge:
 
         # Initialize GPIOs to 0
         if self.output:
+            self.output.set_digital(17, False)
             self.output.set_pwm(18, 0)
             self.output.set_pwm(19, 0)
 
@@ -174,6 +197,7 @@ class HrvBridge:
         log.info("Shutting down - setting outputs to 0")
 
         if self.output:
+            self.output.set_digital(17, False)
             self.output.set_pwm(18, 0)
             self.output.set_pwm(19, 0)
             self.output.stop()
@@ -208,16 +232,22 @@ def main():
         help=f"MQTT client ID (default: {DEFAULT_CLIENT_ID})"
     )
     parser.add_argument(
+        "--gpio17",
+        type=int,
+        default=DEFAULT_GPIO17,
+        help=f"GPIO pin 17 - digital output (default: {DEFAULT_GPIO17})"
+    )
+    parser.add_argument(
         "--gpio18",
         type=int,
         default=DEFAULT_GPIO18,
-        help=f"GPIO pin 18 (default: {DEFAULT_GPIO18})"
+        help=f"GPIO pin 18 - PWM output (default: {DEFAULT_GPIO18})"
     )
     parser.add_argument(
         "--gpio19",
         type=int,
         default=DEFAULT_GPIO19,
-        help=f"GPIO pin 19 (default: {DEFAULT_GPIO19})"
+        help=f"GPIO pin 19 - PWM output (default: {DEFAULT_GPIO19})"
     )
     parser.add_argument(
         "--pwm-freq",
@@ -241,6 +271,7 @@ def main():
         mqtt_port=args.mqtt_port,
         topic_prefix=args.topic_prefix,
         client_id=args.client_id,
+        gpio17=args.gpio17,
         gpio18=args.gpio18,
         gpio19=args.gpio19,
         pwm_freq=args.pwm_freq

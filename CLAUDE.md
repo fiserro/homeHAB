@@ -265,6 +265,30 @@ public void onZigbeeItemChanged() {
 }
 ```
 
+### HRV Bridge (Python)
+
+The HRV Bridge is a Python service running on Raspberry Pi that receives MQTT commands and controls GPIO pins.
+
+**Location:** `src/main/python/dac_bridge/`
+
+**GPIO Pin Mapping:**
+| GPIO | Function | Type | Description |
+|------|----------|------|-------------|
+| GPIO 17 | Bypass valve | Digital | OFF=valve closed (air through exchanger), ON=valve open (bypass mode) |
+| GPIO 18 | PWM output | PWM | Intake or exhaust fan (configurable via `sourceGpio18`) |
+| GPIO 19 | PWM output | PWM | Intake or exhaust fan (configurable via `sourceGpio19`) |
+
+**MQTT Topics (OpenHAB → Bridge):**
+| Topic | Type | Values | Description |
+|-------|------|--------|-------------|
+| `homehab/hrv/gpio17` | Switch | ON/OFF | Bypass valve control |
+| `homehab/hrv/pwm/gpio18` | Number | 0-100 | PWM duty cycle for GPIO 18 |
+| `homehab/hrv/pwm/gpio19` | Number | 0-100 | PWM duty cycle for GPIO 19 |
+
+**OpenHAB Thing Configuration:** `openhab-dev/conf/things/hrv-bridge.things`
+
+**Design Principle:** The Python bridge is hardware-focused - it only knows about GPIO pins and PWM values. All business logic (bypass, fan source selection, calibration) is handled in OpenHAB/Java. This keeps the bridge simple and reusable.
+
 ### Key Design Patterns
 
 **Options Library Pattern:**
