@@ -321,6 +321,50 @@ public interface HrvModule<T extends HrvModule<T>> extends CommonModule<T> {
     return 1.0f;
   }
 
+  // Filter cleaning management
+
+  /**
+   * Interval in days between filter cleanings.
+   */
+  @Min(30)
+  @Max(365)
+  @InputItem
+  @Option
+  default int filterCleaningIntervalDays() {
+    return 90;
+  }
+
+  /**
+   * Timestamp (epoch seconds) when the filter was last cleaned.
+   * Set to current time when user clicks "Filter Cleaned" button.
+   */
+  @ReadOnlyItem
+  @Option
+  default long filterLastCleanedTimestamp() {
+    return 0;
+  }
+
+  /**
+   * True when filter cleaning is required (last cleaned + interval < now).
+   * Calculated by HrvControl based on filterLastCleanedTimestamp and filterCleaningIntervalDays.
+   */
+  @ReadOnlyItem
+  @Option
+  default boolean filterCleaningRequired() {
+    return false;
+  }
+
+  /**
+   * Trigger button for marking filter as cleaned.
+   * When set to ON, HrvControl will update filterLastCleanedTimestamp to current time
+   * and reset this back to OFF.
+   */
+  @InputItem
+  @Option
+  default boolean filterCleanedTrigger() {
+    return false;
+  }
+
   /**
    * Determines if the output state of the current module has changed compared to the given module.
    * The comparison is performed across multiple output-related properties, including

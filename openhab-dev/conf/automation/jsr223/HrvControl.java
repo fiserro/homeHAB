@@ -103,4 +103,79 @@ public class HrvControl extends Java223Script {
       events.sendCommand(_items.bypass(), state);
     }
   }
+
+  // Filter cleaning management
+
+  @Rule(name = "filter.cleaned.trigger", description = "Handle filter cleaned button press")
+  @ItemStateChangeTrigger(itemName = Items.filterCleanedTrigger)
+  public void onFilterCleanedTrigger() {
+    OnOffType state = _items.filterCleanedTrigger().getStateAs(OnOffType.class);
+    if (state == OnOffType.ON) {
+      // Update last cleaned timestamp to now
+      long now = Instant.now().getEpochSecond();
+      events.postUpdate(_items.filterLastCleanedTimestamp(), (State) new DecimalType(now));
+      // Reset trigger back to OFF
+      events.sendCommand(_items.filterCleanedTrigger(), OnOffType.OFF);
+      // Filter is now clean
+      events.postUpdate(_items.filterCleaningRequired(), OnOffType.OFF);
+      System.out.println("[HrvControl] Filter marked as cleaned at " + now);
+    }
+  }
+
+  @Rule(name = "filter.status.check", description = "Check filter cleaning status on tick")
+  @ItemStateChangeTrigger(itemName = Items.tickSecond)
+  public void onTickCheckFilterStatus() {
+    // Only check every minute (when tickSecond == 0)
+    DecimalType tick = _items.tickSecond().getStateAs(DecimalType.class);
+    if (tick == null || tick.intValue() != 0) {
+      return;
+    }
+
+    DecimalType lastCleaned = _items.filterLastCleanedTimestamp().getStateAs(DecimalType.class);
+    DecimalType intervalDays = _items.filterCleaningIntervalDays().getStateAs(DecimalType.class);
+
+    if (lastCleaned == null || intervalDays == null) {
+      return;
+    }
+
+    long lastCleanedSec = lastCleaned.longValue();
+    long intervalSec = intervalDays.longValue() * 24 * 60 * 60;
+    long now = Instant.now().getEpochSecond();
+
+    boolean cleaningRequired = (lastCleanedSec + intervalSec) < now;
+    OnOffType currentState = _items.filterCleaningRequired().getStateAs(OnOffType.class);
+    OnOffType newState = cleaningRequired ? OnOffType.ON : OnOffType.OFF;
+
+    // Only update if changed
+    if (currentState != newState) {
+      events.postUpdate(_items.filterCleaningRequired(), newState);
+      if (cleaningRequired) {
+        System.out.println("[HrvControl] Filter cleaning required!");
+      }
+    }
+  }
+
+  @Rule(name = "filter.interval.changed", description = "Recalculate filter status when interval changes")
+  @ItemStateChangeTrigger(itemName = Items.filterCleaningIntervalDays)
+  public void onFilterIntervalChanged() {
+    // Force recalculation by triggering tick logic
+    checkFilterCleaningStatus();
+  }
+
+  private void checkFilterCleaningStatus() {
+    DecimalType lastCleaned = _items.filterLastCleanedTimestamp().getStateAs(DecimalType.class);
+    DecimalType intervalDays = _items.filterCleaningIntervalDays().getStateAs(DecimalType.class);
+
+    if (lastCleaned == null || intervalDays == null) {
+      return;
+    }
+
+    long lastCleanedSec = lastCleaned.longValue();
+    long intervalSec = intervalDays.longValue() * 24 * 60 * 60;
+    long now = Instant.now().getEpochSecond();
+
+    boolean cleaningRequired = lastCleanedSec == 0 || (lastCleanedSec + intervalSec) < now;
+    OnOffType newState = cleaningRequired ? OnOffType.ON : OnOffType.OFF;
+    events.postUpdate(_items.filterCleaningRequired(), newState);
+  }
 }

@@ -107,4 +107,10 @@ public class PanelMqttBridge extends Java223Script {
         publish("outsideTemperature", _items.outsideTemperature().getState());
     }
 
+    @Rule(name = "panel.filter.status", description = "Publish filter cleaning status to panel")
+    @ItemStateChangeTrigger(itemName = Items.filterCleaningRequired)
+    public void onFilterCleaningRequiredChanged() {
+        publish("filterCleaningRequired", _items.filterCleaningRequired().getState());
+    }
+
 }

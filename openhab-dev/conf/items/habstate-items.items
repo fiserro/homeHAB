@@ -26,6 +26,8 @@ String calibrationTableGpio19 "HRV - Calibration Table Gpio19" <settings> ["user
 Number co2ThresholdHigh "HRV - Co2 Threshold High" <energy> ["user"]  // default: ?
 Number co2ThresholdLow "HRV - Co2 Threshold Low" <energy> ["user"]  // default: ?
 Number co2ThresholdMid "HRV - Co2 Threshold Mid" <energy> ["user"]  // default: ?
+Switch filterCleanedTrigger "HRV - Filter Cleaned Trigger" <settings> ["user"]  // default: ?
+Number filterCleaningIntervalDays "HRV - Filter Cleaning Interval Days" <settings> ["user"]  // default: ?
 Number humidityThreshold "HRV - Humidity Threshold" <energy> ["user"]  // default: ?
 Number intakeExhaustRatio "HRV - Intake Exhaust Ratio" <settings> ["user"]  // default: ?
 Switch manualMode "HRV - Manual Mode" <switch> ["user"] { channel="mqtt:topic:mosquitto:panel_commands:manualMode" }  // default: ?
@@ -50,6 +52,8 @@ Dimmer hrvOutputPower "HRV - Hrv Output Power" <energy> ["computed"]
 Dimmer hrvOutputTest "HRV - Hrv Output Test" <settings> ["computed"]
 
 // Read-only items from HrvModule
+Switch filterCleaningRequired "HRV - Filter Cleaning Required" <none> ["readonly", "computed"]
+Number filterLastCleanedTimestamp "HRV - Filter Last Cleaned Timestamp" <time> ["readonly", "computed"]
 Number temporaryBoostModeOffTime "HRV - Temporary Boost Mode Off Time" <time> ["readonly", "computed"]
 Number temporaryManualModeOffTime "HRV - Temporary Manual Mode Off Time" <time> ["readonly", "computed"]
 

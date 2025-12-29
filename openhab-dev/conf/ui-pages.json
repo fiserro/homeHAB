@@ -382,7 +382,7 @@
                 }, {
                   "component" : "oh-grid-col",
                   "config" : {
-                    "width" : "100",
+                    "width" : "50",
                     "medium" : "33"
                   },
                   "slots" : {
@@ -393,6 +393,24 @@
                         "item" : "openWindows",
                         "icon" : "f7:rectangle_grid_1x2",
                         "iconColor" : "=Number.parseFloat(items.openWindows.state) > 0 ? 'blue' : 'gray'"
+                      }
+                    } ]
+                  }
+                }, {
+                  "component" : "oh-grid-col",
+                  "config" : {
+                    "width" : "50",
+                    "medium" : "33"
+                  },
+                  "slots" : {
+                    "default" : [ {
+                      "component" : "oh-label-card",
+                      "config" : {
+                        "title" : "Filter Status",
+                        "item" : "filterCleaningRequired",
+                        "icon" : "f7:waveform_path_ecg",
+                        "iconColor" : "=items.filterCleaningRequired.state === 'ON' ? 'orange' : 'green'",
+                        "label" : "=items.filterCleaningRequired.state === 'ON' ? 'Clean filter!' : 'OK'"
                       }
                     } ]
                   }
@@ -924,6 +942,74 @@
                                 "round" : true
                               }
                             } ]
+                          }
+                        } ]
+                      }
+                    } ]
+                  }
+                } ]
+              }
+            } ]
+          }
+        }, {
+          "component" : "oh-block",
+          "config" : {
+            "title" : "Filter Maintenance"
+          },
+          "slots" : {
+            "default" : [ {
+              "component" : "oh-grid-row",
+              "config" : { },
+              "slots" : {
+                "default" : [ {
+                  "component" : "oh-grid-col",
+                  "config" : {
+                    "width" : "100"
+                  },
+                  "slots" : {
+                    "default" : [ {
+                      "component" : "oh-list-card",
+                      "config" : {
+                        "title" : "Filter Status",
+                        "subtitle" : "Clean filters regularly for optimal performance",
+                        "icon" : "f7:waveform_path_ecg"
+                      },
+                      "slots" : {
+                        "default" : [ {
+                          "component" : "oh-label-item",
+                          "config" : {
+                            "title" : "Status",
+                            "item" : "filterCleaningRequired",
+                            "icon" : "f7:checkmark_circle",
+                            "iconColor" : "=items.filterCleaningRequired.state === 'ON' ? 'orange' : 'green'",
+                            "label" : "=items.filterCleaningRequired.state === 'ON' ? 'Cleaning required!' : 'OK'"
+                          }
+                        }, {
+                          "component" : "oh-label-item",
+                          "config" : {
+                            "title" : "Last Cleaned",
+                            "item" : "filterLastCleanedTimestamp",
+                            "icon" : "f7:calendar",
+                            "label" : "=Number(items.filterLastCleanedTimestamp.state) > 0 ? new Date(Number(items.filterLastCleanedTimestamp.state) * 1000).toLocaleDateString() : 'Never'"
+                          }
+                        }, {
+                          "component" : "oh-stepper-item",
+                          "config" : {
+                            "title" : "Cleaning Interval",
+                            "subtitle" : "Days between filter cleanings",
+                            "item" : "filterCleaningIntervalDays",
+                            "min" : 30,
+                            "max" : 365,
+                            "step" : 30,
+                            "icon" : "f7:timer"
+                          }
+                        }, {
+                          "component" : "oh-toggle-item",
+                          "config" : {
+                            "title" : "Filter Cleaned",
+                            "subtitle" : "Turn ON to mark filter as cleaned",
+                            "item" : "filterCleanedTrigger",
+                            "icon" : "f7:checkmark_seal"
                           }
                         } ]
                       }
