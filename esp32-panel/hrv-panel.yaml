@@ -191,6 +191,18 @@ mqtt:
             int pressure = (int)(atof(x.c_str()) + 0.5);
             lv_label_set_text_fmt(id(lbl_pressure_value), "%d", pressure);
 
+    # Outside Temperature
+    - topic: homehab/state/outsideTemperature
+      then:
+        - lambda: |-
+            ESP_LOGI("panel", "MQTT outsideTemperature: '%s'", x.c_str());
+            float temp = atof(x.c_str());
+            int temp_int = (int)(temp * 10);
+            int whole = temp_int / 10;
+            int frac = temp_int % 10;
+            if (frac < 0) frac = -frac;
+            lv_label_set_text_fmt(id(lbl_outside_temp), "%d.%d", whole, frac);
+
 # I2C for touchscreen
 i2c:
   sda: GPIO7
@@ -361,17 +373,17 @@ lvgl:
                   text_color: 0x888888
 
         # ========== SENSOR CARDS (row below arc) ==========
-        # Temperature
+        # Inside Temperature
         - obj:
             x: 20
             y: 270
-            width: 160
+            width: 130
             height: 100
             styles: style_card
             widgets:
               - label:
                   align: TOP_LEFT
-                  text: "Temperature"
+                  text: "Inside"
                   text_font: montserrat_14
                   text_color: 0x888888
               - label:
@@ -379,20 +391,47 @@ lvgl:
                   align: CENTER
                   y: 5
                   text: "--"
-                  text_font: montserrat_36
+                  text_font: montserrat_34
                   text_color: 0xFFA500
               - label:
                   align: CENTER
                   y: 35
-                  text: "C"
+                  text: "°C"
+                  text_font: montserrat_14
+                  text_color: 0x888888
+
+        # Outside Temperature
+        - obj:
+            x: 160
+            y: 270
+            width: 130
+            height: 100
+            styles: style_card
+            widgets:
+              - label:
+                  align: TOP_LEFT
+                  text: "Outside"
+                  text_font: montserrat_14
+                  text_color: 0x888888
+              - label:
+                  id: lbl_outside_temp
+                  align: CENTER
+                  y: 5
+                  text: "--"
+                  text_font: montserrat_34
+                  text_color: 0x00BCD4
+              - label:
+                  align: CENTER
+                  y: 35
+                  text: "°C"
                   text_font: montserrat_14
                   text_color: 0x888888
 
         # Humidity
         - obj:
-            x: 195
+            x: 300
             y: 270
-            width: 160
+            width: 130
             height: 100
             styles: style_card
             widgets:
@@ -406,7 +445,7 @@ lvgl:
                   align: CENTER
                   y: 5
                   text: "--"
-                  text_font: montserrat_36
+                  text_font: montserrat_34
                   text_color: 0x2196F3
               - label:
                   align: CENTER
@@ -417,9 +456,9 @@ lvgl:
 
         # CO2
         - obj:
-            x: 370
+            x: 440
             y: 270
-            width: 160
+            width: 130
             height: 100
             styles: style_card
             widgets:
@@ -433,7 +472,7 @@ lvgl:
                   align: CENTER
                   y: 5
                   text: "--"
-                  text_font: montserrat_36
+                  text_font: montserrat_34
                   text_color: 0x00c853
               - label:
                   align: CENTER
@@ -444,9 +483,9 @@ lvgl:
 
         # Pressure
         - obj:
-            x: 545
+            x: 580
             y: 270
-            width: 160
+            width: 130
             height: 100
             styles: style_card
             widgets:
@@ -460,7 +499,7 @@ lvgl:
                   align: CENTER
                   y: 5
                   text: "--"
-                  text_font: montserrat_28
+                  text_font: montserrat_26
                   text_color: 0x888888
               - label:
                   align: CENTER

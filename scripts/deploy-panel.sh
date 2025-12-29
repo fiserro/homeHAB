@@ -17,10 +17,11 @@ print_step "Deploying ESP32 Panel"
 # Configuration
 PANEL_DIR="esp32-panel"
 PANEL_CONFIG="hrv-panel.yaml"
+DEFAULT_DEVICE="hrv-panel.local"
 
 # Parse arguments
 COMPILE_ONLY=false
-DEVICE=""
+DEVICE="$DEFAULT_DEVICE"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -68,13 +69,9 @@ else
     # Compile and upload
     echo -e "${BLUE}Compiling and uploading ESP32 panel firmware...${NC}"
 
-    if [ -n "$DEVICE" ]; then
-        # Upload to specific device
-        esphome upload "$PANEL_CONFIG" --device "$DEVICE"
-    else
-        # Auto-discover or use USB
-        esphome upload "$PANEL_CONFIG"
-    fi
+    # Compile and upload to device (default: hrv-panel.local)
+    echo -e "${BLUE}Uploading to ${DEVICE}...${NC}"
+    esphome run "$PANEL_CONFIG" --device "$DEVICE"
 
     if [ $? -eq 0 ]; then
         print_success "Panel firmware deployed"

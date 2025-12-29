@@ -23,6 +23,13 @@ public interface HrvModule<T extends HrvModule<T>> extends Options<T> {
 
   int POWER_OFF = 0;
 
+  /** Outside temperature from 1-Wire sensor (DS18B20) on GPIO27. */
+  @ReadOnlyItem
+  @Option
+  default float outsideTemperature() {
+    return 0;
+  }
+
   // Control modes
   @InputItem(channel = "mqtt:topic:mosquitto:panel_commands:manualMode")
   @Option

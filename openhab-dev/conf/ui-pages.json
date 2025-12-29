@@ -232,6 +232,23 @@
                       }
                     } ]
                   }
+                }, {
+                  "component" : "oh-grid-col",
+                  "config" : {
+                    "width" : "50",
+                    "medium" : "20"
+                  },
+                  "slots" : {
+                    "default" : [ {
+                      "component" : "oh-label-card",
+                      "config" : {
+                        "title" : "Outside Temp",
+                        "item" : "outsideTemperature",
+                        "icon" : "f7:thermometer_sun",
+                        "iconColor" : "cyan"
+                      }
+                    } ]
+                  }
                 } ]
               }
             } ]
@@ -672,6 +689,13 @@
                             "title" : "Exhaust Power",
                             "item" : "hrvOutputExhaust",
                             "icon" : "f7:arrow_up_circle"
+                          }
+                        }, {
+                          "component" : "oh-label-item",
+                          "config" : {
+                            "title" : "Outside Temperature",
+                            "item" : "outsideTemperature",
+                            "icon" : "f7:thermometer_sun"
                           }
                         } ]
                       }

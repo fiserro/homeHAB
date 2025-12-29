@@ -13,6 +13,11 @@ This service is a **simple pass-through bridge** that receives commands from Ope
 | GPIO 18 | PWM | 0-100 | Fan speed (intake or exhaust) |
 | GPIO 19 | PWM | 0-100 | Fan speed (intake or exhaust) |
 
+**GPIO Inputs (1-Wire):**
+| GPIO | Type | Output | Description |
+|------|------|--------|-------------|
+| GPIO 27 | 1-Wire | Temperature (°C) | Outside temperature (DS18B20) |
+
 ## Output Modes
 
 ### PWM Mode (default)
@@ -51,11 +56,19 @@ Raspberry Pi SPI
 
 ## MQTT Topics
 
-| Topic | Direction | Values | Description |
-|-------|-----------|--------|-------------|
-| `homehab/hrv/gpio17` | Subscribe | ON/OFF | Bypass valve (digital output) |
-| `homehab/hrv/pwm/gpio18` | Subscribe | 0-100 | PWM duty cycle for GPIO 18 |
-| `homehab/hrv/pwm/gpio19` | Subscribe | 0-100 | PWM duty cycle for GPIO 19 |
+**Subscribe (OpenHAB → Bridge):**
+| Topic | Values | Description |
+|-------|--------|-------------|
+| `homehab/hrv/gpio17` | ON/OFF | Bypass valve (digital output) |
+| `homehab/hrv/pwm/gpio18` | 0-100 | PWM duty cycle for GPIO 18 |
+| `homehab/hrv/pwm/gpio19` | 0-100 | PWM duty cycle for GPIO 19 |
+
+**Publish (Bridge → OpenHAB):**
+| Topic | Values | Description |
+|-------|--------|-------------|
+| `homehab/hrv/w1/<sensor_id>` | float | Temperature in °C from 1-Wire sensor (retained) |
+
+Each DS18B20 sensor publishes to its own topic using its unique ID (e.g., `homehab/hrv/w1/28-0316840d44ff`). Multiple sensors are auto-detected and published.
 
 **Note:** OpenHAB calculates the final values (including source selection and calibration) and publishes them to these topics. The bridge simply sets the received values on the GPIO pins.
 
@@ -88,6 +101,7 @@ Options:
   --gpio18 PIN             GPIO pin for PWM channel 18 (default: 18)
   --gpio19 PIN             GPIO pin for PWM channel 19 (default: 19)
   --pwm-freq FREQ          PWM frequency in Hz (default: 2000)
+  --temp-interval SEC      Temperature reading interval (default: 30)
   -v, --verbose            Enable verbose logging
 ```
 
@@ -191,8 +205,11 @@ mosquitto_pub -h openhab.home -t 'homehab/hrv/pwm/gpio18' -m '50'
 # Set GPIO19 PWM to 75%
 mosquitto_pub -h openhab.home -t 'homehab/hrv/pwm/gpio19' -m '75'
 
-# Monitor all HRV topics
+# Monitor all HRV topics (including temperature)
 mosquitto_sub -h openhab.home -t 'homehab/hrv/#' -v
+
+# Read temperature sensor directly on RPi
+ssh openhab.home 'cat /sys/bus/w1/devices/28-*/temperature'
 
 # Check service logs
 ssh openhab.home 'sudo journalctl -u dac-bridge -f'

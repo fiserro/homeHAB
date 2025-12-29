@@ -27,4 +27,9 @@ Thing mqtt:topic:mosquitto:hrv_bridge "HRV Bridge" (mqtt:broker:mosquitto) {
         Type switch : gpio17 "HRV GPIO17" [
             commandTopic="homehab/hrv/gpio17"
         ]
+        // 1-Wire temperature sensors (DS18B20) on GPIO27
+        // Channel name = gpio27_<sensor_id>, topic = homehab/hrv/w1/<sensor_id>
+        Type number : gpio27_28-0316840d44ff "W1 GPIO27 28-0316840d44ff" [
+            stateTopic="homehab/hrv/w1/28-0316840d44ff"
+        ]
 }

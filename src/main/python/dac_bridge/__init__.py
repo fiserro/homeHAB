@@ -6,19 +6,27 @@ Receives PWM duty cycle values (0-100) from OpenHAB via MQTT and sets
 them directly on GPIO pins. All calculation (source selection, calibration)
 is done in OpenHAB/HrvCalculator.
 
+Also reads 1-Wire temperature sensors and publishes values to MQTT.
+
 Input: 0-100 (PWM duty cycle percentage from OpenHAB)
 Output: PWM signal on GPIO pins
 
-MQTT Topics:
+MQTT Topics (Subscribe):
   - {prefix}/pwm/gpio18  -> PWM value for GPIO 18 (0-100)
   - {prefix}/pwm/gpio19  -> PWM value for GPIO 19 (0-100)
   - {prefix}/gpio17      -> Digital output GPIO 17 (ON/OFF)
+
+MQTT Topics (Publish):
+  - {prefix}/w1/<sensor_id> -> Temperature from 1-Wire sensor (°C), e.g., w1/28-0316840d44ff
 """
 
 import argparse
+import glob
 import logging
 import signal
 import sys
+import threading
+import time
 
 import paho.mqtt.client as mqtt
 
@@ -38,6 +46,8 @@ DEFAULT_GPIO17 = 17  # Bypass valve (digital output)
 DEFAULT_GPIO18 = 18  # PWM output
 DEFAULT_GPIO19 = 19  # PWM output
 DEFAULT_PWM_FREQ = 2000
+DEFAULT_TEMP_INTERVAL = 30  # Temperature reading interval in seconds
+W1_DEVICES_PATH = "/sys/bus/w1/devices"
 
 # Logging setup
 logging.basicConfig(
@@ -94,14 +104,70 @@ class PwmOutput:
             self.handle = None
 
 
+class OneWireBus:
+    """1-Wire bus reader for multiple DS18B20 temperature sensors."""
+
+    def __init__(self):
+        """Initialize 1-Wire bus and find all connected sensors."""
+        self.sensors = {}  # device_id -> device_path
+        self._scan_sensors()
+
+    def _scan_sensors(self):
+        """Scan for all DS18B20 sensors on the 1-Wire bus."""
+        devices = glob.glob(f"{W1_DEVICES_PATH}/28-*/temperature")
+        for device_path in devices:
+            device_id = device_path.split('/')[-2]
+            self.sensors[device_id] = device_path
+            log.info(f"1-Wire sensor found: {device_id}")
+
+        if not self.sensors:
+            log.warning("No 1-Wire temperature sensors found")
+        else:
+            log.info(f"Found {len(self.sensors)} 1-Wire sensor(s)")
+
+    def rescan(self):
+        """Rescan for sensors (useful if sensors are added/removed)."""
+        self.sensors.clear()
+        self._scan_sensors()
+
+    def read_all(self) -> dict[str, float]:
+        """
+        Read temperature from all sensors.
+
+        Returns:
+            Dictionary of device_id -> temperature in Celsius.
+            Sensors that fail to read are omitted.
+        """
+        readings = {}
+        for device_id, device_path in self.sensors.items():
+            temp = self._read_sensor(device_id, device_path)
+            if temp is not None:
+                readings[device_id] = temp
+        return readings
+
+    def _read_sensor(self, device_id: str, device_path: str) -> float | None:
+        """Read temperature from a single sensor."""
+        try:
+            with open(device_path, 'r') as f:
+                # Value is in milli-degrees Celsius
+                raw_value = int(f.read().strip())
+                temp = raw_value / 1000.0
+                return round(temp, 1)
+        except (IOError, ValueError) as e:
+            log.error(f"Failed to read sensor {device_id}: {e}")
+            return None
+
+
 class HrvBridge:
     """Simple MQTT to PWM bridge for HRV control."""
 
     def __init__(self, mqtt_host: str, mqtt_port: int, topic_prefix: str,
-                 client_id: str, gpio17: int, gpio18: int, gpio19: int, pwm_freq: int):
+                 client_id: str, gpio17: int, gpio18: int, gpio19: int, pwm_freq: int,
+                 temp_interval: int = DEFAULT_TEMP_INTERVAL):
         self.mqtt_host = mqtt_host
         self.mqtt_port = mqtt_port
         self.topic_prefix = topic_prefix.rstrip('/')
+        self.temp_interval = temp_interval
 
         # MQTT client
         self.client = mqtt.Client(client_id=client_id)
@@ -115,6 +181,10 @@ class HrvBridge:
             self.output = PwmOutput(gpio17=gpio17, gpio18=gpio18, gpio19=gpio19, freq=pwm_freq)
         except Exception as e:
             log.warning(f"GPIO initialization failed: {e} - running in simulation mode")
+
+        # Initialize 1-Wire bus for temperature sensors
+        self.w1_bus = OneWireBus()
+        self.temp_thread = None
 
         self.running = False
 
@@ -171,6 +241,33 @@ class HrvBridge:
         except Exception as e:
             log.exception(f"Error processing message: {e}")
 
+    def _temperature_loop(self):
+        """Background thread for reading and publishing temperature."""
+        log.info(f"Temperature reader started (interval: {self.temp_interval}s)")
+
+        # Publish initial reading immediately
+        self._publish_temperature()
+
+        while self.running:
+            # Sleep in small increments to allow quick shutdown
+            for _ in range(self.temp_interval * 10):
+                if not self.running:
+                    break
+                time.sleep(0.1)
+
+            if self.running:
+                self._publish_temperature()
+
+        log.info("Temperature reader stopped")
+
+    def _publish_temperature(self):
+        """Read and publish temperature from all sensors to MQTT."""
+        readings = self.w1_bus.read_all()
+        for device_id, temp in readings.items():
+            topic = f"{self.topic_prefix}/w1/{device_id}"
+            self.client.publish(topic, str(temp), retain=True)
+            log.info(f"Published {device_id}: {temp}°C")
+
     def start(self):
         """Start the bridge."""
         self.running = True
@@ -184,6 +281,11 @@ class HrvBridge:
         log.info(f"Connecting to MQTT broker at {self.mqtt_host}:{self.mqtt_port}")
         self.client.connect(self.mqtt_host, self.mqtt_port, keepalive=60)
 
+        # Start temperature reading thread if any sensors found
+        if self.w1_bus.sensors:
+            self.temp_thread = threading.Thread(target=self._temperature_loop, daemon=True)
+            self.temp_thread.start()
+
         try:
             self.client.loop_forever()
         except KeyboardInterrupt:
@@ -195,6 +297,10 @@ class HrvBridge:
         """Stop the bridge and cleanup."""
         self.running = False
         log.info("Shutting down - setting outputs to 0")
+
+        # Wait for temperature thread to stop
+        if self.temp_thread and self.temp_thread.is_alive():
+            self.temp_thread.join(timeout=2)
 
         if self.output:
             self.output.set_digital(17, False)
@@ -256,6 +362,12 @@ def main():
         help=f"PWM frequency in Hz (default: {DEFAULT_PWM_FREQ})"
     )
     parser.add_argument(
+        "--temp-interval",
+        type=int,
+        default=DEFAULT_TEMP_INTERVAL,
+        help=f"Temperature reading interval in seconds (default: {DEFAULT_TEMP_INTERVAL})"
+    )
+    parser.add_argument(
         "--verbose", "-v",
         action="store_true",
         help="Enable verbose logging"
@@ -274,7 +386,8 @@ def main():
         gpio17=args.gpio17,
         gpio18=args.gpio18,
         gpio19=args.gpio19,
-        pwm_freq=args.pwm_freq
+        pwm_freq=args.pwm_freq,
+        temp_interval=args.temp_interval
     )
 
     def signal_handler(signum, frame):

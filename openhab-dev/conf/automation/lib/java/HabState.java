@@ -2,10 +2,10 @@ import io.github.fiserro.homehab.BooleanAggregation;
 import io.github.fiserro.homehab.MqttItem;
 import io.github.fiserro.homehab.NumericAggregation;
 import io.github.fiserro.homehab.OutputItem;
+import io.github.fiserro.homehab.ReadOnlyItem;
 import io.github.fiserro.homehab.module.CommonModule;
 import io.github.fiserro.homehab.module.FlowerModule;
 import io.github.fiserro.homehab.module.HrvModule;
-import io.github.fiserro.options.Option;
 
 /**
  * Complete home automation state interface.
@@ -22,6 +22,9 @@ import io.github.fiserro.options.Option;
 public interface HabState extends CommonModule<HabState>, HrvModule<HabState>, FlowerModule<HabState> {
 
     // Override methods to add MQTT specifications and aggregations for this home
+
+    @Override @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:gpio27_28-0316840d44ff")
+    default float outsideTemperature() { return HrvModule.super.outsideTemperature(); }
 
     @Override @MqttItem(value = {"aqara*Temperature", "soil*Temperature"}, numAgg = NumericAggregation.AVG)
     default int temperature() { return CommonModule.super.temperature(); }

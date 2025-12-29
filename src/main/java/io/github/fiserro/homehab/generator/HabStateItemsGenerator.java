@@ -251,12 +251,44 @@ public class HabStateItemsGenerator {
         String label = formatLabel(itemName);
         String icon = getReadOnlyIcon(itemName);
 
+        // Get channel from module annotation first
         ReadOnlyItem annotation = method.getAnnotation(ReadOnlyItem.class);
         String channel = annotation != null ? annotation.channel() : "";
+
+        // Check if HabState has an override with channel (HabState may define channels)
+        if (channel.isEmpty()) {
+            channel = getChannelFromHabState(itemName);
+        }
+
         String channelBinding = channel.isEmpty() ? "" : String.format(" { channel=\"%s\" }", channel);
 
         return String.format("%s %s \"HRV - %s\" <%s> %s%s%n",
             itemType, itemName, label, icon, READONLY_TAGS, channelBinding);
+    }
+
+    /**
+     * Get channel binding from HabState override if available.
+     */
+    private static String getChannelFromHabState(String methodName) {
+        try {
+            Class<?> habStateClass = Class.forName("HabState");
+            Method method = habStateClass.getDeclaredMethod(methodName);
+
+            // Check for @ReadOnlyItem with channel
+            ReadOnlyItem readOnlyItem = method.getAnnotation(ReadOnlyItem.class);
+            if (readOnlyItem != null && !readOnlyItem.channel().isEmpty()) {
+                return readOnlyItem.channel();
+            }
+
+            // Check for @OutputItem with channel
+            OutputItem outputItem = method.getAnnotation(OutputItem.class);
+            if (outputItem != null && !outputItem.channel().isEmpty()) {
+                return outputItem.channel();
+            }
+        } catch (ClassNotFoundException | NoSuchMethodException e) {
+            // HabState not available or method not found - this is ok
+        }
+        return "";
     }
 
     private static String getReadOnlyItemType(Class<?> type) {
@@ -277,6 +309,8 @@ public class HabStateItemsGenerator {
         String lower = fieldName.toLowerCase();
         if (lower.contains("time") || lower.contains("off")) {
             return "time";
+        } else if (lower.contains("temperature")) {
+            return "temperature";
         }
         return "none";
     }

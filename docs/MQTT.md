@@ -8,9 +8,11 @@ This document describes the MQTT topic structure used by the homeHAB system.
 homehab/
 ├── hrv/                      # HRV Bridge (Python on RPi)
 │   ├── gpio17                # Bypass valve ON/OFF (digital)
-│   └── pwm/                  # Final PWM values (command only)
-│       ├── gpio18            # PWM duty cycle 0-100
-│       └── gpio19            # PWM duty cycle 0-100
+│   ├── pwm/                  # Final PWM values (command only)
+│   │   ├── gpio18            # PWM duty cycle 0-100
+│   │   └── gpio19            # PWM duty cycle 0-100
+│   └── w1/                   # 1-Wire sensors (topic per sensor ID)
+│       └── 28-xxxxxxxxxxxx   # Temperature from sensor with ID 28-xxxx
 ├── panel/                    # ESP32 Panel
 │   ├── command/              # Commands from panel to OpenHAB
 │   │   ├── temporaryManualMode   # ON/OFF
@@ -39,13 +41,25 @@ homehab/
 
 The HRV Bridge runs on Raspberry Pi and controls GPIO outputs for ventilation.
 
-### GPIO Output Topics (Command Only)
+### GPIO Output Topics (Subscribe - OpenHAB → Bridge)
 
 | Topic | Type | Values | Description |
 |-------|------|--------|-------------|
 | `homehab/hrv/gpio17` | Switch | ON/OFF | Bypass valve control (digital output) |
 | `homehab/hrv/pwm/gpio18` | Number | 0-100 | PWM duty cycle for GPIO18 |
 | `homehab/hrv/pwm/gpio19` | Number | 0-100 | PWM duty cycle for GPIO19 |
+
+### Sensor Topics (Publish - Bridge → OpenHAB)
+
+| Topic | Type | Values | Description |
+|-------|------|--------|-------------|
+| `homehab/hrv/w1/<sensor_id>` | Number | float | Temperature in °C from 1-Wire sensor (retained) |
+
+**1-Wire Sensors:**
+- Each DS18B20 sensor publishes to its own topic using its unique ID
+- Example: `homehab/hrv/w1/28-0316840d44ff` for sensor with ID `28-0316840d44ff`
+- Multiple sensors can be connected in parallel on GPIO27
+- Bridge auto-detects all connected sensors and publishes each one
 
 **Bypass Valve (GPIO17):**
 - OFF = valve closed, air flows through heat exchanger (default, winter mode)

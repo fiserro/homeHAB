@@ -47,6 +47,7 @@ Dimmer hrvOutputPower "HRV - Hrv Output Power" <energy> ["computed"]
 Dimmer hrvOutputTest "HRV - Hrv Output Test" <settings> ["computed"]
 
 // Read-only items from HrvModule
+Number outsideTemperature "HRV - Outside Temperature" <temperature> ["readonly", "computed"] { channel="mqtt:topic:mosquitto:hrv_bridge:gpio27_28-0316840d44ff" }
 Number temporaryBoostModeOffTime "HRV - Temporary Boost Mode Off Time" <time> ["readonly", "computed"]
 Number temporaryManualModeOffTime "HRV - Temporary Manual Mode Off Time" <time> ["readonly", "computed"]
 
