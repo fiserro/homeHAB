@@ -59,46 +59,83 @@ font:
 
   # Czech glyphs: áčďéěíňóřšťúůýž ÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ
   # Special: ° (degree), ₂ (subscript 2)
-  - file: "gfonts://Montserrat"
+  # Using Montserrat SemiBold/Bold (@600/@700) for better visibility
+  - file:
+      type: gfonts
+      family: Montserrat
+      weight: 600
     id: font_14
     size: 14
     extras:
-      - file: "gfonts://Montserrat"
+      - file:
+          type: gfonts
+          family: Montserrat
+          weight: 600
         glyphs: "áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ°₂"
 
-  - file: "gfonts://Montserrat"
+  - file:
+      type: gfonts
+      family: Montserrat
+      weight: 600
     id: font_16
     size: 16
     extras:
-      - file: "gfonts://Montserrat"
+      - file:
+          type: gfonts
+          family: Montserrat
+          weight: 600
         glyphs: "áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ°₂"
 
-  - file: "gfonts://Montserrat"
+  - file:
+      type: gfonts
+      family: Montserrat
+      weight: 600
     id: font_20
     size: 20
     extras:
-      - file: "gfonts://Montserrat"
+      - file:
+          type: gfonts
+          family: Montserrat
+          weight: 600
         glyphs: "áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ°₂"
 
-  - file: "gfonts://Montserrat"
+  - file:
+      type: gfonts
+      family: Montserrat
+      weight: 700
     id: font_32
     size: 32
     extras:
-      - file: "gfonts://Montserrat"
+      - file:
+          type: gfonts
+          family: Montserrat
+          weight: 700
         glyphs: "áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ°₂"
 
-  - file: "gfonts://Montserrat"
+  - file:
+      type: gfonts
+      family: Montserrat
+      weight: 700
     id: font_44
     size: 44
     extras:
-      - file: "gfonts://Montserrat"
+      - file:
+          type: gfonts
+          family: Montserrat
+          weight: 700
         glyphs: "áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ°₂"
 
-  - file: "gfonts://Montserrat"
+  - file:
+      type: gfonts
+      family: Montserrat
+      weight: 700
     id: font_48
     size: 48
     extras:
-      - file: "gfonts://Montserrat"
+      - file:
+          type: gfonts
+          family: Montserrat
+          weight: 700
         glyphs: "áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ°₂"
 
 # Time sync
@@ -521,8 +558,9 @@ lvgl:
                   text_font: font_44
                   text_color: 0x4cc9f0
               - label:
-                  x: 120
-                  y: 48
+                  id: lbl_outdoor_unit
+                  x: 60
+                  y: 57
                   text: "°C"
                   text_font: font_20
                   text_color: 0xa0a0b0
@@ -556,8 +594,9 @@ lvgl:
                   text_font: font_44
                   text_color: 0x06d6a0
               - label:
-                  x: 120
-                  y: 48
+                  id: lbl_indoor_unit
+                  x: 60
+                  y: 57
                   text: "°C"
                   text_font: font_20
                   text_color: 0xa0a0b0
@@ -591,8 +630,9 @@ lvgl:
                   text_font: font_44
                   text_color: 0xb388ff
               - label:
-                  x: 120
-                  y: 48
+                  id: lbl_humidity_unit
+                  x: 60
+                  y: 57
                   text: "%"
                   text_font: font_20
                   text_color: 0xa0a0b0
@@ -626,8 +666,9 @@ lvgl:
                   text_font: font_44
                   text_color: 0xff9f1c
               - label:
-                  x: 160
-                  y: 48
+                  id: lbl_co2_unit
+                  x: 75
+                  y: 57
                   text: "ppm"
                   text_font: font_20
                   text_color: 0xa0a0b0
