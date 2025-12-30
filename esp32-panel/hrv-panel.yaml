@@ -569,7 +569,9 @@ lvgl:
             height: 100
             bg_color: 0x252542
             radius: 20
-            border_width: 0
+            border_width: 6
+            border_color: 0x4cc9f0
+            border_side: LEFT
             pad_all: 20
             scrollbar_mode: "off"
             widgets:
@@ -638,8 +640,9 @@ lvgl:
             height: 100
             bg_color: 0x252542
             radius: 20
-            border_width: 2
-            border_color: 0x252542
+            border_width: 6
+            border_color: 0x06d6a0
+            border_side: LEFT
             pad_left: 24
             pad_top: 24
             scrollbar_mode: "off"
@@ -692,7 +695,9 @@ lvgl:
             height: 100
             bg_color: 0x252542
             radius: 20
-            border_width: 0
+            border_width: 6
+            border_color: 0xa0a0b0
+            border_side: LEFT
             widgets:
               - label:
                   id: lbl_alert_text
