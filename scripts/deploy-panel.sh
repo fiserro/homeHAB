@@ -70,8 +70,9 @@ else
     echo -e "${BLUE}Compiling and uploading ESP32 panel firmware...${NC}"
 
     # Compile and upload to device (default: hrv-panel.local)
+    # Use --no-logs to prevent blocking on log output after upload
     echo -e "${BLUE}Uploading to ${DEVICE}...${NC}"
-    esphome run "$PANEL_CONFIG" --device "$DEVICE"
+    esphome run "$PANEL_CONFIG" --device "$DEVICE" --no-logs
 
     if [ $? -eq 0 ]; then
         print_success "Panel firmware deployed"

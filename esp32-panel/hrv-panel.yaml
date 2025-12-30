@@ -48,13 +48,58 @@ http_request:
   verify_ssl: false
   timeout: 10s
 
-# Custom font with WiFi icon
+# Fonts with Czech diacritics and special characters
 font:
+  # WiFi icon font
   - file: "gfonts://Material+Symbols+Outlined"
     id: wifi_icon_font
     size: 32
     glyphs:
       - "\U0000e63e"  # wifi
+
+  # Czech glyphs: áčďéěíňóřšťúůýž ÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ
+  # Special: ° (degree), ₂ (subscript 2)
+  - file: "gfonts://Montserrat"
+    id: font_14
+    size: 14
+    extras:
+      - file: "gfonts://Montserrat"
+        glyphs: "áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ°₂"
+
+  - file: "gfonts://Montserrat"
+    id: font_16
+    size: 16
+    extras:
+      - file: "gfonts://Montserrat"
+        glyphs: "áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ°₂"
+
+  - file: "gfonts://Montserrat"
+    id: font_20
+    size: 20
+    extras:
+      - file: "gfonts://Montserrat"
+        glyphs: "áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ°₂"
+
+  - file: "gfonts://Montserrat"
+    id: font_32
+    size: 32
+    extras:
+      - file: "gfonts://Montserrat"
+        glyphs: "áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ°₂"
+
+  - file: "gfonts://Montserrat"
+    id: font_44
+    size: 44
+    extras:
+      - file: "gfonts://Montserrat"
+        glyphs: "áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ°₂"
+
+  - file: "gfonts://Montserrat"
+    id: font_48
+    size: 48
+    extras:
+      - file: "gfonts://Montserrat"
+        glyphs: "áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ°₂"
 
 # Time sync
 time:
@@ -299,7 +344,7 @@ lvgl:
             x: 24
             y: 20
             text: "00:00"
-            text_font: montserrat_48
+            text_font: font_48
             text_color: 0xFFFFFF
 
         # Date
@@ -307,15 +352,15 @@ lvgl:
             id: lbl_date
             x: 24
             y: 72
-            text: "Pondeli 1. ledna"
-            text_font: montserrat_16
+            text: "Pondělí 1. ledna"
+            text_font: font_16
             text_color: 0xa0a0b0
 
-        # Mode buttons container
+        # Mode buttons container (VYP, MAN, BOOST, AUTO | gap | BYPASS, WiFi)
         - obj:
-            x: 340
+            x: 290
             y: 24
-            width: 310
+            width: 406
             height: 48
             bg_opa: TRANSP
             border_width: 0
@@ -326,7 +371,7 @@ lvgl:
                   id: btn_off
                   x: 0
                   y: 0
-                  width: 64
+                  width: 56
                   height: 44
                   bg_color: 0x252542
                   radius: 12
@@ -334,7 +379,7 @@ lvgl:
                     - label:
                         align: CENTER
                         text: "VYP"
-                        text_font: montserrat_14
+                        text_font: font_14
                         text_color: 0xa0a0b0
                   on_click:
                     - mqtt.publish:
@@ -347,9 +392,9 @@ lvgl:
               # MAN
               - button:
                   id: btn_man
-                  x: 72
+                  x: 62
                   y: 0
-                  width: 64
+                  width: 56
                   height: 44
                   bg_color: 0x252542
                   radius: 12
@@ -357,7 +402,7 @@ lvgl:
                     - label:
                         align: CENTER
                         text: "MAN"
-                        text_font: montserrat_14
+                        text_font: font_14
                         text_color: 0xa0a0b0
                   on_click:
                     - mqtt.publish:
@@ -367,9 +412,9 @@ lvgl:
               # BOOST
               - button:
                   id: btn_boost
-                  x: 144
+                  x: 124
                   y: 0
-                  width: 72
+                  width: 68
                   height: 44
                   bg_color: 0x252542
                   radius: 12
@@ -377,7 +422,7 @@ lvgl:
                     - label:
                         align: CENTER
                         text: "BOOST"
-                        text_font: montserrat_14
+                        text_font: font_14
                         text_color: 0xa0a0b0
                   on_click:
                     - mqtt.publish:
@@ -387,7 +432,7 @@ lvgl:
               # AUTO
               - button:
                   id: btn_auto
-                  x: 224
+                  x: 198
                   y: 0
                   width: 64
                   height: 44
@@ -398,7 +443,7 @@ lvgl:
                         id: lbl_auto
                         align: CENTER
                         text: "AUTO"
-                        text_font: montserrat_14
+                        text_font: font_14
                         text_color: 0x1a1a2e
                   on_click:
                     - mqtt.publish:
@@ -411,14 +456,35 @@ lvgl:
                         topic: homehab/panel/command/temporaryBoostMode
                         payload: "OFF"
 
-        # Network indicator (just icon, no box)
-        - label:
-            id: lbl_network_icon
-            x: 665
-            y: 32
-            text: "\U0000e63e"
-            text_font: wifi_icon_font
-            text_color: 0x4cc9f0
+              # BYPASS button (bigger gap before - 24px instead of 6px)
+              - button:
+                  id: btn_bypass
+                  x: 286
+                  y: 0
+                  width: 72
+                  height: 44
+                  bg_color: 0x252542
+                  radius: 12
+                  widgets:
+                    - label:
+                        id: lbl_bypass
+                        align: CENTER
+                        text: "BYPASS"
+                        text_font: font_14
+                        text_color: 0xa0a0b0
+                  on_click:
+                    - mqtt.publish:
+                        topic: homehab/panel/command/bypass
+                        payload: !lambda 'return id(bypass_active) ? "OFF" : "ON";'
+
+              # Network indicator (WiFi icon)
+              - label:
+                  id: lbl_network_icon
+                  x: 370
+                  y: 6
+                  text: "\U0000e63e"
+                  text_font: wifi_icon_font
+                  text_color: 0x4cc9f0
 
         # ==================== STATS GRID (2x2) ====================
         # Outdoor Temperature (top left)
@@ -426,7 +492,7 @@ lvgl:
             x: 24
             y: 110
             width: 330
-            height: 120
+            height: 135
             bg_color: 0x252542
             radius: 20
             border_width: 6
@@ -440,20 +506,20 @@ lvgl:
                   x: 0
                   y: 0
                   text: "VENKOVNÍ"
-                  text_font: montserrat_14
+                  text_font: font_14
                   text_color: 0xa0a0b0
               - label:
                   id: lbl_outdoor_value
                   x: 0
                   y: 36
                   text: "--"
-                  text_font: montserrat_44
+                  text_font: font_44
                   text_color: 0x4cc9f0
               - label:
                   x: 120
                   y: 48
-                  text: "oC"
-                  text_font: montserrat_20
+                  text: "°C"
+                  text_font: font_20
                   text_color: 0xa0a0b0
 
         # Indoor Temperature (top right)
@@ -461,7 +527,7 @@ lvgl:
             x: 366
             y: 110
             width: 330
-            height: 120
+            height: 135
             bg_color: 0x252542
             radius: 20
             border_width: 6
@@ -474,29 +540,29 @@ lvgl:
               - label:
                   x: 0
                   y: 0
-                  text: "VNITRNI"
-                  text_font: montserrat_14
+                  text: "VNITŘNÍ"
+                  text_font: font_14
                   text_color: 0xa0a0b0
               - label:
                   id: lbl_indoor_value
                   x: 0
                   y: 36
                   text: "--"
-                  text_font: montserrat_44
+                  text_font: font_44
                   text_color: 0x06d6a0
               - label:
                   x: 120
                   y: 48
-                  text: "oC"
-                  text_font: montserrat_20
+                  text: "°C"
+                  text_font: font_20
                   text_color: 0xa0a0b0
 
         # Humidity (bottom left)
         - obj:
             x: 24
-            y: 246
+            y: 261
             width: 330
-            height: 120
+            height: 135
             bg_color: 0x252542
             radius: 20
             border_width: 6
@@ -510,28 +576,28 @@ lvgl:
                   x: 0
                   y: 0
                   text: "VLHKOST"
-                  text_font: montserrat_14
+                  text_font: font_14
                   text_color: 0xa0a0b0
               - label:
                   id: lbl_humidity_value
                   x: 0
                   y: 36
                   text: "--"
-                  text_font: montserrat_44
+                  text_font: font_44
                   text_color: 0xb388ff
               - label:
                   x: 120
                   y: 48
                   text: "%"
-                  text_font: montserrat_20
+                  text_font: font_20
                   text_color: 0xa0a0b0
 
         # CO2 (bottom right)
         - obj:
             x: 366
-            y: 246
+            y: 261
             width: 330
-            height: 120
+            height: 135
             bg_color: 0x252542
             radius: 20
             border_width: 6
@@ -544,29 +610,29 @@ lvgl:
               - label:
                   x: 0
                   y: 0
-                  text: "CO2"
-                  text_font: montserrat_14
+                  text: "CO₂"
+                  text_font: font_14
                   text_color: 0xa0a0b0
               - label:
                   id: lbl_co2_value
                   x: 0
                   y: 36
                   text: "--"
-                  text_font: montserrat_44
+                  text_font: font_44
                   text_color: 0xff9f1c
               - label:
                   x: 160
                   y: 48
                   text: "ppm"
-                  text_font: montserrat_20
+                  text_font: font_20
                   text_color: 0xa0a0b0
 
         # ==================== FAN SECTION ====================
         - obj:
             x: 24
-            y: 382
+            y: 412
             width: 672
-            height: 100
+            height: 135
             bg_color: 0x252542
             radius: 20
             border_width: 6
@@ -580,7 +646,7 @@ lvgl:
                   x: 0
                   y: 0
                   text: "RYCHLOST VENTILATORU"
-                  text_font: montserrat_14
+                  text_font: font_14
                   text_color: 0xa0a0b0
               # Value
               - label:
@@ -589,110 +655,45 @@ lvgl:
                   x: 0
                   y: -4
                   text: "0%"
-                  text_font: montserrat_32
+                  text_font: font_32
                   text_color: 0x4cc9f0
-              # Progress bar background (clickable)
-              - obj:
-                  id: fan_bar_container
+              # Progress bar with click handler
+              - bar:
+                  id: fan_bar
                   x: 0
-                  y: 44
+                  y: 50
                   width: 632
-                  height: 20
+                  height: 16
+                  min_value: 0
+                  max_value: 100
+                  value: 0
                   bg_color: 0x1a1a2e
-                  radius: 10
-                  border_width: 0
-                  scrollbar_mode: "off"
+                  radius: 8
+                  indicator:
+                    bg_color: 0x4cc9f0
+                    radius: 8
                   on_click:
-                    then:
-                      - mqtt.publish:
-                          topic: homehab/panel/command/manualPower
-                          payload: !lambda |-
-                            if (id(ignore_slider_events)) return std::string("0");
-                            lv_point_t point;
-                            lv_indev_get_point(lv_indev_get_act(), &point);
-                            int power = ((point.x - 44) * 100) / 632;
-                            if (power < 0) power = 0;
-                            if (power > 100) power = 100;
-                            ESP_LOGI("panel", "Fan bar clicked: power=%d", power);
-                            return to_string(power);
-                  widgets:
-                    - bar:
-                        id: fan_bar
-                        x: 0
-                        y: 0
-                        width: 632
-                        height: 20
-                        min_value: 0
-                        max_value: 100
-                        value: 0
-                        bg_opa: TRANSP
-                        indicator:
-                          bg_color: 0x4cc9f0
-                          radius: 10
+                    - mqtt.publish:
+                        topic: homehab/panel/command/manualPower
+                        payload: !lambda |-
+                          if (id(ignore_slider_events)) return std::string("0");
+                          lv_point_t point;
+                          lv_indev_get_point(lv_indev_get_act(), &point);
+                          // Bar starts at x:24 (box) + 20 (pad) + 0 (bar x) = 44
+                          int power = ((point.x - 44) * 100) / 632;
+                          if (power < 0) power = 0;
+                          if (power > 100) power = 100;
+                          ESP_LOGI("panel", "Fan bar clicked: power=%d", power);
+                          return to_string(power);
 
         # ==================== BOTTOM ROW ====================
-        # Bypass Card
-        - obj:
-            id: bypass_card
-            x: 24
-            y: 498
-            width: 330
-            height: 100
-            bg_color: 0x252542
-            radius: 20
-            border_width: 6
-            border_color: 0x06d6a0
-            border_side: LEFT
-            pad_left: 24
-            pad_top: 24
-            scrollbar_mode: "off"
-            on_click:
-              - mqtt.publish:
-                  topic: homehab/panel/command/bypass
-                  payload: !lambda 'return id(bypass_active) ? "OFF" : "ON";'
-            widgets:
-              - label:
-                  x: 0
-                  y: 0
-                  text: "Bypass"
-                  text_font: montserrat_16
-                  text_color: 0xFFFFFF
-              - label:
-                  id: lbl_bypass_status
-                  x: 0
-                  y: 24
-                  text: "Neaktivni"
-                  text_font: montserrat_14
-                  text_color: 0xa0a0b0
-              # Toggle switch
-              - obj:
-                  id: bypass_toggle
-                  align: RIGHT_MID
-                  x: -16
-                  width: 180
-                  height: 42
-                  bg_color: 0x1a1a2e
-                  radius: 21
-                  border_width: 0
-                  scrollbar_mode: "off"
-                  widgets:
-                    - obj:
-                        id: bypass_knob
-                        x: 4
-                        y: 4
-                        width: 34
-                        height: 34
-                        bg_color: 0xa0a0b0
-                        radius: 17
-                        border_width: 0
-
-        # Alert Card
+        # Notification/Alert Card (full width)
         - obj:
             id: alert_area
-            x: 366
-            y: 498
-            width: 330
-            height: 100
+            x: 24
+            y: 563
+            width: 672
+            height: 135
             bg_color: 0x252542
             radius: 20
             border_width: 6
@@ -702,8 +703,8 @@ lvgl:
               - label:
                   id: lbl_alert_text
                   align: CENTER
-                  text: "Zadna upozorneni"
-                  text_font: montserrat_14
+                  text: "Žádná upozornění"
+                  text_font: font_14
                   text_color: 0xa0a0b0
 
 # Sensors
@@ -734,9 +735,9 @@ interval:
           if (time.is_valid()) {
             lv_label_set_text_fmt(id(lbl_time), "%02d:%02d", time.hour, time.minute);
 
-            const char* days[] = {"Nedele", "Pondeli", "Utery", "Streda", "Ctvrtek", "Patek", "Sobota"};
-            const char* months[] = {"ledna", "unora", "brezna", "dubna", "kvetna", "cervna",
-                                    "cervence", "srpna", "zari", "rijna", "listopadu", "prosince"};
+            const char* days[] = {"Neděle", "Pondělí", "Úterý", "Středa", "Čtvrtek", "Pátek", "Sobota"};
+            const char* months[] = {"ledna", "února", "března", "dubna", "května", "června",
+                                    "července", "srpna", "září", "října", "listopadu", "prosince"};
             int dow = time.day_of_week - 1;
             if (dow < 0) dow = 6;
             lv_label_set_text_fmt(id(lbl_date), "%s %d. %s", days[dow], time.day_of_month, months[time.month - 1]);
@@ -791,19 +792,13 @@ script:
     then:
       - lambda: |-
           if (id(bypass_active)) {
-            lv_obj_set_style_border_color(id(bypass_card), lv_color_hex(0x06d6a0), 0);
-            lv_label_set_text(id(lbl_bypass_status), "Aktivni");
-            lv_obj_set_style_text_color(id(lbl_bypass_status), lv_color_hex(0x06d6a0), 0);
-            lv_obj_set_style_bg_color(id(bypass_toggle), lv_color_hex(0x06d6a0), 0);
-            lv_obj_set_x(id(bypass_knob), 142);  // 180 - 34 - 4 = 142
-            lv_obj_set_style_bg_color(id(bypass_knob), lv_color_hex(0xFFFFFF), 0);
+            // Bypass active - green button
+            lv_obj_set_style_bg_color(id(btn_bypass), lv_color_hex(0x06d6a0), 0);
+            lv_obj_set_style_text_color(id(lbl_bypass), lv_color_hex(0x1a1a2e), 0);
           } else {
-            lv_obj_set_style_border_color(id(bypass_card), lv_color_hex(0x252542), 0);
-            lv_label_set_text(id(lbl_bypass_status), "Neaktivni");
-            lv_obj_set_style_text_color(id(lbl_bypass_status), lv_color_hex(0xa0a0b0), 0);
-            lv_obj_set_style_bg_color(id(bypass_toggle), lv_color_hex(0x1a1a2e), 0);
-            lv_obj_set_x(id(bypass_knob), 4);
-            lv_obj_set_style_bg_color(id(bypass_knob), lv_color_hex(0xa0a0b0), 0);
+            // Bypass inactive - default dark button
+            lv_obj_set_style_bg_color(id(btn_bypass), lv_color_hex(0x252542), 0);
+            lv_obj_set_style_text_color(id(lbl_bypass), lv_color_hex(0xa0a0b0), 0);
           }
 
   - id: update_alerts
@@ -811,19 +806,19 @@ script:
       - lambda: |-
           if (id(gas_alarm)) {
             lv_obj_set_style_bg_color(id(alert_area), lv_color_hex(0xef476f), 0);
-            lv_label_set_text(id(lbl_alert_text), "UNIK PLYNU!");
+            lv_label_set_text(id(lbl_alert_text), "ÚNIK PLYNU!");
             lv_obj_set_style_text_color(id(lbl_alert_text), lv_color_hex(0xFFFFFF), 0);
           } else if (id(smoke_alarm)) {
             lv_obj_set_style_bg_color(id(alert_area), lv_color_hex(0xef476f), 0);
-            lv_label_set_text(id(lbl_alert_text), "DETEKCE KOURE!");
+            lv_label_set_text(id(lbl_alert_text), "DETEKCE KOUŘE!");
             lv_obj_set_style_text_color(id(lbl_alert_text), lv_color_hex(0xFFFFFF), 0);
           } else if (id(filter_cleaning_required)) {
             lv_obj_set_style_bg_color(id(alert_area), lv_color_hex(0xff9f1c), 0);
-            lv_label_set_text(id(lbl_alert_text), "Vycistete filtr");
+            lv_label_set_text(id(lbl_alert_text), "Vyčistěte filtr");
             lv_obj_set_style_text_color(id(lbl_alert_text), lv_color_hex(0x1a1a2e), 0);
           } else {
             lv_obj_set_style_bg_color(id(alert_area), lv_color_hex(0x252542), 0);
-            lv_label_set_text(id(lbl_alert_text), "Zadna upozorneni");
+            lv_label_set_text(id(lbl_alert_text), "Žádná upozornění");
             lv_obj_set_style_text_color(id(lbl_alert_text), lv_color_hex(0xa0a0b0), 0);
           }
 
