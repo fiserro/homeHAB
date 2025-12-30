@@ -473,6 +473,11 @@ lvgl:
                         text_font: font_14
                         text_color: 0xa0a0b0
                   on_click:
+                    # Set manualPower to current power (this auto-enables temporaryManualMode via HrvControl)
+                    - mqtt.publish:
+                        topic: homehab/panel/command/manualPower
+                        payload: !lambda 'return to_string(id(power_value));'
+                    # Toggle bypass
                     - mqtt.publish:
                         topic: homehab/panel/command/bypass
                         payload: !lambda 'return id(bypass_active) ? "OFF" : "ON";'
@@ -640,6 +645,7 @@ lvgl:
             border_side: LEFT
             pad_all: 20
             scrollbar_mode: "off"
+            scrollable: false
             widgets:
               # Label
               - label:
