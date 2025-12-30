@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=720, height=720">
+    <title>Rekuperace Panel - LVGL optimized</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-dark: #1a1a2e;
+            --bg-card: #252542;
+            --accent-blue: #4cc9f0;
+            --accent-green: #06d6a0;
+            --accent-orange: #ff9f1c;
+            --accent-red: #ef476f;
+            --accent-purple: #b388ff;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+        }
+        
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .panel {
+            width: 720px;
+            height: 720px;
+            background: var(--bg-dark);
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+        }
+        
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .time {
+            font-size: 48px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .date {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        /* Mode buttons */
+        .mode-selector {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .mode-btn {
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            border: 2px solid var(--bg-card);
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+        
+        .mode-btn.active {
+            border-color: var(--accent-green);
+            background: var(--accent-green);
+            color: var(--bg-dark);
+        }
+        
+        .mode-btn.active.boost {
+            border-color: var(--accent-orange);
+            background: var(--accent-orange);
+        }
+        
+        .mode-btn.active.manual {
+            border-color: var(--accent-blue);
+            background: var(--accent-blue);
+        }
+        
+        .mode-btn.active.off {
+            border-color: var(--text-secondary);
+            background: var(--text-secondary);
+        }
+        
+        /* WiFi icon */
+        .wifi-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .wifi-icon svg {
+            width: 28px;
+            height: 28px;
+            color: var(--accent-blue);
+        }
+        
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 20px;
+            border-left: 6px solid;
+        }
+        
+        .stat-card.outdoor { border-color: var(--accent-blue); }
+        .stat-card.indoor { border-color: var(--accent-green); }
+        .stat-card.humidity { border-color: var(--accent-purple); }
+        .stat-card.co2 { border-color: var(--accent-orange); }
+        
+        .stat-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat-value {
+            font-size: 44px;
+            font-weight: 700;
+        }
+        
+        .stat-unit {
+            font-size: 20px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        
+        .stat-card.outdoor .stat-value { color: var(--accent-blue); }
+        .stat-card.indoor .stat-value { color: var(--accent-green); }
+        .stat-card.humidity .stat-value { color: var(--accent-purple); }
+        .stat-card.co2 .stat-value { color: var(--accent-orange); }
+        
+        /* Fan Section */
+        .fan-section {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 20px 24px;
+            margin-bottom: 16px;
+        }
+        
+        .fan-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .fan-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .fan-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--accent-blue);
+        }
+        
+        .fan-bar-bg {
+            height: 20px;
+            background: var(--bg-dark);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .fan-bar {
+            height: 100%;
+            width: 65%;
+            background: var(--accent-blue);
+            border-radius: 10px;
+        }
+        
+        /* Bottom Row */
+        .bottom-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        
+        /* Bypass */
+        .bypass-card {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+        
+        .bypass-card.active {
+            border: 2px solid var(--accent-green);
+        }
+        
+        .bypass-label {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .bypass-status {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        .bypass-card.active .bypass-status {
+            color: var(--accent-green);
+        }
+        
+        .toggle {
+            width: 64px;
+            height: 36px;
+            background: var(--bg-dark);
+            border-radius: 18px;
+            position: relative;
+        }
+        
+        .toggle::after {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 28px;
+            height: 28px;
+            background: var(--text-secondary);
+            border-radius: 50%;
+        }
+        
+        .bypass-card.active .toggle {
+            background: var(--accent-green);
+        }
+        
+        .bypass-card.active .toggle::after {
+            left: 32px;
+            background: white;
+        }
+        
+        /* Alert */
+        .alert-card {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .alert-card.empty {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        
+        .alert-card.warning {
+            background: var(--accent-orange);
+            color: var(--bg-dark);
+            font-weight: 600;
+        }
+        
+        .alert-card.danger {
+            background: var(--accent-red);
+            color: white;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="panel">
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <div class="time">14:35</div>
+                <div class="date">Pondělí 29. prosince</div>
+            </div>
+            <div class="header-right">
+                <div class="mode-selector">
+                    <button class="mode-btn off" onclick="setMode(this)">VYP</button>
+                    <button class="mode-btn manual" onclick="setMode(this)">MAN</button>
+                    <button class="mode-btn boost" onclick="setMode(this)">BOOST</button>
+                    <button class="mode-btn auto active" onclick="setMode(this)">AUTO</button>
+                </div>
+                <div class="wifi-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M5 12.55a11 11 0 0114 0"/>
+                        <path d="M1.42 9a16 16 0 0121.16 0"/>
+                        <path d="M8.53 16.11a6 6 0 016.95 0"/>
+                        <circle cx="12" cy="20" r="1.5" fill="currentColor"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card outdoor">
+                <div class="stat-label">Venkovní</div>
+                <div class="stat-value">-2<span class="stat-unit">°C</span></div>
+            </div>
+            
+            <div class="stat-card indoor">
+                <div class="stat-label">Vnitřní</div>
+                <div class="stat-value">22<span class="stat-unit">°C</span></div>
+            </div>
+            
+            <div class="stat-card humidity">
+                <div class="stat-label">Vlhkost</div>
+                <div class="stat-value">45<span class="stat-unit">%</span></div>
+            </div>
+            
+            <div class="stat-card co2">
+                <div class="stat-label">CO₂</div>
+                <div class="stat-value">680<span class="stat-unit">ppm</span></div>
+            </div>
+        </div>
+        
+        <!-- Fan -->
+        <div class="fan-section">
+            <div class="fan-header">
+                <span class="fan-label">Rychlost ventilátoru</span>
+                <span class="fan-value">65%</span>
+            </div>
+            <div class="fan-bar-bg">
+                <div class="fan-bar"></div>
+            </div>
+        </div>
+        
+        <!-- Bottom -->
+        <div class="bottom-row">
+            <div class="bypass-card active" onclick="this.classList.toggle('active')">
+                <div>
+                    <div class="bypass-label">Bypass</div>
+                    <div class="bypass-status">Aktivní</div>
+                </div>
+                <div class="toggle"></div>
+            </div>
+            
+            <div class="alert-card empty">
+                Žádná upozornění
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function setMode(btn) {
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+        
+        function updateTime() {
+            const now = new Date();
+            document.querySelector('.time').textContent = 
+                String(now.getHours()).padStart(2, '0') + ':' + 
+                String(now.getMinutes()).padStart(2, '0');
+            
+            const days = ['Neděle', 'Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek', 'Sobota'];
+            const months = ['ledna', 'února', 'března', 'dubna', 'května', 'června', 
+                           'července', 'srpna', 'září', 'října', 'listopadu', 'prosince'];
+            document.querySelector('.date').textContent = 
+                `${days[now.getDay()]} ${now.getDate()}. ${months[now.getMonth()]}`;
+        }
+        
+        updateTime();
+        setInterval(updateTime, 1000);
+    </script>
+</body>
+</html>
