@@ -71,3 +71,10 @@ __pycache__/
 # ESPHome
 esp32-panel/secrets.yaml
 esp32-panel/.esphome/
+
+# Docker service data directories
+mosquitto/data/
+mosquitto/log/
+influxdb/data/
+influxdb/config/
+grafana/data/

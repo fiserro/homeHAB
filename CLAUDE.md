@@ -62,13 +62,55 @@ The development workflow follows these steps:
 ### Shared MQTT Broker Architecture
 
 The development and production environments share a common MQTT broker:
-- **Mosquitto** runs on Raspberry Pi (`openhab.home:1883`)
+- **Mosquitto** runs on Raspberry Pi (`zigbee.home:1883`)
 - **Both environments** use the same topic prefix `homehab/`
 - **HRV Bridge** (Python on RPi) serves both dev and prod OpenHAB
 
-**Benefit**: Development environment can use **real sensors** and **real HRV control** without needing to mock them.
+**Benefit**: Development environment can use **real sensors** and **real HRV control** without needing to mock them. This is essential for testing hardware-dependent features like PWM calibration.
 
-**Future option**: If needed, environments can be separated using different prefixes (`homehab-dev/` vs `homehab/`).
+#### MQTT Client IDs
+
+Each OpenHAB instance must use a unique `clientId` to connect to the same broker:
+- **Production**: `clientid="homehab-prod"` (in `/etc/openhab/conf/things/mqtt.things`)
+- **Development**: `clientid="homehab-dev"` (in `openhab-dev/conf/things/mqtt.things`)
+
+If two clients connect with the same `clientId`, the broker disconnects the first one.
+
+#### Topic Prefix vs Client ID
+
+These are independent concepts:
+- **Client ID** - Identifies the connection (prevents duplicate connections)
+- **Topic prefix** - Namespace for messages (both use `homehab/`)
+
+Since both use the same topic prefix, commands from either OpenHAB affect the real hardware.
+
+#### Development Best Practice
+
+When testing on dev that sends commands to HW (e.g., PWM calibration):
+1. Set `manualMode=ON` on production OpenHAB
+2. This prevents prod's HrvCalculator from overriding your dev commands
+3. After testing, set `manualMode=OFF` to restore automatic control
+
+#### Optional Local Simulator
+
+For testing edge cases (smoke alarm, high CO2) without real hardware, a local simulator is available:
+
+```bash
+# Start local MQTT broker and device simulator
+docker-compose up -d mosquitto mqtt-simulator
+
+# Change mqtt.things to use local broker
+# host="mosquitto" instead of host="zigbee.home"
+
+# Simulated devices publish to zigbee2mqtt/<device> topics
+# Configuration: mqtt-simulator/devices.yaml
+```
+
+To switch back to production:
+```bash
+docker-compose stop mosquitto mqtt-simulator
+# Change mqtt.things back to host="zigbee.home"
+```
 
 ## Deployment
 

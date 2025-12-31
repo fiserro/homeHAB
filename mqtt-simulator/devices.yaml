@@ -1,0 +1,238 @@
+# Simulated Zigbee devices for homeHAB development
+# Matches devices defined in mqtt-devices.things
+
+devices:
+  # Aqara climate sensors (temperature, humidity, pressure)
+  - name: aqara1
+    type: climate
+    interval: 30
+    values:
+      temperature:
+        min: 18
+        max: 26
+        precision: 1
+      humidity:
+        min: 30
+        max: 70
+        precision: 0
+      pressure:
+        min: 980
+        max: 1020
+        precision: 0
+      battery:
+        min: 80
+        max: 100
+        precision: 0
+      voltage:
+        min: 2800
+        max: 3100
+        precision: 0
+      linkquality:
+        min: 50
+        max: 255
+        precision: 0
+
+  - name: aqara2
+    type: climate
+    interval: 30
+    values:
+      temperature:
+        min: 19
+        max: 25
+        precision: 1
+      humidity:
+        min: 35
+        max: 65
+        precision: 0
+      pressure:
+        min: 985
+        max: 1015
+        precision: 0
+      battery:
+        min: 85
+        max: 100
+        precision: 0
+      voltage:
+        min: 2900
+        max: 3100
+        precision: 0
+      linkquality:
+        min: 60
+        max: 255
+        precision: 0
+
+  - name: aqara3
+    type: climate
+    interval: 30
+    values:
+      temperature:
+        min: 17
+        max: 24
+        precision: 1
+      humidity:
+        min: 40
+        max: 75
+        precision: 0
+      pressure:
+        min: 980
+        max: 1020
+        precision: 0
+      battery:
+        min: 75
+        max: 100
+        precision: 0
+      voltage:
+        min: 2700
+        max: 3000
+        precision: 0
+      linkquality:
+        min: 40
+        max: 200
+        precision: 0
+
+  # Soil moisture sensors
+  - name: soil1
+    type: soil
+    interval: 60
+    values:
+      soil_moisture:
+        min: 20
+        max: 80
+        precision: 0
+      temperature:
+        min: 15
+        max: 25
+        precision: 1
+      humidity:
+        min: 40
+        max: 80
+        precision: 0
+      dry:
+        type: boolean
+        probability_true: 0.1
+      battery:
+        min: 70
+        max: 100
+        precision: 0
+      linkquality:
+        min: 30
+        max: 180
+        precision: 0
+
+  - name: soil2
+    type: soil
+    interval: 60
+    values:
+      soil_moisture:
+        min: 25
+        max: 75
+        precision: 0
+      temperature:
+        min: 16
+        max: 24
+        precision: 1
+      humidity:
+        min: 45
+        max: 75
+        precision: 0
+      dry:
+        type: boolean
+        probability_true: 0.05
+      battery:
+        min: 75
+        max: 100
+        precision: 0
+      linkquality:
+        min: 40
+        max: 200
+        precision: 0
+
+  - name: soil3
+    type: soil
+    interval: 60
+    values:
+      soil_moisture:
+        min: 30
+        max: 85
+        precision: 0
+      temperature:
+        min: 14
+        max: 23
+        precision: 1
+      humidity:
+        min: 50
+        max: 85
+        precision: 0
+      dry:
+        type: boolean
+        probability_true: 0.02
+      battery:
+        min: 80
+        max: 100
+        precision: 0
+      linkquality:
+        min: 50
+        max: 220
+        precision: 0
+
+  # Smoke detectors
+  - name: fire1
+    type: smoke
+    interval: 60
+    values:
+      smoke_state:
+        type: enum
+        values: ["normal", "alarm"]
+        probabilities: [0.99, 0.01]
+      battery:
+        min: 85
+        max: 100
+        precision: 0
+      linkquality:
+        min: 60
+        max: 255
+        precision: 0
+
+  - name: fire2
+    type: smoke
+    interval: 60
+    values:
+      smoke_state:
+        type: enum
+        values: ["normal", "alarm"]
+        probabilities: [0.99, 0.01]
+      battery:
+        min: 80
+        max: 100
+        precision: 0
+      linkquality:
+        min: 50
+        max: 230
+        precision: 0
+
+  - name: fire3
+    type: smoke
+    interval: 60
+    values:
+      smoke_state:
+        type: enum
+        values: ["normal", "alarm"]
+        probabilities: [0.99, 0.01]
+      battery:
+        min: 75
+        max: 100
+        precision: 0
+      linkquality:
+        min: 45
+        max: 200
+        precision: 0
+
+  # Relay (state only, commands go the other direction)
+  - name: relay1
+    type: relay
+    interval: 120
+    values:
+      linkquality:
+        min: 80
+        max: 255
+        precision: 0
