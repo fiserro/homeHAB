@@ -4,7 +4,7 @@
 Thing mqtt:broker:mosquitto "Zigbee2MQTT Broker" [
     host="zigbee.home",
     port=1883,
-    clientid="homehab-dev",
+    clientid="homehab-prod",
     secure=false,
     protocol="TCP",
     mqttVersion="V3",
