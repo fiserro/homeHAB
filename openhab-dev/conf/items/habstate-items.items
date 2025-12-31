@@ -11,6 +11,7 @@
 
 
 // Input items from CommonModule
+Switch controlEnabled "HRV - Control Enabled" <settings> ["user"]  // default: ?
 
 // Output items from CommonModule
 

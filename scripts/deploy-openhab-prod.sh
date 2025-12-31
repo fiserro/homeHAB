@@ -177,6 +177,11 @@ deploy_dir "$LOCAL_CONF/items" "$REMOTE_CONF/items" "*.items"
 print_step "Deploying things"
 deploy_dir "$LOCAL_CONF/things" "$REMOTE_CONF/things" "*.things"
 
+# Step 6b: Fix MQTT clientID for production
+# The dev config has clientID="homehab-dev", but production needs "homehab-prod"
+print_step "Fixing MQTT clientID for production"
+run_cmd "ssh $SSH_KEY_OPT $REMOTE_USER_HOST 'sudo sed -i \"s/clientID=\\\"homehab-dev\\\"/clientID=\\\"homehab-prod\\\"/\" $REMOTE_CONF/things/mqtt.things'"
+
 # Step 7: Deploy HTML pages
 print_step "Deploying HTML pages"
 deploy_dir "$LOCAL_CONF/html" "$REMOTE_CONF/html" "*.html"

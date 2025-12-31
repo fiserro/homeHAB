@@ -87,9 +87,11 @@ Since both use the same topic prefix, commands from either OpenHAB affect the re
 #### Development Best Practice
 
 When testing on dev that sends commands to HW (e.g., PWM calibration):
-1. Set `manualMode=ON` on production OpenHAB
-2. This prevents prod's HrvCalculator from overriding your dev commands
-3. After testing, set `manualMode=OFF` to restore automatic control
+1. Set `controlEnabled=OFF` on production OpenHAB
+2. This puts prod in read-only mode - calculations run but no commands are sent
+3. After testing, set `controlEnabled=ON` to restore automatic control
+
+The `controlEnabled` flag is in `CommonModule` and applies to all control systems (HRV, lights, heating, etc.). This prevents race conditions between dev and prod when both are connected to the same MQTT broker.
 
 #### Optional Local Simulator
 

@@ -1,5 +1,6 @@
 package io.github.fiserro.homehab.module;
 
+import io.github.fiserro.homehab.InputItem;
 import io.github.fiserro.homehab.ReadOnlyItem;
 import io.github.fiserro.options.Option;
 import io.github.fiserro.options.Options;
@@ -16,6 +17,17 @@ import io.github.fiserro.options.Options;
  * @param <T> the implementing type (self-referential)
  */
 public interface CommonModule<T extends CommonModule<T>> extends Options<T> {
+
+    /**
+     * Master switch to enable/disable all control outputs.
+     * When OFF, calculations run but no commands are sent to devices.
+     * Use this on production during development to prevent dev/prod race conditions.
+     */
+    @InputItem
+    @Option
+    default boolean controlEnabled() {
+        return true;
+    }
 
     @Option
     default float insideTemperature() { return 20; }

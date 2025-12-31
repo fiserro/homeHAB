@@ -282,7 +282,7 @@ public class MqttGenerator {
         content.append("Thing mqtt:broker:mosquitto \"Zigbee2MQTT Broker\" [\n");
         content.append(String.format("    host=\"%s\",\n", mqttHost));
         content.append(String.format("    port=%d,\n", mqttPort));
-        content.append(String.format("    clientid=\"%s\",\n", clientId));
+        content.append(String.format("    clientID=\"%s\",\n", clientId));
         content.append("    secure=false,\n");
         content.append("    protocol=\"TCP\",\n");
         content.append("    mqttVersion=\"V3\",\n");

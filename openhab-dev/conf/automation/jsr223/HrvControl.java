@@ -30,6 +30,11 @@ public class HrvControl extends Java223Script {
     HabState state = HabStateFactory.of(HabState.class, items);
     HabState calculated = calculator.apply(state);
 
+    // Skip sending commands when control is disabled (read-only mode for dev/prod separation)
+    if (!calculated.controlEnabled()) {
+      return;
+    }
+
     if (calculated.hasOutputChanged(state)) {
       events.sendCommand(_items.hrvOutputPower(), calculated.hrvOutputPower());
       events.sendCommand(_items.hrvOutputIntake(), calculated.hrvOutputIntake());
