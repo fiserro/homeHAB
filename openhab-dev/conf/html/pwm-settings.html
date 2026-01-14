@@ -77,6 +77,23 @@
             outline: none;
             border-color: #e64a19;
         }
+        .gpio-content {
+            display: flex;
+            gap: 16px;
+        }
+        .calibration-section {
+            flex: 1;
+            min-width: 200px;
+        }
+        .graph-section {
+            flex: 1;
+            min-width: 200px;
+        }
+        @media (max-width: 500px) {
+            .gpio-content {
+                flex-direction: column;
+            }
+        }
         .calibration-table {
             display: flex;
             flex-direction: column;
@@ -236,6 +253,37 @@
             color: #bbb;
             line-height: 1.5;
         }
+        /* Graph styles */
+        .graph-container {
+            background: #1a1a1a;
+            border-radius: 4px;
+            padding: 8px;
+        }
+        .graph-container svg {
+            width: 100%;
+            height: auto;
+        }
+        .graph-legend {
+            display: flex;
+            gap: 16px;
+            margin-top: 8px;
+            font-size: 11px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .legend-line {
+            width: 20px;
+            height: 2px;
+        }
+        .legend-line.ideal {
+            background: #4caf50;
+        }
+        .legend-line.actual {
+            background: #e64a19;
+        }
     </style>
 </head>
 <body>
@@ -260,16 +308,37 @@
                         </select>
                     </div>
 
-                    <div class="form-group">
-                        <label>Calibration Table (PWM % → Voltage)</label>
-                        <div id="calibrationTableGpio18" class="calibration-table"></div>
-                        <button class="btn-add" onclick="addCalibrationRow('calibrationTableGpio18')">+ Add Row</button>
-                    </div>
+                    <div class="gpio-content">
+                        <div class="calibration-section">
+                            <div class="form-group">
+                                <label>Calibration Table (PWM % → Voltage)</label>
+                                <div id="calibrationTableGpio18" class="calibration-table"></div>
+                                <button class="btn-add" onclick="addCalibrationRow('calibrationTableGpio18')">+ Add Row</button>
+                            </div>
 
-                    <button class="btn" onclick="saveCalibration('calibrationTableGpio18')">
-                        Save
-                    </button>
-                    <span id="status-calibrationTableGpio18" class="status" style="display: none;"></span>
+                            <button class="btn" onclick="saveCalibration('calibrationTableGpio18')">
+                                Save
+                            </button>
+                            <span id="status-calibrationTableGpio18" class="status" style="display: none;"></span>
+                        </div>
+
+                        <div class="graph-section">
+                            <label>Linearity Graph</label>
+                            <div class="graph-container">
+                                <svg id="graphGpio18" viewBox="0 0 220 170"></svg>
+                            </div>
+                            <div class="graph-legend">
+                                <div class="legend-item">
+                                    <div class="legend-line ideal"></div>
+                                    <span>Ideal (linear)</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-line actual"></div>
+                                    <span>Actual</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -289,16 +358,37 @@
                         </select>
                     </div>
 
-                    <div class="form-group">
-                        <label>Calibration Table (PWM % → Voltage)</label>
-                        <div id="calibrationTableGpio19" class="calibration-table"></div>
-                        <button class="btn-add" onclick="addCalibrationRow('calibrationTableGpio19')">+ Add Row</button>
-                    </div>
+                    <div class="gpio-content">
+                        <div class="calibration-section">
+                            <div class="form-group">
+                                <label>Calibration Table (PWM % → Voltage)</label>
+                                <div id="calibrationTableGpio19" class="calibration-table"></div>
+                                <button class="btn-add" onclick="addCalibrationRow('calibrationTableGpio19')">+ Add Row</button>
+                            </div>
 
-                    <button class="btn" onclick="saveCalibration('calibrationTableGpio19')">
-                        Save
-                    </button>
-                    <span id="status-calibrationTableGpio19" class="status" style="display: none;"></span>
+                            <button class="btn" onclick="saveCalibration('calibrationTableGpio19')">
+                                Save
+                            </button>
+                            <span id="status-calibrationTableGpio19" class="status" style="display: none;"></span>
+                        </div>
+
+                        <div class="graph-section">
+                            <label>Linearity Graph</label>
+                            <div class="graph-container">
+                                <svg id="graphGpio19" viewBox="0 0 220 170"></svg>
+                            </div>
+                            <div class="graph-legend">
+                                <div class="legend-item">
+                                    <div class="legend-line ideal"></div>
+                                    <span>Ideal (linear)</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-line actual"></div>
+                                    <span>Actual</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -339,6 +429,189 @@
         const SELECT_ITEMS = ['sourceGpio18', 'sourceGpio19'];
         const CALIBRATION_ITEMS = ['calibrationTableGpio18', 'calibrationTableGpio19'];
 
+        // Graph constants
+        const GRAPH = {
+            width: 220,
+            height: 170,
+            padding: { top: 10, right: 15, bottom: 30, left: 35 },
+            maxPower: 100,
+            maxVoltage: 10
+        };
+
+        // Calculate graph area
+        const graphArea = {
+            x: GRAPH.padding.left,
+            y: GRAPH.padding.top,
+            width: GRAPH.width - GRAPH.padding.left - GRAPH.padding.right,
+            height: GRAPH.height - GRAPH.padding.top - GRAPH.padding.bottom
+        };
+
+        // Convert power (0-100) to X coordinate
+        function powerToX(power) {
+            return graphArea.x + (power / GRAPH.maxPower) * graphArea.width;
+        }
+
+        // Convert voltage (0-10) to Y coordinate (inverted because SVG Y goes down)
+        function voltageToY(voltage) {
+            return graphArea.y + graphArea.height - (voltage / GRAPH.maxVoltage) * graphArea.height;
+        }
+
+        // Draw calibration graph
+        function drawGraph(svgId, calibrationData) {
+            const svg = document.getElementById(svgId);
+            svg.innerHTML = '';
+
+            // Create graph elements
+            const gridColor = '#333';
+            const axisColor = '#666';
+            const idealColor = '#4caf50';
+            const actualColor = '#e64a19';
+            const textColor = '#888';
+
+            // Draw grid lines
+            for (let v = 0; v <= 10; v += 2) {
+                const y = voltageToY(v);
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', graphArea.x);
+                line.setAttribute('y1', y);
+                line.setAttribute('x2', graphArea.x + graphArea.width);
+                line.setAttribute('y2', y);
+                line.setAttribute('stroke', gridColor);
+                line.setAttribute('stroke-width', '1');
+                svg.appendChild(line);
+
+                // Y axis label
+                const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                label.setAttribute('x', graphArea.x - 5);
+                label.setAttribute('y', y + 3);
+                label.setAttribute('text-anchor', 'end');
+                label.setAttribute('fill', textColor);
+                label.setAttribute('font-size', '10');
+                label.textContent = v + 'V';
+                svg.appendChild(label);
+            }
+
+            for (let p = 0; p <= 100; p += 20) {
+                const x = powerToX(p);
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x);
+                line.setAttribute('y1', graphArea.y);
+                line.setAttribute('x2', x);
+                line.setAttribute('y2', graphArea.y + graphArea.height);
+                line.setAttribute('stroke', gridColor);
+                line.setAttribute('stroke-width', '1');
+                svg.appendChild(line);
+
+                // X axis label
+                const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                label.setAttribute('x', x);
+                label.setAttribute('y', graphArea.y + graphArea.height + 15);
+                label.setAttribute('text-anchor', 'middle');
+                label.setAttribute('fill', textColor);
+                label.setAttribute('font-size', '10');
+                label.textContent = p + '%';
+                svg.appendChild(label);
+            }
+
+            // Draw axes
+            const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            xAxis.setAttribute('x1', graphArea.x);
+            xAxis.setAttribute('y1', graphArea.y + graphArea.height);
+            xAxis.setAttribute('x2', graphArea.x + graphArea.width);
+            xAxis.setAttribute('y2', graphArea.y + graphArea.height);
+            xAxis.setAttribute('stroke', axisColor);
+            xAxis.setAttribute('stroke-width', '1');
+            svg.appendChild(xAxis);
+
+            const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            yAxis.setAttribute('x1', graphArea.x);
+            yAxis.setAttribute('y1', graphArea.y);
+            yAxis.setAttribute('x2', graphArea.x);
+            yAxis.setAttribute('y2', graphArea.y + graphArea.height);
+            yAxis.setAttribute('stroke', axisColor);
+            yAxis.setAttribute('stroke-width', '1');
+            svg.appendChild(yAxis);
+
+            // Draw ideal line (0,0) -> (100,10)
+            const idealLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            idealLine.setAttribute('x1', powerToX(0));
+            idealLine.setAttribute('y1', voltageToY(0));
+            idealLine.setAttribute('x2', powerToX(100));
+            idealLine.setAttribute('y2', voltageToY(10));
+            idealLine.setAttribute('stroke', idealColor);
+            idealLine.setAttribute('stroke-width', '2');
+            idealLine.setAttribute('stroke-dasharray', '4,4');
+            svg.appendChild(idealLine);
+
+            // Draw actual calibration curve
+            if (calibrationData.length > 0) {
+                // Sort data by power
+                const sortedData = [...calibrationData].sort((a, b) => a[0] - b[0]);
+
+                // Add start point (0, 0) if not present
+                if (sortedData.length === 0 || sortedData[0][0] !== 0) {
+                    sortedData.unshift([0, 0]);
+                }
+
+                // Add end point (100, 10) if last point is not at 100
+                const lastPoint = sortedData[sortedData.length - 1];
+                if (lastPoint[0] < 100) {
+                    sortedData.push([100, 10]);
+                }
+
+                // Build path
+                let pathD = `M ${powerToX(sortedData[0][0])} ${voltageToY(sortedData[0][1])}`;
+                for (let i = 1; i < sortedData.length; i++) {
+                    pathD += ` L ${powerToX(sortedData[i][0])} ${voltageToY(sortedData[i][1])}`;
+                }
+
+                const actualPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                actualPath.setAttribute('d', pathD);
+                actualPath.setAttribute('stroke', actualColor);
+                actualPath.setAttribute('stroke-width', '2');
+                actualPath.setAttribute('fill', 'none');
+                svg.appendChild(actualPath);
+
+                // Draw data points
+                for (const [power, voltage] of calibrationData) {
+                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    circle.setAttribute('cx', powerToX(power));
+                    circle.setAttribute('cy', voltageToY(voltage));
+                    circle.setAttribute('r', '2');
+                    circle.setAttribute('fill', actualColor);
+                    svg.appendChild(circle);
+                }
+            }
+        }
+
+        // Get calibration data from table
+        function getCalibrationData(containerId) {
+            const container = document.getElementById(containerId);
+            const rows = container.querySelectorAll('.calibration-row');
+            const data = [];
+
+            for (const row of rows) {
+                const pwmInput = row.querySelector('.pwm-input');
+                const voltageInput = row.querySelector('.voltage-input');
+                const pwm = pwmInput.value.trim();
+                const voltage = voltageInput.value.trim();
+
+                if (pwm !== '' && voltage !== '') {
+                    data.push([parseInt(pwm), parseFloat(voltage)]);
+                }
+            }
+
+            return data;
+        }
+
+        // Update graph for a GPIO
+        function updateGraph(containerId) {
+            const gpioNum = containerId.replace('calibrationTable', '');
+            const svgId = 'graph' + gpioNum;
+            const data = getCalibrationData(containerId);
+            drawGraph(svgId, data);
+        }
+
         // Load all items on page load
         async function loadItems() {
             for (const itemName of SELECT_ITEMS) {
@@ -348,6 +621,11 @@
                 await loadCalibrationTable(itemName);
             }
             await loadSliderItem('hrvOutputTest');
+
+            // Initial graph draw
+            for (const itemName of CALIBRATION_ITEMS) {
+                updateGraph(itemName);
+            }
         }
 
         // Load select item state
@@ -422,22 +700,25 @@
             const row = document.createElement('div');
             row.className = 'calibration-row';
             row.innerHTML = `
-                <input type="number" class="pwm-input" min="0" max="100" step="1" placeholder="0" value="${pwm}">
+                <input type="number" class="pwm-input" min="0" max="100" step="1" placeholder="0" value="${pwm}"
+                       oninput="updateGraph('${containerId}')">
                 <span class="unit">%</span>
                 <span class="arrow">→</span>
-                <input type="number" class="voltage-input" min="0" max="20" step="0.1" placeholder="0" value="${voltage}">
+                <input type="number" class="voltage-input" min="0" max="20" step="0.1" placeholder="0" value="${voltage}"
+                       oninput="updateGraph('${containerId}')">
                 <span class="unit">V</span>
                 <button class="btn-test" onclick="testCalibrationRow(this, '${containerId}')">▶</button>
-                <button class="btn-remove" onclick="removeCalibrationRow(this)">×</button>
+                <button class="btn-remove" onclick="removeCalibrationRow(this, '${containerId}')">×</button>
             `;
             container.appendChild(row);
+            updateGraph(containerId);
         }
 
         // Remove a calibration row
-        function removeCalibrationRow(button) {
+        function removeCalibrationRow(button, containerId) {
             const row = button.parentElement;
-            const container = row.parentElement;
             row.remove();
+            updateGraph(containerId);
         }
 
         // Test a calibration row - set PWM and temporarily switch to TEST mode

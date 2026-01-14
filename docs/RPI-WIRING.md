@@ -8,55 +8,67 @@ This document describes the GPIO pin connections for the homeHAB HRV control sys
                     Raspberry Pi 5 GPIO Header
                     ===========================
 
-        3.3V   (1)  [■ ■]  (2)   5V
+        3.3V   (1)  [■ ■]  (2)   5V        ← 5V for relay module
       GPIO2    (3)  [□ □]  (4)   5V
       GPIO3    (5)  [□ □]  (6)   GND
-      GPIO4    (7)  [□ □]  (8)   GPIO14
+      GPIO4    (7)  [■ □]  (8)   GPIO14    ← 1-Wire (DS18B20)
         GND    (9)  [□ □]  (10)  GPIO15
-     GPIO17   (11)  [■ □]  (12)  GPIO18  ← PWM (Intake/Exhaust)
-     GPIO27   (13)  [■ □]  (14)  GND
-     GPIO22   (15)  [□ □]  (16)  GPIO23
+     GPIO17   (11)  [░ □]  (12)  GPIO18    ← Reserved for Waveshare AD/DA
+     GPIO27   (13)  [□ □]  (14)  GND
+     GPIO22   (15)  [░ ░]  (16)  GPIO23    ← Reserved for Waveshare AD/DA
         3.3V  (17)  [□ □]  (18)  GPIO24
      GPIO10   (19)  [□ □]  (20)  GND
       GPIO9   (21)  [□ □]  (22)  GPIO25
      GPIO11   (23)  [□ □]  (24)  GPIO8
         GND   (25)  [□ □]  (26)  GPIO7
       GPIO0   (27)  [□ □]  (28)  GPIO1
-      GPIO5   (29)  [□ □]  (30)  GND
-      GPIO6   (31)  [□ □]  (32)  GPIO12
-     GPIO13   (33)  [□ ■]  (34)  GND
-     GPIO19   (35)  [■ □]  (36)  GPIO16  ← PWM (Intake/Exhaust)
+      GPIO5   (29)  [■ □]  (30)  GND       ← Bypass valve relay
+      GPIO6   (31)  [□ ■]  (32)  GPIO12    ← PWM (HW) Fan 1
+     GPIO13   (33)  [■ □]  (34)  GND       ← PWM (HW) Fan 2
+     GPIO19   (35)  [□ □]  (36)  GPIO16
      GPIO26   (37)  [□ □]  (38)  GPIO20
         GND   (39)  [□ □]  (40)  GPIO21
 
-    Legend: ■ = Used pin, □ = Available
+    Legend: ■ = Used, □ = Available, ░ = Reserved (Waveshare AD/DA)
 ```
 
 ## Pin Assignments
 
 | Pin # | GPIO | Function | Wire Color | Description |
 |-------|------|----------|------------|-------------|
-| 1 | 3.3V | Power | Red | Temperature sensor power (DS18B20) |
-| 11 | GPIO17 | Digital Out | - | Bypass valve relay control |
-| 12 | GPIO18 | PWM | - | Fan speed control (Intake or Exhaust) |
-| 13 | GPIO27 | 1-Wire | Yellow | Temperature sensor data (DS18B20) |
-| 35 | GPIO19 | PWM | - | Fan speed control (Intake or Exhaust) |
-| 6, 9, 14, 20, 25, 30, 34, 39 | GND | Ground | Black | Common ground |
+| 1 | 3.3V | Power | Red        | Temperature sensor power (DS18B20) |
+| 2 | 5V | Power | Red        | Relay module VCC (if 5V relay) |
+| 7 | GPIO4 | 1-Wire | Yellow     | Temperature sensor data (DS18B20) |
+| 29 | GPIO5 | Digital Out | Green      | Bypass valve relay control |
+| 32 | GPIO12 | PWM (HW) | -          | Fan speed control (Intake or Exhaust) |
+| 33 | GPIO13 | PWM (HW) | -          | Fan speed control (Intake or Exhaust) |
+| 6, 9, 14, 20, 25, 30, 34, 39 | GND | Ground | Black      | Common ground |
+
+### Reserved for Waveshare AD/DA Board
+
+| Pin # | GPIO | Waveshare Function |
+|-------|------|-------------------|
+| 11 | GPIO17 | DRDY (Data Ready) |
+| 12 | GPIO18 | RST (Reset) |
+| 15 | GPIO22 | CS (Chip Select ADC) |
+| 16 | GPIO23 | CS_DAC (Chip Select DAC) |
 
 ## Module Connections
 
 ### 1. HRV Fan Speed Control (PWM)
 
-Two PWM outputs control the HRV fan speeds via PWM-to-0-10V converter modules.
+Two hardware PWM outputs control the HRV fan speeds via PWM-to-0-10V converter modules.
 
 | GPIO | OpenHAB Item | MQTT Topic | Description |
 |------|--------------|------------|-------------|
-| GPIO18 | `hrvOutputGpio18` | `homehab/hrv/pwm/gpio18` | Configurable: Intake or Exhaust |
-| GPIO19 | `hrvOutputGpio19` | `homehab/hrv/pwm/gpio19` | Configurable: Intake or Exhaust |
+| GPIO12 | `hrvOutputGpio18` | `homehab/hrv/pwm/gpio18` | Configurable: Intake or Exhaust |
+| GPIO13 | `hrvOutputGpio19` | `homehab/hrv/pwm/gpio19` | Configurable: Intake or Exhaust |
+
+**Note:** MQTT topics still use `gpio18`/`gpio19` names for backwards compatibility, but actual pins are GPIO12/GPIO13.
 
 **Wiring:**
 ```
-RPi GPIO18/19  ────►  PWM Module (PWM in)
+RPi GPIO12/13  ────►  PWM Module (PWM in)
 RPi GND        ────►  PWM Module (GND)
 PWM Module Vo  ────►  HRV Unit (0-10V+)
 PWM Module GND ────►  HRV Unit (0-10V-)
@@ -70,32 +82,36 @@ Digital output controls a relay that switches the bypass valve.
 
 | GPIO | OpenHAB Item | MQTT Topic | Description |
 |------|--------------|------------|-------------|
-| GPIO17 | `bypass` | `homehab/hrv/gpio17` | OFF = valve closed (through exchanger), ON = valve open (bypass) |
+| GPIO5 | `bypass` | `homehab/hrv/gpio17` | OFF = valve closed (through exchanger), ON = valve open (bypass) |
 
-**Wiring:**
+**Note:** MQTT topic still uses `gpio17` name for backwards compatibility, but actual pin is GPIO5.
+
+**Wiring (3-pin relay module: +, -, S):**
 ```
-RPi GPIO17  ────►  Relay Module (Signal/IN)
-RPi 3.3V    ────►  Relay Module (VCC) *or 5V depending on relay
-RPi GND     ────►  Relay Module (GND)
-Relay NO    ────►  Bypass Valve
-Relay COM   ────►  Power Supply
+RPi GPIO5 (Pin 29)  ────►  Relay Module S (Signal)
+RPi 5V (Pin 2)      ────►  Relay Module + (VCC)
+RPi GND             ────►  Relay Module - (GND)
+Relay NO            ────►  Bypass Valve
+Relay COM           ────►  Power Supply
 ```
+
+**Note:** Most 3-pin relay modules work with 5V on VCC pin. If the relay doesn't switch reliably, verify the module's voltage requirements.
 
 ### 3. Temperature Sensor (DS18B20)
 
-1-Wire temperature sensor for ambient temperature measurement.
+1-Wire temperature sensor for ambient temperature measurement. GPIO4 is the default 1-Wire pin on Raspberry Pi.
 
 | GPIO | Wire | Description |
 |------|------|-------------|
 | Pin 1 (3.3V) | Red | Power supply |
-| GPIO27 (Pin 13) | Yellow | Data (1-Wire) |
+| GPIO4 (Pin 7) | Yellow | Data (1-Wire) |
 | GND | Black | Ground |
 
 **Wiring:**
 ```
-RPi 3.3V (Pin 1)    ────►  DS18B20 VDD (Red)
-RPi GPIO27 (Pin 13) ────►  DS18B20 DQ (Yellow)
-RPi GND             ────►  DS18B20 GND (Black)
+RPi 3.3V (Pin 1)   ────►  DS18B20 VDD (Red)
+RPi GPIO4 (Pin 7)  ────►  DS18B20 DQ (Yellow)
+RPi GND            ────►  DS18B20 GND (Black)
 
          Red (VDD)
             │
@@ -119,15 +135,18 @@ RPi 3.3V ────┬────► Sensor 1 VDD ────► Sensor 2 VD
             │ │ 4.7kΩ (single resistor for all sensors)
             └┬┘
              │
-RPi GPIO27 ──┴────► Sensor 1 DQ  ────► Sensor 2 DQ  ────► Sensor N DQ
+RPi GPIO4 ───┴────► Sensor 1 DQ  ────► Sensor 2 DQ  ────► Sensor N DQ
 
 RPi GND ──────────► Sensor 1 GND ────► Sensor 2 GND ────► Sensor N GND
 ```
 
 **Enable 1-Wire interface:**
 ```bash
-# Add to /boot/config.txt:
-dtoverlay=w1-gpio,gpiopin=27
+# Add to /boot/config.txt (GPIO4 is the default):
+dtoverlay=w1-gpio
+
+# Or explicitly specify the pin:
+dtoverlay=w1-gpio,gpiopin=4
 
 # Reboot and check:
 ls /sys/bus/w1/devices/
@@ -141,24 +160,24 @@ ls /sys/bus/w1/devices/
 │  ┌─────────────────────────────────────────────────────┐    │
 │  │  GPIO Header                                        │    │
 │  │  ┌──┬──┐                                            │    │
-│  │  │1 │2 │  ← Pin 1: 3.3V (Red wire to DS18B20)       │    │
+│  │  │1 │2 │  ← Pin 1: 3.3V (DS18B20), Pin 2: 5V (Relay)│    │
 │  │  ├──┼──┤                                            │    │
 │  │  │  │  │                                            │    │
 │  │  ├──┼──┤                                            │    │
 │  │  │  │6 │  ← Pin 6: GND                              │    │
 │  │  ├──┼──┤                                            │    │
-│  │  │  │  │                                            │    │
+│  │  │7 │  │  ← Pin 7: GPIO4 (1-Wire DS18B20 data)      │    │
 │  │  ├──┼──┤                                            │    │
-│  │  │  │  │                                            │    │
-│  │  ├──┼──┤                                            │    │
-│  │  │11│12│  ← Pin 11: GPIO17 (Bypass relay)           │    │
-│  │  ├──┼──┤    Pin 12: GPIO18 (PWM to fan)             │    │
-│  │  │13│  │  ← Pin 13: GPIO27 (DS18B20 data)           │    │
+│  │  │  │  │  ░ Pin 11-12, 15-16: Reserved (Waveshare)  │    │
 │  │  ├──┼──┤                                            │    │
 │  │  │  │  │                                            │    │
 │  │  │ ····│                                            │    │
 │  │  ├──┼──┤                                            │    │
-│  │  │35│  │  ← Pin 35: GPIO19 (PWM to fan)             │    │
+│  │  │29│  │  ← Pin 29: GPIO5 (Bypass relay)            │    │
+│  │  ├──┼──┤                                            │    │
+│  │  │  │32│  ← Pin 32: GPIO12 (PWM Fan 1)              │    │
+│  │  ├──┼──┤                                            │    │
+│  │  │33│  │  ← Pin 33: GPIO13 (PWM Fan 2)              │    │
 │  │  ├──┼──┤                                            │    │
 │  │  │  │  │                                            │    │
 │  │  └──┴──┘                                            │    │
@@ -172,10 +191,19 @@ ls /sys/bus/w1/devices/
 
 | Component | GPIO | Pin # | Direction | Signal Type |
 |-----------|------|-------|-----------|-------------|
-| PWM Fan 1 | GPIO18 | 12 | Output | PWM 2kHz |
-| PWM Fan 2 | GPIO19 | 35 | Output | PWM 2kHz |
-| Bypass Valve | GPIO17 | 11 | Output | Digital (0/1) |
-| Temp Sensor | GPIO27 | 13 | Input | 1-Wire |
+| Temp Sensor | GPIO4 | 7 | Input | 1-Wire |
+| Bypass Valve | GPIO5 | 29 | Output | Digital (0/1) |
+| PWM Fan 1 | GPIO12 | 32 | Output | PWM 2kHz (HW) |
+| PWM Fan 2 | GPIO13 | 33 | Output | PWM 2kHz (HW) |
+
+### Reserved (Waveshare AD/DA)
+
+| Function | GPIO | Pin # |
+|----------|------|-------|
+| DRDY | GPIO17 | 11 |
+| RST | GPIO18 | 12 |
+| CS (ADC) | GPIO22 | 15 |
+| CS (DAC) | GPIO23 | 16 |
 
 ## Related Documentation
 

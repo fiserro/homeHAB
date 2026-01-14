@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 homeHAB is an OpenHAB Java automation library built with JDK 21. The project provides reusable Java libraries for OpenHAB automation, with the primary focus on an HRV (Heat Recovery Ventilator) control system. The code is designed to run within OpenHAB's runtime environment and uses modern Java features.
 
+## Important Rules
+
+- **NEVER create git commits** - Only the user creates commits. Prepare changes but never run `git commit`.
+
 ## Prerequisites
 
 - **Git** - Version control
@@ -318,16 +322,19 @@ The HRV Bridge is a Python service running on Raspberry Pi that receives MQTT co
 **GPIO Pin Mapping:**
 | GPIO | Function | Type | Description |
 |------|----------|------|-------------|
-| GPIO 17 | Bypass valve | Digital | OFF=valve closed (air through exchanger), ON=valve open (bypass mode) |
-| GPIO 18 | PWM output | PWM | Intake or exhaust fan (configurable via `sourceGpio18`) |
-| GPIO 19 | PWM output | PWM | Intake or exhaust fan (configurable via `sourceGpio19`) |
+| GPIO 4 | 1-Wire bus | Input | DS18B20 temperature sensors (outside temp) |
+| GPIO 5 | Bypass valve | Digital | OFF=valve closed (air through exchanger), ON=valve open (bypass mode) |
+| GPIO 12 | PWM output | PWM (HW) | Intake or exhaust fan (configurable via `sourceGpio18`) |
+| GPIO 13 | PWM output | PWM (HW) | Intake or exhaust fan (configurable via `sourceGpio19`) |
+
+**Note:** GPIO 17, 18, 22, 23 are reserved for Waveshare AD/DA board (SPI).
 
 **MQTT Topics (OpenHAB → Bridge):**
 | Topic | Type | Values | Description |
 |-------|------|--------|-------------|
-| `homehab/hrv/gpio17` | Switch | ON/OFF | Bypass valve control |
-| `homehab/hrv/pwm/gpio18` | Number | 0-100 | PWM duty cycle for GPIO 18 |
-| `homehab/hrv/pwm/gpio19` | Number | 0-100 | PWM duty cycle for GPIO 19 |
+| `homehab/hrv/gpio17` | Switch | ON/OFF | Bypass valve control (mapped to GPIO 5) |
+| `homehab/hrv/pwm/gpio18` | Number | 0-100 | PWM duty cycle (mapped to GPIO 12) |
+| `homehab/hrv/pwm/gpio19` | Number | 0-100 | PWM duty cycle (mapped to GPIO 13) |
 
 **OpenHAB Thing Configuration:** `openhab-dev/conf/things/hrv-bridge.things`
 

@@ -9,14 +9,16 @@ This service is a **simple pass-through bridge** that receives commands from Ope
 **GPIO Outputs:**
 | GPIO | Type | Input | Description |
 |------|------|-------|-------------|
-| GPIO 17 | Digital | ON/OFF | Bypass valve control |
-| GPIO 18 | PWM | 0-100 | Fan speed (intake or exhaust) |
-| GPIO 19 | PWM | 0-100 | Fan speed (intake or exhaust) |
+| GPIO 5 | Digital | ON/OFF | Bypass valve control |
+| GPIO 12 | PWM (HW) | 0-100 | Fan speed (intake or exhaust) |
+| GPIO 13 | PWM (HW) | 0-100 | Fan speed (intake or exhaust) |
+
+**Note:** GPIO 17, 18, 22, 23 are reserved for Waveshare AD/DA board.
 
 **GPIO Inputs (1-Wire):**
 | GPIO | Type | Output | Description |
 |------|------|--------|-------------|
-| GPIO 27 | 1-Wire | Temperature (°C) | Outside temperature (DS18B20) |
+| GPIO 4 | 1-Wire | Temperature (°C) | DS18B20 temperature sensors (default 1-Wire bus) |
 
 ## Output Modes
 
@@ -97,9 +99,9 @@ Options:
   -p, --mqtt-port PORT     MQTT broker port (default: 1883)
   -t, --topic-prefix PRE   MQTT topic prefix (default: homehab/hrv)
   -c, --client-id ID       MQTT client ID (default: hrv-bridge)
-  --gpio17 PIN             GPIO pin for bypass valve (default: 17)
-  --gpio18 PIN             GPIO pin for PWM channel 18 (default: 18)
-  --gpio19 PIN             GPIO pin for PWM channel 19 (default: 19)
+  --gpio17 PIN             GPIO pin for bypass valve (default: 5)
+  --gpio18 PIN             GPIO pin for PWM channel 18 (default: 12)
+  --gpio19 PIN             GPIO pin for PWM channel 19 (default: 13)
   --pwm-freq FREQ          PWM frequency in Hz (default: 2000)
   --temp-interval SEC      Temperature reading interval (default: 30)
   -v, --verbose            Enable verbose logging
@@ -110,7 +112,7 @@ Options:
 Raspberry Pi hardware PWM capable pins:
 - GPIO 12, 13, 18, 19
 
-Default is GPIO 18.
+Default is GPIO 12 and 13 (GPIO 18 is reserved for Waveshare AD/DA board).
 
 ## HRV Physical Wiring (PWM Mode)
 
@@ -121,7 +123,7 @@ Connect Raspberry Pi to HRV unit via PWM-to-Voltage converter module:
  ══════════════              ══════════                    ════════
 
                              ┌─────────┐
- GPIO 18 (PWM) ─────────────►│ PWM  Vo │─────────────────► 0-10V +
+ GPIO 12 (PWM) ─────────────►│ PWM  Vo │─────────────────► 0-10V +
  GND (pin 6) ───────────────►│ GND GND │─────────────────► 0-10V -
                              │     GND │◄────────────────  DC-
                              │     VIN │◄────────────────  DC+ (12-30V)
@@ -132,7 +134,7 @@ Connect Raspberry Pi to HRV unit via PWM-to-Voltage converter module:
 
 | # | From | To | Description |
 |---|------|-----|-------------|
-| 1 | RPi GPIO 18 | PWM: PWM | PWM signal (2 kHz) |
+| 1 | RPi GPIO 12 | PWM: PWM | PWM signal (2 kHz) |
 | 2 | RPi GND (pin 6) | PWM: GND (left) | Signal ground |
 | 3 | HRV DC+ (12-30V) | PWM: VIN | Power supply |
 | 4 | HRV DC- | PWM: GND (right, top) | Power ground |

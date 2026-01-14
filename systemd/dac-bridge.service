@@ -7,8 +7,9 @@ Wants=network-online.target
 Type=simple
 User=root
 Group=root
-# PWM on GPIO 18 and GPIO 19
-ExecStart=/usr/local/bin/hrv-bridge --mqtt-host localhost --gpio18 18 --gpio19 19 --verbose
+# GPIO 5: bypass valve (digital), GPIO 12+13: PWM outputs (HW PWM)
+# GPIO 17, 18, 22, 23 are reserved for Waveshare AD/DA board
+ExecStart=/usr/local/bin/hrv-bridge --mqtt-host localhost --gpio17 5 --gpio18 12 --gpio19 13 --verbose
 Restart=always
 RestartSec=10
 StandardOutput=journal
