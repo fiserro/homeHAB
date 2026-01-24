@@ -6,18 +6,18 @@ import io.github.fiserro.homehab.MqttItem;
 import io.github.fiserro.homehab.NumericAggregation;
 import io.github.fiserro.homehab.OutputItem;
 import io.github.fiserro.homehab.ReadOnlyItem;
-import io.github.fiserro.homehab.module.CommonModule;
-import io.github.fiserro.homehab.module.FlowerModule;
-import io.github.fiserro.homehab.module.HrvModule;
-import io.github.fiserro.options.Option;
+import io.github.fiserro.homehab.module.HabModules;
+import io.github.fiserro.options.OptionDef;
+import io.github.fiserro.options.Options;
+import io.github.fiserro.options.OptionsFactory;
 import java.io.IOException;
-import java.lang.reflect.Method;
+import java.lang.annotation.Annotation;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 
@@ -56,6 +56,36 @@ public class HabStateItemsGenerator {
     private static final String INPUT_TAGS = "[\"user\"]";
     private static final String OUTPUT_TAGS = "[\"computed\"]";
     private static final String READONLY_TAGS = "[\"readonly\", \"computed\"]";
+    private static final String CHANNEL_FMT = " { channel=\"%s\" }";
+    private static final String CHANNEL_FMT_2 = " { channel=\"%s\", channel=\"%s\" }";
+
+    // OpenHAB item types
+    private static final String TYPE_STRING = "String";
+    private static final String TYPE_NUMBER = "Number";
+    private static final String TYPE_SWITCH = "Switch";
+    private static final String TYPE_DIMMER = "Dimmer";
+
+    // Field/icon names
+    private static final String POWER = "power";
+    private static final String ENERGY = "energy";
+    private static final String TEMPERATURE = "temperature";
+    private static final String HUMIDITY = "humidity";
+    private static final String PRESSURE = "pressure";
+    private static final String CO2 = "co2";
+    private static final String CARBONDIOXIDE = "carbondioxide";
+    private static final String SMOKE = "smoke";
+    private static final String GAS = "gas";
+    private static final String CONTACT = "contact";
+    private static final String WINDOW = "window";
+    private static final String TIME = "time";
+    private static final String MODE = "mode";
+    private static final String THRESHOLD = "threshold";
+    private static final String DURATION = "duration";
+    private static final String FAN = "fan";
+    private static final String ICON_SWITCH = "switch";
+    private static final String ICON_LINE = "line";
+    private static final String ICON_SETTINGS = "settings";
+    private static final String ICON_NONE = "none";
 
     public void generate(GeneratorOptions options) throws IOException {
         Path outputPath = Paths.get(options.outputDir(), "items", "habstate-items.items");
@@ -68,96 +98,87 @@ public class HabStateItemsGenerator {
         StringBuilder content = new StringBuilder(HEADER);
         Set<String> processedMethods = new HashSet<>();
 
-        // Process all module interfaces for input/output/readonly items
-        processModule(CommonModule.class, content, processedMethods);
-        processModule(HrvModule.class, content, processedMethods);
-        processModule(FlowerModule.class, content, processedMethods);
+        // Create single HabModules instance with default values
+        @SuppressWarnings("unchecked")
+        HabModules<?> habModules = OptionsFactory.create(HabModules.class);
 
-        // Process HabState for aggregation groups (MqttItem with aggregation)
-        processHabStateAggregations(content, processedMethods);
+        // Get all options sorted by name for deterministic output
+        List<OptionDef> allOptions = habModules.options().stream()
+                .sorted(Comparator.comparing(OptionDef::name))
+                .toList();
+
+        // Generate input items
+        content.append("\n// Input items from HabModules\n");
+        for (OptionDef opt : allOptions) {
+            if (processedMethods.contains(opt.name())) continue;
+            if (hasAnnotation(opt, InputItem.class)) {
+                content.append(generateInputItem(opt, habModules));
+                processedMethods.add(opt.name());
+            }
+        }
+
+        // Generate output items
+        content.append("\n// Output items from HabModules\n");
+        for (OptionDef opt : allOptions) {
+            if (processedMethods.contains(opt.name())) continue;
+            if (hasAnnotation(opt, OutputItem.class)) {
+                content.append(generateOutputItem(opt));
+                processedMethods.add(opt.name());
+            }
+        }
+
+        // Generate read-only items
+        content.append("\n// Read-only items from HabModules\n");
+        for (OptionDef opt : allOptions) {
+            if (processedMethods.contains(opt.name())) continue;
+            if (hasAnnotation(opt, ReadOnlyItem.class)) {
+                content.append(generateReadOnlyItem(opt));
+                processedMethods.add(opt.name());
+            }
+        }
+
+        // Process aggregation groups (MqttItem with aggregation)
+        processAggregations(content, processedMethods, allOptions);
 
         Files.createDirectories(outputPath.getParent());
         Files.writeString(outputPath, content.toString());
     }
 
-    private static void processModule(Class<?> moduleClass, StringBuilder content,
-            Set<String> processedMethods) {
+    private static boolean hasAnnotation(OptionDef opt, Class<? extends Annotation> annotationType) {
+        return opt.annotations().stream().anyMatch(annotationType::isInstance);
+    }
 
-        // Sort methods by name for deterministic output
-        Method[] sortedMethods = Arrays.stream(moduleClass.getDeclaredMethods())
-                .sorted(Comparator.comparing(Method::getName))
-                .toArray(Method[]::new);
-
-        // Generate input items
-        content.append(String.format("%n// Input items from %s%n", moduleClass.getSimpleName()));
-        for (Method method : sortedMethods) {
-            if (processedMethods.contains(method.getName())) continue;
-            if (!method.isAnnotationPresent(Option.class)) continue;
-            if (method.isAnnotationPresent(InputItem.class)) {
-                content.append(generateInputItem(method));
-                processedMethods.add(method.getName());
-            }
-        }
-
-        // Generate output items
-        content.append(String.format("%n// Output items from %s%n", moduleClass.getSimpleName()));
-        for (Method method : sortedMethods) {
-            if (processedMethods.contains(method.getName())) continue;
-            if (!method.isAnnotationPresent(Option.class)) continue;
-            if (method.isAnnotationPresent(OutputItem.class)) {
-                content.append(generateOutputItem(method));
-                processedMethods.add(method.getName());
-            }
-        }
-
-        // Generate read-only items
-        content.append(String.format("%n// Read-only items from %s%n", moduleClass.getSimpleName()));
-        for (Method method : sortedMethods) {
-            if (processedMethods.contains(method.getName())) continue;
-            if (!method.isAnnotationPresent(Option.class)) continue;
-            if (method.isAnnotationPresent(ReadOnlyItem.class)) {
-                content.append(generateReadOnlyItem(method));
-                processedMethods.add(method.getName());
-            }
-        }
+    private static <A extends Annotation> A getAnnotation(OptionDef opt, Class<A> annotationType) {
+        return opt.annotations().stream()
+                .filter(annotationType::isInstance)
+                .map(annotationType::cast)
+                .findFirst()
+                .orElse(null);
     }
 
     /**
-     * Process HabState interface (from openhab-dev) for aggregation groups.
-     * Aggregations are defined via @MqttItem(numAgg=...) or @MqttItem(boolAgg=...).
+     * Process aggregation groups from @MqttItem annotations.
      */
-    private static void processHabStateAggregations(StringBuilder content, Set<String> processedMethods) {
-        content.append("\n// Aggregation groups from HabState @MqttItem annotations\n");
+    private static void processAggregations(StringBuilder content, Set<String> processedMethods,
+            List<OptionDef> allOptions) {
+        content.append("\n// Aggregation groups from @MqttItem annotations\n");
 
-        try {
-            // Try to load HabState from the default package
-            Class<?> habStateClass = Class.forName("HabState");
+        for (OptionDef opt : allOptions) {
+            MqttItem mqttItem = getAnnotation(opt, MqttItem.class);
 
-            // Sort methods by name for deterministic output
-            Method[] sortedMethods = Arrays.stream(habStateClass.getDeclaredMethods())
-                    .sorted(Comparator.comparing(Method::getName))
-                    .toArray(Method[]::new);
-
-            for (Method method : sortedMethods) {
-                if (processedMethods.contains(method.getName())) continue;
-
-                MqttItem mqttItem = method.getAnnotation(MqttItem.class);
-                if (mqttItem == null) continue;
-
-                String groupDef = generateGroupItemFromMqtt(method, mqttItem);
-                if (groupDef != null) {
-                    content.append(groupDef);
-                    processedMethods.add(method.getName());
-                }
+            if (mqttItem == null || processedMethods.contains(opt.name())) {
+                continue;
             }
-        } catch (ClassNotFoundException e) {
-            log.warn("HabState class not found - aggregation groups will not be generated. " +
-                    "This is expected when running outside OpenHAB environment.");
+
+            String groupDef = generateGroupItemFromMqtt(opt.name(), mqttItem);
+            if (groupDef != null) {
+                content.append(groupDef);
+                processedMethods.add(opt.name());
+            }
         }
     }
 
-    private static String generateGroupItemFromMqtt(Method method, MqttItem mqttItem) {
-        String fieldName = method.getName();
+    private static String generateGroupItemFromMqtt(String fieldName, MqttItem mqttItem) {
         String icon = getIconForGroup(fieldName);
         String label = formatLabel(fieldName);
 
@@ -188,71 +209,65 @@ public class HabStateItemsGenerator {
 
     private static String getIconForGroup(String fieldName) {
         String lower = fieldName.toLowerCase();
-        if (lower.contains("temperature")) return "temperature";
-        if (lower.contains("humidity")) return "humidity";
-        if (lower.contains("pressure")) return "pressure";
-        if (lower.contains("co2")) return "carbondioxide";
-        if (lower.contains("smoke")) return "smoke";
-        if (lower.contains("gas")) return "gas";
-        if (lower.contains("contact")) return "contact";
-        if (lower.contains("window")) return "window";
-        return "none";
+        if (lower.contains(TEMPERATURE)) return TEMPERATURE;
+        if (lower.contains(HUMIDITY)) return HUMIDITY;
+        if (lower.contains(PRESSURE)) return PRESSURE;
+        if (lower.contains(CO2)) return CARBONDIOXIDE;
+        if (lower.contains(SMOKE)) return SMOKE;
+        if (lower.contains(GAS)) return GAS;
+        if (lower.contains(CONTACT)) return CONTACT;
+        if (lower.contains(WINDOW)) return WINDOW;
+        return ICON_NONE;
     }
 
-    private static String generateInputItem(Method method) {
-        String itemName = method.getName();
-        Class<?> returnType = method.getReturnType();
+    private static String generateInputItem(OptionDef opt, HabModules<?> habModules) {
+        String itemName = opt.name();
+        Class<?> returnType = opt.method().getReturnType();
         String itemType = getInputItemType(returnType);
         String label = formatLabel(itemName);
         String icon = getInputIcon(itemName);
-        String defaultValue = getDefaultValue(method);
+
+        // Get actual default value from instance
+        Object defaultValue = habModules.getValue(opt);
+        String defaultValueStr = defaultValue != null ? defaultValue.toString() : "?";
 
         // Get channels from both @InputItem and @OutputItem (some items need both)
-        InputItem inputAnnotation = method.getAnnotation(InputItem.class);
-        OutputItem outputAnnotation = method.getAnnotation(OutputItem.class);
+        InputItem inputAnnotation = getAnnotation(opt, InputItem.class);
+        OutputItem outputAnnotation = getAnnotation(opt, OutputItem.class);
         String inputChannel = inputAnnotation != null ? inputAnnotation.channel() : "";
         String outputChannel = outputAnnotation != null ? outputAnnotation.channel() : "";
 
         // Combine channels if both exist, otherwise use whichever is available
-        String channelBinding;
-        if (!inputChannel.isEmpty() && !outputChannel.isEmpty()) {
-            channelBinding = String.format(" { channel=\"%s\", channel=\"%s\" }", inputChannel, outputChannel);
-        } else if (!inputChannel.isEmpty()) {
-            channelBinding = String.format(" { channel=\"%s\" }", inputChannel);
-        } else if (!outputChannel.isEmpty()) {
-            channelBinding = String.format(" { channel=\"%s\" }", outputChannel);
-        } else {
-            channelBinding = "";
-        }
+        String channelBinding = buildChannelBinding(inputChannel, outputChannel);
 
         return String.format("%s %s \"HRV - %s\" <%s> %s%s  // default: %s%n",
-            itemType, itemName, label, icon, INPUT_TAGS, channelBinding, defaultValue);
+            itemType, itemName, label, icon, INPUT_TAGS, channelBinding, defaultValueStr);
     }
 
-    private static String generateOutputItem(Method method) {
-        String itemName = method.getName();
-        Class<?> returnType = method.getReturnType();
+    private static String generateOutputItem(OptionDef opt) {
+        String itemName = opt.name();
+        Class<?> returnType = opt.method().getReturnType();
         String itemType = getOutputItemType(returnType);
         String label = formatLabel(itemName);
         String icon = getOutputIcon(itemName);
 
-        OutputItem annotation = method.getAnnotation(OutputItem.class);
+        OutputItem annotation = getAnnotation(opt, OutputItem.class);
         String channel = annotation != null ? annotation.channel() : "";
-        String channelBinding = channel.isEmpty() ? "" : String.format(" { channel=\"%s\" }", channel);
+        String channelBinding = channel.isEmpty() ? "" : String.format(CHANNEL_FMT, channel);
 
         return String.format("%s %s \"HRV - %s\" <%s> %s%s%n",
             itemType, itemName, label, icon, OUTPUT_TAGS, channelBinding);
     }
 
-    private static String generateReadOnlyItem(Method method) {
-        String itemName = method.getName();
-        Class<?> returnType = method.getReturnType();
+    private static String generateReadOnlyItem(OptionDef opt) {
+        String itemName = opt.name();
+        Class<?> returnType = opt.method().getReturnType();
         String itemType = getReadOnlyItemType(returnType);
         String label = formatLabel(itemName);
         String icon = getReadOnlyIcon(itemName);
 
         // Get channel from module annotation first
-        ReadOnlyItem annotation = method.getAnnotation(ReadOnlyItem.class);
+        ReadOnlyItem annotation = getAnnotation(opt, ReadOnlyItem.class);
         String channel = annotation != null ? annotation.channel() : "";
 
         // Check if HabState has an override with channel (HabState may define channels)
@@ -260,10 +275,21 @@ public class HabStateItemsGenerator {
             channel = getChannelFromHabState(itemName);
         }
 
-        String channelBinding = channel.isEmpty() ? "" : String.format(" { channel=\"%s\" }", channel);
+        String channelBinding = channel.isEmpty() ? "" : String.format(CHANNEL_FMT, channel);
 
         return String.format("%s %s \"HRV - %s\" <%s> %s%s%n",
             itemType, itemName, label, icon, READONLY_TAGS, channelBinding);
+    }
+
+    private static String buildChannelBinding(String inputChannel, String outputChannel) {
+        if (!inputChannel.isEmpty() && !outputChannel.isEmpty()) {
+            return String.format(CHANNEL_FMT_2, inputChannel, outputChannel);
+        } else if (!inputChannel.isEmpty()) {
+            return String.format(CHANNEL_FMT, inputChannel);
+        } else if (!outputChannel.isEmpty()) {
+            return String.format(CHANNEL_FMT, outputChannel);
+        }
+        return "";
     }
 
     /**
@@ -272,72 +298,81 @@ public class HabStateItemsGenerator {
     private static String getChannelFromHabState(String methodName) {
         try {
             Class<?> habStateClass = Class.forName("HabState");
-            Method method = habStateClass.getDeclaredMethod(methodName);
 
-            // Check for @ReadOnlyItem with channel
-            ReadOnlyItem readOnlyItem = method.getAnnotation(ReadOnlyItem.class);
-            if (readOnlyItem != null && !readOnlyItem.channel().isEmpty()) {
-                return readOnlyItem.channel();
-            }
+            @SuppressWarnings({"unchecked", "rawtypes"})
+            Options<?> habState = OptionsFactory.create((Class) habStateClass);
 
-            // Check for @OutputItem with channel
-            OutputItem outputItem = method.getAnnotation(OutputItem.class);
-            if (outputItem != null && !outputItem.channel().isEmpty()) {
-                return outputItem.channel();
+            for (OptionDef opt : habState.options()) {
+                if (opt.name().equals(methodName)) {
+                    // Check for @ReadOnlyItem with channel
+                    ReadOnlyItem readOnlyItem = getAnnotation(opt, ReadOnlyItem.class);
+                    if (readOnlyItem != null && !readOnlyItem.channel().isEmpty()) {
+                        return readOnlyItem.channel();
+                    }
+
+                    // Check for @OutputItem with channel
+                    OutputItem outputItem = getAnnotation(opt, OutputItem.class);
+                    if (outputItem != null && !outputItem.channel().isEmpty()) {
+                        return outputItem.channel();
+                    }
+                    break;
+                }
             }
-        } catch (ClassNotFoundException | NoSuchMethodException e) {
-            // HabState not available or method not found - this is ok
+        } catch (ClassNotFoundException e) {
+            // HabState not available - this is ok
         }
         return "";
     }
 
     private static String getReadOnlyItemType(Class<?> type) {
         if (type == boolean.class || type == Boolean.class) {
-            return "Switch";
+            return TYPE_SWITCH;
         } else if (type == int.class || type == Integer.class ||
                    type == long.class || type == Long.class ||
                    type == float.class || type == Float.class ||
                    type == double.class || type == Double.class) {
-            return "Number";
+            return TYPE_NUMBER;
         } else if (type == String.class) {
-            return "String";
+            return TYPE_STRING;
         }
         throw new IllegalArgumentException("Unsupported read-only type: " + type);
     }
 
     private static String getReadOnlyIcon(String fieldName) {
         String lower = fieldName.toLowerCase();
-        if (lower.contains("time") || lower.contains("off")) {
-            return "time";
-        } else if (lower.contains("temperature")) {
-            return "temperature";
+        if (lower.contains(TIME) || lower.contains("off")) {
+            return TIME;
+        } else if (lower.contains(TEMPERATURE)) {
+            return TEMPERATURE;
+        } else if (lower.contains(POWER)) {
+            return ENERGY;
         }
-        return "none";
+        return ICON_NONE;
     }
 
     private static String getInputItemType(Class<?> type) {
         if (type == boolean.class || type == Boolean.class) {
-            return "Switch";
+            return TYPE_SWITCH;
         } else if (type == int.class || type == Integer.class ||
                    type == float.class || type == Float.class ||
                    type == double.class || type == Double.class) {
-            return "Number";
+            return TYPE_NUMBER;
         } else if (type == String.class) {
-            return "String";
+            return TYPE_STRING;
         } else if (type.isEnum()) {
-            return "String";
+            return TYPE_STRING;
         }
         throw new IllegalArgumentException("Unsupported input type: " + type);
     }
 
     private static String getOutputItemType(Class<?> type) {
         if (type == boolean.class || type == Boolean.class) {
-            return "Switch";
+            return TYPE_SWITCH;
         } else if (type == int.class || type == Integer.class) {
-            return "Dimmer";
+            return TYPE_DIMMER;
         } else if (type == float.class || type == Float.class ||
                    type == double.class || type == Double.class) {
-            return "Number";
+            return TYPE_NUMBER;
         }
         throw new IllegalArgumentException("Unsupported output type: " + type);
     }
@@ -360,39 +395,25 @@ public class HabStateItemsGenerator {
 
     private static String getInputIcon(String fieldName) {
         String lower = fieldName.toLowerCase();
-        if (lower.contains("mode")) {
-            return "switch";
-        } else if (lower.contains("power") || lower.contains("threshold")) {
-            return "energy";
-        } else if (lower.contains("duration") || lower.contains("time")) {
-            return "time";
-        } else if (lower.contains("co2") || lower.contains("humidity")) {
-            return "line";
+        if (lower.contains(MODE)) {
+            return ICON_SWITCH;
+        } else if (lower.contains(POWER) || lower.contains(THRESHOLD)) {
+            return ENERGY;
+        } else if (lower.contains(DURATION) || lower.contains(TIME)) {
+            return TIME;
+        } else if (lower.contains(CO2) || lower.contains(HUMIDITY)) {
+            return ICON_LINE;
         }
-        return "settings";
+        return ICON_SETTINGS;
     }
 
     private static String getOutputIcon(String fieldName) {
         String lower = fieldName.toLowerCase();
-        if (lower.contains("power")) {
-            return "energy";
-        } else if (lower.contains("fan")) {
-            return "fan";
+        if (lower.contains(POWER)) {
+            return ENERGY;
+        } else if (lower.contains(FAN)) {
+            return FAN;
         }
-        return "settings";
-    }
-
-    private static String getDefaultValue(Method method) {
-        try {
-            if (method.isDefault()) {
-                // For default methods, we need to invoke them on a proxy
-                // For simplicity, just return the literal default from the method body
-                // This is a limitation - we can't easily invoke default methods without an instance
-                return "?";
-            }
-            return "?";
-        } catch (Exception e) {
-            return "?";
-        }
+        return ICON_SETTINGS;
     }
 }

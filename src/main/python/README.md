@@ -20,6 +20,12 @@ This service is a **simple pass-through bridge** that receives commands from Ope
 |------|------|--------|-------------|
 | GPIO 4 | 1-Wire | Temperature (°C) | DS18B20 temperature sensors (default 1-Wire bus) |
 
+**ADC Inputs (Waveshare AD/DA - ADS1256):**
+| Channel | Type | Output | Description |
+|---------|------|--------|-------------|
+| AD0 | Analog | Power (W) | SCT013 current sensor #1 |
+| AD1 | Analog | Power (W) | SCT013 current sensor #2 |
+
 ## Output Modes
 
 ### PWM Mode (default)
@@ -69,8 +75,11 @@ Raspberry Pi SPI
 | Topic | Values | Description |
 |-------|--------|-------------|
 | `homehab/hrv/w1/<sensor_id>` | float | Temperature in °C from 1-Wire sensor (retained) |
+| `homehab/hrv/current/ad<n>` | int | Power in Watts from SCT013 sensor (retained) |
 
 Each DS18B20 sensor publishes to its own topic using its unique ID (e.g., `homehab/hrv/w1/28-0316840d44ff`). Multiple sensors are auto-detected and published.
+
+Each SCT013 current sensor publishes to its own topic based on ADC channel (e.g., `homehab/hrv/current/ad0`, `homehab/hrv/current/ad1`). Values are in Watts, calculated from measured current × 230V.
 
 **Note:** OpenHAB calculates the final values (including source selection and calibration) and publishes them to these topics. The bridge simply sets the received values on the GPIO pins.
 
@@ -104,6 +113,8 @@ Options:
   --gpio19 PIN             GPIO pin for PWM channel 19 (default: 13)
   --pwm-freq FREQ          PWM frequency in Hz (default: 2000)
   --temp-interval SEC      Temperature reading interval (default: 30)
+  --current-channels CH    ADC channels for SCT013 sensors (default: 0,1)
+  --no-current             Disable current sensing
   -v, --verbose            Enable verbose logging
 ```
 
@@ -169,10 +180,57 @@ The Waveshare library is bundled for:
 2. Connect 5V to VREF pin for 0-5V output range
 3. Deploy with `--mode dac`
 
-### Future: ADC for analog sensors
+### Current Sensing with SCT013
 
-The Waveshare board includes ADS1256 (24-bit ADC) for reading analog sensors.
-This is not yet implemented but the library is ready.
+The Waveshare board's ADS1256 (24-bit ADC) is used for reading SCT013 current transformers.
+
+**SCT013-005 Specifications:**
+- Input: 0-5A AC
+- Output: 0-1V AC (proportional to current)
+- Measurable power range: ~5W to ~1150W (at 230V)
+
+**Wiring:**
+- SCT output → ADx input (AD0, AD1, etc.)
+- SCT GND → AGND on Waveshare board
+- No bias circuit needed - SCT013-005 has internal burden resistor
+
+**Measurement process:**
+1. Sample voltage at 2000 SPS (samples per second)
+2. Filter outliers (remove top/bottom 10% of samples)
+3. Remove DC offset (calculated from filtered samples)
+4. Calculate RMS of AC component
+5. Apply channel calibration factor
+6. Convert to power: `Power = Vrms × 5A/V × 230V`
+
+**Noise filtering and spike protection:**
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| Noise threshold | 3W | Values below this are reported as 0W |
+| Max power limit | 500W | Values above this are reported as 0W (disconnected sensor) |
+| Spike filter | 10% percentile | Removes outliers from samples |
+| EMA smoothing | α=0.3 | Exponential moving average for stable readings |
+| Channel calibration | AD0=1.0, AD1=0.85 | Compensates for ADC channel differences |
+
+**MQTT publish timing:**
+
+| Condition | Interval | Description |
+|-----------|----------|-------------|
+| Sampling | 200ms | Internal sampling rate |
+| Value changed | 1s | Publish within 1 second when value changes |
+| Value unchanged | 60s | Publish every 60 seconds even if no change |
+| 0 → non-zero | instant | Immediate response when device turns on |
+| non-zero → 0 | instant | Immediate response when device turns off |
+
+**Instant on/off behavior:**
+- When transitioning from 0W to any non-zero value, EMA is reset immediately (no slow ramp-up)
+- When value drops below noise threshold (3W), it's immediately reported as 0W
+- Large changes (>50W) bypass EMA smoothing for faster response
+
+**Median filtering before MQTT publish:**
+- 5 samples are collected over 1 second
+- Median value is used for publishing
+- This filters out transient spikes from connecting/disconnecting sensors
 
 To restore/update Waveshare library:
 ```bash
@@ -212,6 +270,9 @@ mosquitto_sub -h openhab.home -t 'homehab/hrv/#' -v
 
 # Read temperature sensor directly on RPi
 ssh openhab.home 'cat /sys/bus/w1/devices/28-*/temperature'
+
+# Monitor current readings
+mosquitto_sub -h openhab.home -t 'homehab/hrv/current/#' -v
 
 # Check service logs
 ssh openhab.home 'sudo journalctl -u dac-bridge -f'

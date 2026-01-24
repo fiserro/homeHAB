@@ -32,4 +32,12 @@ Thing mqtt:topic:mosquitto:hrv_bridge "HRV Bridge" (mqtt:broker:mosquitto) {
         Type number : gpio27_28-0316840d44ff "W1 GPIO27 28-0316840d44ff" [
             stateTopic="homehab/hrv/w1/28-0316840d44ff"
         ]
+        // SCT013 current sensors via Waveshare ADC (ADS1256)
+        // Channel name = current_ad<n>, topic = homehab/hrv/current/ad<n>
+        Type number : current_ad0 "Current AD0" [
+            stateTopic="homehab/hrv/current/ad0"
+        ]
+        Type number : current_ad1 "Current AD1" [
+            stateTopic="homehab/hrv/current/ad1"
+        ]
 }

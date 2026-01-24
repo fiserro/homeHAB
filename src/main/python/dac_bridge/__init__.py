@@ -6,7 +6,8 @@ Receives PWM duty cycle values (0-100) from OpenHAB via MQTT and sets
 them directly on GPIO pins. All calculation (source selection, calibration)
 is done in OpenHAB/HrvCalculator.
 
-Also reads 1-Wire temperature sensors and publishes values to MQTT.
+Also reads 1-Wire temperature sensors and SCT013 current sensors,
+publishing values to MQTT.
 
 Input: 0-100 (PWM duty cycle percentage from OpenHAB)
 Output: PWM signal on GPIO pins
@@ -18,6 +19,7 @@ MQTT Topics (Subscribe):
 
 MQTT Topics (Publish):
   - {prefix}/w1/<sensor_id> -> Temperature from 1-Wire sensor (°C), e.g., w1/28-0316840d44ff
+  - {prefix}/current/ad<n>  -> Power from SCT013 sensor (W), e.g., current/ad0
 """
 
 import argparse
@@ -47,6 +49,10 @@ DEFAULT_GPIO18 = 12  # PWM output (HW PWM) - GPIO 18 reserved for Waveshare AD/D
 DEFAULT_GPIO19 = 13  # PWM output (HW PWM)
 DEFAULT_PWM_FREQ = 2000
 DEFAULT_TEMP_INTERVAL = 30  # Temperature reading interval in seconds
+DEFAULT_CURRENT_SAMPLE_INTERVAL = 0.2  # Current sampling interval in seconds (200ms)
+DEFAULT_CURRENT_PUBLISH_INTERVAL = 1  # Publish to MQTT every N seconds (if changed)
+DEFAULT_CURRENT_FORCE_INTERVAL = 60  # Force publish even if unchanged every N seconds
+DEFAULT_CURRENT_CHANNELS = [0, 1]  # ADC channels for SCT013 sensors (AD0, AD1)
 W1_DEVICES_PATH = "/sys/bus/w1/devices"
 
 # Logging setup
@@ -102,6 +108,83 @@ class PwmOutput:
             lgpio.tx_pwm(self.handle, self.gpio19, self.freq, 0)
             lgpio.gpiochip_close(self.handle)
             self.handle = None
+
+
+class CurrentReader:
+    """Reads current from SCT013 sensors via Waveshare AD/DA board (ADS1256)."""
+
+    def __init__(self, channels: list[int] = None):
+        """
+        Initialize current reader.
+
+        Args:
+            channels: ADC channels to read (default: [0, 1] for AD0, AD1)
+        """
+        self.channels = channels or DEFAULT_CURRENT_CHANNELS
+        self.adc = None
+        self.monitor = None
+        self._initialized = False
+
+    def init(self) -> bool:
+        """
+        Initialize the ADC and current monitor.
+
+        Returns:
+            True if initialization successful, False otherwise
+        """
+        try:
+            from . import waveshare_config as config
+            from .waveshare_ads1256 import ADS1256
+            from .current_sensor import CurrentMonitor
+
+            # Initialize SPI and GPIO for Waveshare board
+            config.module_init()
+
+            # Initialize ADC
+            self.adc = ADS1256()
+            self.adc.init(gain=1, drate=1000)  # 1000 SPS, gain 1
+
+            # Initialize current monitor for specified channels
+            self.monitor = CurrentMonitor(self.adc, self.channels)
+
+            # Calibrate bias (assumes no current flowing at startup)
+            log.info("Calibrating current sensor bias...")
+            self.monitor.calibrate_all()
+
+            self._initialized = True
+            log.info(f"Current sensors initialized on channels: {self.channels}")
+            return True
+
+        except Exception as e:
+            log.warning(f"Failed to initialize current sensors: {e}")
+            self._initialized = False
+            return False
+
+    def read_all(self) -> dict[int, float]:
+        """
+        Read power from all configured channels in Watts.
+
+        Returns:
+            Dictionary of channel -> power (W), empty dict if not initialized
+        """
+        if not self._initialized or not self.monitor:
+            return {}
+
+        try:
+            return self.monitor.read_all_power_filtered()
+        except Exception as e:
+            log.error(f"Failed to read power: {e}")
+            return {}
+
+    def cleanup(self):
+        """Clean up ADC resources."""
+        if self._initialized:
+            try:
+                from . import waveshare_config as config
+                config.module_exit()
+            except Exception:
+                pass
+            self._initialized = False
 
 
 class OneWireBus:
@@ -163,11 +246,14 @@ class HrvBridge:
 
     def __init__(self, mqtt_host: str, mqtt_port: int, topic_prefix: str,
                  client_id: str, gpio17: int, gpio18: int, gpio19: int, pwm_freq: int,
-                 temp_interval: int = DEFAULT_TEMP_INTERVAL):
+                 temp_interval: int = DEFAULT_TEMP_INTERVAL,
+                 current_channels: list[int] = None,
+                 current_enabled: bool = True):
         self.mqtt_host = mqtt_host
         self.mqtt_port = mqtt_port
         self.topic_prefix = topic_prefix.rstrip('/')
         self.temp_interval = temp_interval
+        self.current_enabled = current_enabled
 
         # MQTT client
         self.client = mqtt.Client(client_id=client_id)
@@ -185,6 +271,18 @@ class HrvBridge:
         # Initialize 1-Wire bus for temperature sensors
         self.w1_bus = OneWireBus()
         self.temp_thread = None
+
+        # Initialize current reader (SCT013 sensors via Waveshare ADC)
+        self.current_reader = None
+        self.current_thread = None
+        self._last_current_values = {}  # Last published values per channel
+        self._last_current_publish = {}  # Last publish time per channel
+        self._current_samples = {}  # Sample buffer for median filtering
+        if current_enabled:
+            self.current_reader = CurrentReader(channels=current_channels or DEFAULT_CURRENT_CHANNELS)
+            if not self.current_reader.init():
+                log.warning("Current sensing disabled - ADC initialization failed")
+                self.current_reader = None
 
         self.running = False
 
@@ -268,6 +366,78 @@ class HrvBridge:
             self.client.publish(topic, str(temp), retain=True)
             log.info(f"Published {device_id}: {temp}°C")
 
+    def _current_loop(self):
+        """Background thread for reading and publishing current.
+
+        Samples every 200ms, publishes every 1s if changed, or every 60s if unchanged.
+        Uses median filtering to eliminate outliers from sensor connect/disconnect.
+        """
+        log.info("Current reader started (sample: 200ms, publish: 1s/60s)")
+
+        # Initialize tracking per channel
+        channels = list(self.current_reader.monitor.sensors.keys())
+        for ch in channels:
+            self._last_current_values[ch] = None
+            self._last_current_publish[ch] = 0
+            self._current_samples[ch] = []
+
+        sample_count = 0
+        samples_per_publish = int(DEFAULT_CURRENT_PUBLISH_INTERVAL / DEFAULT_CURRENT_SAMPLE_INTERVAL)  # 5
+
+        while self.running:
+            # Sample current values
+            readings = self.current_reader.read_all()
+            for channel, power in readings.items():
+                self._current_samples[channel].append(power)
+                # Keep only last N samples for median
+                if len(self._current_samples[channel]) > samples_per_publish:
+                    self._current_samples[channel].pop(0)
+
+            sample_count += 1
+
+            # Check if it's time to potentially publish (every 1 second)
+            if sample_count >= samples_per_publish:
+                sample_count = 0
+                self._maybe_publish_current()
+
+            time.sleep(DEFAULT_CURRENT_SAMPLE_INTERVAL)
+
+        log.info("Current reader stopped")
+
+    def _maybe_publish_current(self):
+        """Publish current values if changed or timeout expired."""
+        if not self.current_reader:
+            return
+
+        now = time.time()
+
+        for channel, samples in self._current_samples.items():
+            if not samples:
+                continue
+
+            # Calculate median
+            sorted_samples = sorted(samples)
+            median_power = int(sorted_samples[len(sorted_samples) // 2])
+
+            last_value = self._last_current_values.get(channel)
+            last_publish = self._last_current_publish.get(channel, 0)
+            time_since_publish = now - last_publish
+
+            # Publish if: value changed OR 60 seconds since last publish
+            should_publish = (
+                last_value is None or
+                median_power != last_value or
+                time_since_publish >= DEFAULT_CURRENT_FORCE_INTERVAL
+            )
+
+            if should_publish:
+                topic = f"{self.topic_prefix}/current/ad{channel}"
+                self.client.publish(topic, f"{median_power}", retain=True)
+                log.info(f"Published AD{channel}: {median_power}W")
+
+                self._last_current_values[channel] = median_power
+                self._last_current_publish[channel] = now
+
     def start(self):
         """Start the bridge."""
         self.running = True
@@ -286,6 +456,11 @@ class HrvBridge:
             self.temp_thread = threading.Thread(target=self._temperature_loop, daemon=True)
             self.temp_thread.start()
 
+        # Start current reading thread if ADC is initialized
+        if self.current_reader:
+            self.current_thread = threading.Thread(target=self._current_loop, daemon=True)
+            self.current_thread.start()
+
         try:
             self.client.loop_forever()
         except KeyboardInterrupt:
@@ -301,6 +476,14 @@ class HrvBridge:
         # Wait for temperature thread to stop
         if self.temp_thread and self.temp_thread.is_alive():
             self.temp_thread.join(timeout=2)
+
+        # Wait for current thread to stop
+        if self.current_thread and self.current_thread.is_alive():
+            self.current_thread.join(timeout=2)
+
+        # Cleanup current reader
+        if self.current_reader:
+            self.current_reader.cleanup()
 
         if self.output:
             self.output.set_digital(17, False)
@@ -368,6 +551,17 @@ def main():
         help=f"Temperature reading interval in seconds (default: {DEFAULT_TEMP_INTERVAL})"
     )
     parser.add_argument(
+        "--current-channels",
+        type=str,
+        default=",".join(str(ch) for ch in DEFAULT_CURRENT_CHANNELS),
+        help=f"ADC channels for current sensors, comma-separated (default: {','.join(str(ch) for ch in DEFAULT_CURRENT_CHANNELS)})"
+    )
+    parser.add_argument(
+        "--no-current",
+        action="store_true",
+        help="Disable current sensing (SCT013 via Waveshare ADC)"
+    )
+    parser.add_argument(
         "--verbose", "-v",
         action="store_true",
         help="Enable verbose logging"
@@ -378,6 +572,9 @@ def main():
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
+    # Parse current channels
+    current_channels = [int(ch.strip()) for ch in args.current_channels.split(",")]
+
     bridge = HrvBridge(
         mqtt_host=args.mqtt_host,
         mqtt_port=args.mqtt_port,
@@ -387,7 +584,9 @@ def main():
         gpio18=args.gpio18,
         gpio19=args.gpio19,
         pwm_freq=args.pwm_freq,
-        temp_interval=args.temp_interval
+        temp_interval=args.temp_interval,
+        current_channels=current_channels,
+        current_enabled=not args.no_current
     )
 
     def signal_handler(signum, frame):

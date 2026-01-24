@@ -4,7 +4,6 @@ import io.github.fiserro.homehab.InputItem;
 import io.github.fiserro.homehab.OutputItem;
 import io.github.fiserro.homehab.ReadOnlyItem;
 import io.github.fiserro.options.Option;
-import io.github.fiserro.options.Options;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
@@ -182,6 +181,28 @@ public interface HrvModule<T extends HrvModule<T>> extends CommonModule<T> {
   @Option
   default boolean gas() {
     return false;
+  }
+
+  // Power sensors (SCT013 via Waveshare ADC)
+
+  /**
+   * Power measured on ADC channel 0 (SCT013 sensor #1).
+   * Value in Watts.
+   */
+  @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:current_ad0")
+  @Option
+  default int powerAd0() {
+    return 0;
+  }
+
+  /**
+   * Power measured on ADC channel 1 (SCT013 sensor #2).
+   * Value in Watts.
+   */
+  @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:current_ad1")
+  @Option
+  default int powerAd1() {
+    return 0;
   }
 
   /**
