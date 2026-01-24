@@ -34,7 +34,7 @@ DEFAULT_SAMPLE_INTERVAL = 0.0001  # 100us between samples (10kHz effective rate)
 MAINS_VOLTAGE = 230.0  # V
 
 # Noise filtering parameters
-NOISE_THRESHOLD_WATTS = 3.0  # Below this, report 0W
+NOISE_THRESHOLD_WATTS = 5.0  # Below this, report 0W (covers AD1 offset noise)
 MAX_POWER_WATTS = 500.0  # Above this, consider sensor disconnected (floating input)
 SPIKE_FILTER_PERCENTILE = 10  # Remove top/bottom N% of samples as outliers
 EMA_ALPHA = 0.3  # Exponential moving average smoothing factor (0-1, lower = smoother)

@@ -7,6 +7,7 @@ import io.github.fiserro.options.OptionsFactory;
 import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Map;
+import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.openhab.core.automation.module.script.defaultscope.ScriptBusEvent;
 import org.openhab.core.types.State;
@@ -26,6 +27,7 @@ import org.openhab.core.types.State;
  * </ul>
  */
 @Slf4j
+@UtilityClass
 public class HabStateFactory {
 
     /**

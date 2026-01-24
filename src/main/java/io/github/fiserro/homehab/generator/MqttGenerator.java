@@ -3,10 +3,7 @@ package io.github.fiserro.homehab.generator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.fiserro.homehab.MqttItem;
-import io.github.fiserro.homehab.module.CommonModule;
-import io.github.fiserro.homehab.module.FlowerModule;
-import io.github.fiserro.homehab.module.HrvModule;
-import io.github.fiserro.options.Option;
+import io.github.fiserro.homehab.module.HabState;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
@@ -53,21 +50,9 @@ public class MqttGenerator {
      * Patterns support wildcards: "aqara*Humidity" matches "aqara1Humidity", "aqaraBedroomHumidity", etc.
      */
     private void loadGroupPatternsFromModules() {
-        // Load patterns from all module interfaces
-        loadGroupPatternsFromModule(CommonModule.class);
-        loadGroupPatternsFromModule(HrvModule.class);
-        loadGroupPatternsFromModule(FlowerModule.class);
-
-        // Try to load from HabState if available (contains home-specific @MqttItem patterns)
-        tryLoadGroupPatternsFromHabState();
-
-        log.info("Loaded {} group patterns from module @MqttItem annotations", groupPatterns.size());
-    }
-
-    private void loadGroupPatternsFromModule(Class<?> moduleClass) {
+        // Load patterns from HabModules (contains all @MqttItem annotations)
         try {
-            for (Method method : moduleClass.getDeclaredMethods()) {
-                if (!method.isAnnotationPresent(Option.class)) continue;
+            for (Method method : HabState.class.getDeclaredMethods()) {
                 MqttItem mqttItem = method.getAnnotation(MqttItem.class);
                 if (mqttItem != null) {
                     String groupName = method.getName();
@@ -76,38 +61,10 @@ public class MqttGenerator {
                 }
             }
         } catch (Exception e) {
-            log.debug("Could not load patterns from {}: {}", moduleClass.getSimpleName(), e.getMessage());
+            log.warn("Could not load patterns from HabModules: {}", e.getMessage());
         }
-    }
 
-    /**
-     * Tries to load HabState class dynamically if it's on the classpath.
-     * HabState contains home-specific @MqttItem patterns that override module defaults.
-     */
-    private void tryLoadGroupPatternsFromHabState() {
-        try {
-            Class<?> habStateClass = Class.forName("HabState");
-            // Load @MqttItem patterns from HabState methods
-            for (Method method : habStateClass.getDeclaredMethods()) {
-                MqttItem mqttItem = method.getAnnotation(MqttItem.class);
-                if (mqttItem != null) {
-                    String groupName = method.getName();
-                    String[] patterns = mqttItem.value();
-                    // Override existing patterns for this group
-                    removePatternsByGroup(groupName);
-                    addPatterns(groupName, patterns);
-                }
-            }
-            log.info("Loaded @MqttItem patterns from HabState");
-        } catch (ClassNotFoundException e) {
-            log.debug("HabState class not found on classpath, using module patterns only");
-        } catch (Exception e) {
-            log.warn("Failed to load patterns from HabState: {}", e.getMessage());
-        }
-    }
-
-    private void removePatternsByGroup(String groupName) {
-        groupPatterns.entrySet().removeIf(entry -> entry.getValue().equals(groupName));
+        log.info("Loaded {} group patterns from HabModules @MqttItem annotations", groupPatterns.size());
     }
 
     private void addPatterns(String groupName, String[] patterns) {

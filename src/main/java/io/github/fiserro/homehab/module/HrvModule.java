@@ -29,13 +29,13 @@ public interface HrvModule<T extends HrvModule<T>> extends CommonModule<T> {
   }
 
   // Control modes
-  @InputItem(channel = "mqtt:topic:mosquitto:panel_commands:manualMode")
+  @InputItem
   @Option
   default boolean manualMode() {
     return false;
   }
 
-  @InputItem(channel = "mqtt:topic:mosquitto:panel_commands:tempManualMode")
+  @InputItem
   @Option
   default boolean temporaryManualMode() {
     return false;
@@ -49,7 +49,7 @@ public interface HrvModule<T extends HrvModule<T>> extends CommonModule<T> {
     return 8 * 60 * 60;
   }
 
-  @InputItem(channel = "mqtt:topic:mosquitto:panel_commands:boostMode")
+  @InputItem
   @Option
   default boolean temporaryBoostMode() {
     return false;
@@ -127,7 +127,7 @@ public interface HrvModule<T extends HrvModule<T>> extends CommonModule<T> {
   // Power levels
   @Min(0)
   @Max(100)
-  @InputItem(channel = "mqtt:topic:mosquitto:panel_commands:manualPower")
+  @InputItem
   @Option
   default int manualPower() {
     return 50;
@@ -157,7 +157,7 @@ public interface HrvModule<T extends HrvModule<T>> extends CommonModule<T> {
     return 95;
   }
 
-  // Sensor values (aggregation specified in HabState via @MqttItem)
+  // Sensor values
   @Option
   default int openWindows() {
     return 0;
@@ -189,7 +189,7 @@ public interface HrvModule<T extends HrvModule<T>> extends CommonModule<T> {
    * Power measured on ADC channel 0 (SCT013 sensor #1).
    * Value in Watts.
    */
-  @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:current_ad0")
+  @ReadOnlyItem
   @Option
   default int powerAd0() {
     return 0;
@@ -199,7 +199,7 @@ public interface HrvModule<T extends HrvModule<T>> extends CommonModule<T> {
    * Power measured on ADC channel 1 (SCT013 sensor #2).
    * Value in Watts.
    */
-  @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:current_ad1")
+  @ReadOnlyItem
   @Option
   default int powerAd1() {
     return 0;
@@ -295,7 +295,7 @@ public interface HrvModule<T extends HrvModule<T>> extends CommonModule<T> {
    * Final PWM value for GPIO 18 (0-100%). Calculated from source value (power/intake/exhaust/test)
    * with calibration applied.
    */
-  @OutputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:pwmGpio18")
+  @OutputItem
   @Option
   default int hrvOutputGpio18() {
     return 0;
@@ -307,7 +307,7 @@ public interface HrvModule<T extends HrvModule<T>> extends CommonModule<T> {
    * Final PWM value for GPIO 19 (0-100%). Calculated from source value (power/intake/exhaust/test)
    * with calibration applied.
    */
-  @OutputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:pwmGpio19")
+  @OutputItem
   @Option
   default int hrvOutputGpio19() {
     return 0;
@@ -320,8 +320,8 @@ public interface HrvModule<T extends HrvModule<T>> extends CommonModule<T> {
    * OFF = valve closed, air flows through heat exchanger (default)
    * ON = valve open, air bypasses heat exchanger
    */
-  @InputItem(channel = "mqtt:topic:mosquitto:panel_commands:bypass")
-  @OutputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:gpio17")
+  @InputItem
+  @OutputItem
   @Option
   default boolean bypass() {
     return false;

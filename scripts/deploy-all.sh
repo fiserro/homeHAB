@@ -43,19 +43,22 @@ print_env_info
 # Step 1: Build
 "$SCRIPT_DIR/deploy-build.sh"
 
-# Step 2: Generator (dev only)
+# Step 2: Generator
 "$SCRIPT_DIR/deploy-generator.sh" "$ENV"
 
-# Step 3: Deploy JAR
+# Step 3: Deploy configs (items, things)
+"$SCRIPT_DIR/deploy-configs.sh" "$ENV"
+
+# Step 4: Deploy JAR
 "$SCRIPT_DIR/deploy-jar.sh" "$ENV"
 
-# Step 4: Deploy UI Pages
+# Step 5: Deploy UI Pages
 "$SCRIPT_DIR/deploy-ui-pages.sh" "$ENV"
 
-# Step 5: Deploy Python Bridge (prod only, if enabled)
+# Step 6: Deploy Python Bridge (prod only, if enabled)
 "$SCRIPT_DIR/deploy-python-bridge.sh" "$ENV"
 
-# Step 6: Deploy ESP32 Panel
+# Step 7: Deploy ESP32 Panel
 if [ "$SKIP_PANEL" = true ]; then
     print_step "Deploying ESP32 Panel"
     print_skip "Panel deployment (--skip-panel)"
@@ -63,7 +66,7 @@ else
     "$SCRIPT_DIR/deploy-panel.sh" --compile-only
 fi
 
-# Step 7: Restart services
+# Step 8: Restart services
 if [ "$SKIP_RESTART" = true ]; then
     print_step "Restarting services"
     print_skip "Service restart (--skip-restart)"
@@ -76,11 +79,9 @@ echo ""
 echo -e "${GREEN}=== Deployment Complete ===${NC}"
 echo ""
 echo -e "${BLUE}Deployed components:${NC}"
+echo "  - Generated configs (items, things)"
 echo "  - OpenHAB JAR"
 echo "  - UI Pages"
-if [ "$ENV" = "dev" ]; then
-    echo "  - Generated configs (items, things)"
-fi
 if [ "${PYTHON_DEPLOY_ENABLED:-false}" = "true" ]; then
     echo "  - Python HRV Bridge"
 fi

@@ -2,6 +2,7 @@ package io.github.fiserro.homehab;
 
 import io.github.fiserro.homehab.module.FlowerModule;
 import io.github.fiserro.homehab.module.HrvModule;
+import io.github.fiserro.options.Option;
 
 /**
  * Test-specific HabState interface for unit tests.
@@ -17,30 +18,30 @@ import io.github.fiserro.homehab.module.HrvModule;
  */
 public interface TestHabState extends HrvModule<TestHabState>, FlowerModule<TestHabState> {
 
-    @Override @MqttItem(value = {"aqara*Temperature", "soil*Temperature"}, numAgg = NumericAggregation.AVG)
+    @Override @Option @MqttItem(value = {"aqara*Temperature", "soil*Temperature"}, numAgg = NumericAggregation.AVG)
     default float insideTemperature() { return HrvModule.super.insideTemperature(); }
 
-    @Override @MqttItem(value = "aqara*Pressure", numAgg = NumericAggregation.AVG)
+    @Override @Option @MqttItem(value = "aqara*Pressure", numAgg = NumericAggregation.AVG)
     default int pressure() { return HrvModule.super.pressure(); }
 
-    @Override @MqttItem(value = {"aqara*Humidity"}, numAgg = NumericAggregation.MAX)
+    @Override @Option @MqttItem(value = {"aqara*Humidity"}, numAgg = NumericAggregation.MAX)
     default int airHumidity() { return HrvModule.super.airHumidity(); }
 
-    @Override @MqttItem(value = "soil*Humidity", numAgg = NumericAggregation.MIN)
+    @Override @Option @MqttItem(value = "soil*Humidity", numAgg = NumericAggregation.MIN)
     default int soilHumidity() { return FlowerModule.super.soilHumidity(); }
 
-    @Override @MqttItem(numAgg = NumericAggregation.MAX)
+    @Override @Option @MqttItem(numAgg = NumericAggregation.MAX)
     default int co2() { return HrvModule.super.co2(); }
 
-    @Override @MqttItem(numAgg = NumericAggregation.SUM)
+    @Override @Option @MqttItem(numAgg = NumericAggregation.SUM)
     default int openWindows() { return HrvModule.super.openWindows(); }
 
-    @Override @MqttItem(value = "fire*Smoke", boolAgg = BooleanAggregation.OR)
+    @Override @Option @MqttItem(value = "fire*Smoke", boolAgg = BooleanAggregation.OR)
     default boolean smoke() { return HrvModule.super.smoke(); }
 
-    @Override @MqttItem(boolAgg = BooleanAggregation.OR)
+    @Override @Option @MqttItem(boolAgg = BooleanAggregation.OR)
     default boolean gas() { return HrvModule.super.gas(); }
 
-    @Override @OutputItem(channel = "mqtt:topic:hrv:power")
+    @Override @Option @OutputItem(channel = "mqtt:topic:hrv:power")
     default int hrvOutputPower() { return HrvModule.super.hrvOutputPower(); }
 }

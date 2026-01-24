@@ -8,7 +8,6 @@
 # - items/*.items → items/
 # - things/*.things → things/
 # - automation/jsr223/*.java → automation/jsr223/
-# - automation/lib/java/HabState.java → automation/lib/java/
 # - html/*.html → html/
 # - ui-pages.json → userdata/jsondb/
 
@@ -158,41 +157,37 @@ if [ -n "$JAR_FILE" ]; then
     print_success "JAR deployed: $JAR_BASENAME"
 fi
 
-# Step 3: Deploy HabState.java
-print_step "Deploying HabState.java"
-deploy_file "$LOCAL_CONF/automation/lib/java/HabState.java" "$REMOTE_CONF/automation/lib/java/HabState.java"
-
-# Step 4: Deploy JSR223 scripts
+# Step 3: Deploy JSR223 scripts
 print_step "Deploying JSR223 scripts"
 deploy_dir "$LOCAL_CONF/automation/jsr223" "$REMOTE_CONF/automation/jsr223" "*.java"
 
 # Fix script permissions (must be readable by OpenHAB)
 run_cmd "ssh $SSH_KEY_OPT $REMOTE_USER_HOST 'sudo chmod 644 $REMOTE_CONF/automation/jsr223/*.java'"
 
-# Step 5: Deploy items
+# Step 4: Deploy items
 print_step "Deploying items"
 deploy_dir "$LOCAL_CONF/items" "$REMOTE_CONF/items" "*.items"
 
-# Step 6: Deploy things
+# Step 5: Deploy things
 print_step "Deploying things"
 deploy_dir "$LOCAL_CONF/things" "$REMOTE_CONF/things" "*.things"
 
-# Step 6b: Fix MQTT clientID for production
+# Step 5b: Fix MQTT clientID for production
 # The dev config has clientID="homehab-dev", but production needs "homehab-prod"
 print_step "Fixing MQTT clientID for production"
 run_cmd "ssh $SSH_KEY_OPT $REMOTE_USER_HOST 'sudo sed -i \"s/clientID=\\\"homehab-dev\\\"/clientID=\\\"homehab-prod\\\"/\" $REMOTE_CONF/things/mqtt.things'"
 
-# Step 7: Deploy HTML pages
+# Step 6: Deploy HTML pages
 print_step "Deploying HTML pages"
 deploy_dir "$LOCAL_CONF/html" "$REMOTE_CONF/html" "*.html"
 
-# Step 8: Deploy UI pages
+# Step 7: Deploy UI pages
 print_step "Deploying UI pages"
 PAGES_SOURCE="$LOCAL_CONF/ui-pages.json"
 REMOTE_PAGES="$REMOTE_USERDATA/jsondb/uicomponents_ui_page.json"
 deploy_file "$PAGES_SOURCE" "$REMOTE_PAGES"
 
-# Step 9: Ensure java223 addon is in addons directory
+# Step 8: Ensure java223 addon is in addons directory
 # The marketplace-installed JAR doesn't load the script watcher properly
 print_step "Checking java223 addon"
 run_cmd "ssh $SSH_KEY_OPT $REMOTE_USER_HOST 'if [ ! -f /usr/share/openhab/addons/org.openhab.automation.java223-*.jar ]; then
@@ -204,7 +199,7 @@ run_cmd "ssh $SSH_KEY_OPT $REMOTE_USER_HOST 'if [ ! -f /usr/share/openhab/addons
     fi
 fi'"
 
-# Step 10: Restart OpenHAB
+# Step 9: Restart OpenHAB
 if [ "$SKIP_RESTART" = true ]; then
     print_step "Restarting OpenHAB"
     print_skip "Service restart (--skip-restart)"
@@ -217,7 +212,7 @@ else
     print_step "Waiting for OpenHAB to start"
     sleep 45
 
-    # Step 11: Initialize items with default values
+    # Step 10: Initialize items with default values
     print_step "Initializing items"
     run_cmd "mvn exec:java -Dexec.mainClass=\"io.github.fiserro.homehab.generator.Generator\" -Dexec.args=\"--initEnabled=true --habStateEnabled=false --mqttEnabled=false --openhabUrl=http://openhab.home:8080\" -q"
     print_success "Items initialized"

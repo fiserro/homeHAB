@@ -12,8 +12,6 @@ import io.github.fiserro.options.Options;
  * <p>Uses self-referential type parameter to allow extending classes
  * to maintain their own type in Options operations.
  *
- * <p>Sensor aggregations and MQTT bindings are specified in HabState via @MqttItem.
- *
  * @param <T> the implementing type (self-referential)
  */
 public interface CommonModule<T extends CommonModule<T>> extends Options<T> {
@@ -32,12 +30,14 @@ public interface CommonModule<T extends CommonModule<T>> extends Options<T> {
     @Option
     default float insideTemperature() { return 20; }
 
-    @ReadOnlyItem @Option
+    @ReadOnlyItem
+    @Option
     default float outsideTemperature() { return 0; }
 
     @Option
     default int pressure() { return 1000; }
 
-    @ReadOnlyItem @Option
+    @ReadOnlyItem
+    @Option
     default int tickSecond() { return 0; }
 }

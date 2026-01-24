@@ -5,6 +5,7 @@ import helper.rules.annotations.Rule;
 import io.github.fiserro.homehab.Calculator;
 import io.github.fiserro.homehab.HabStateFactory;
 import io.github.fiserro.homehab.hrv.HrvCalculator;
+import io.github.fiserro.homehab.module.HabState;
 import java.time.Instant;
 import org.openhab.automation.java223.common.InjectBinding;
 import org.openhab.core.library.types.DecimalType;
@@ -15,7 +16,7 @@ import org.openhab.core.types.State;
  * HRV (Heat Recovery Ventilator) control script. Split into multiple rules due to annotation
  * processing limitations.
  *
- * <p>This script uses the modular HabState interface which extends module interfaces (CommonModule,
+ * <p>This script uses the modular HabModules interface which extends module interfaces (CommonModule,
  * HrvModule, FlowerModule) and adds home-specific MQTT bindings.
  */
 public class HrvControl extends Java223Script {
@@ -123,7 +124,6 @@ public class HrvControl extends Java223Script {
       events.sendCommand(_items.filterCleanedTrigger(), OnOffType.OFF);
       // Filter is now clean
       events.postUpdate(_items.filterCleaningRequired(), OnOffType.OFF);
-      System.out.println("[HrvControl] Filter marked as cleaned at " + now);
     }
   }
 
@@ -154,9 +154,6 @@ public class HrvControl extends Java223Script {
     // Only update if changed
     if (currentState != newState) {
       events.postUpdate(_items.filterCleaningRequired(), newState);
-      if (cleaningRequired) {
-        System.out.println("[HrvControl] Filter cleaning required!");
-      }
     }
   }
 

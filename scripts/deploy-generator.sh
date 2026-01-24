@@ -20,11 +20,7 @@ cd "$PROJECT_ROOT"
 
 print_step "Running generator"
 
-if [ "$ENV" != "dev" ]; then
-    print_skip "Generator only runs for dev environment (configs are for dev)"
-    exit 0
-fi
-
+# Generator always runs - it generates into openhab-dev/conf which is used by both dev and prod
 # Run generator
 mvn exec:java -q -Dexec.mainClass="io.github.fiserro.homehab.generator.Generator"
 

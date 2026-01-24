@@ -11,10 +11,10 @@ This document describes the GPIO pin connections for the homeHAB HRV control sys
         3.3V   (1)  [■ ■]  (2)   5V        ← 5V for relay module
       GPIO2    (3)  [□ □]  (4)   5V
       GPIO3    (5)  [□ □]  (6)   GND
-      GPIO4    (7)  [■ □]  (8)   GPIO14    ← 1-Wire (DS18B20)
+      GPIO4    (7)  [□ □]  (8)   GPIO14
         GND    (9)  [□ □]  (10)  GPIO15
      GPIO17   (11)  [░ □]  (12)  GPIO18    ← Reserved for Waveshare AD/DA
-     GPIO27   (13)  [□ □]  (14)  GND
+     GPIO27   (13)  [■ □]  (14)  GND       ← 1-Wire (DS18B20)
      GPIO22   (15)  [░ ░]  (16)  GPIO23    ← Reserved for Waveshare AD/DA
         3.3V  (17)  [□ □]  (18)  GPIO24
      GPIO10   (19)  [□ □]  (20)  GND
@@ -38,7 +38,7 @@ This document describes the GPIO pin connections for the homeHAB HRV control sys
 |-------|------|----------|------------|-------------|
 | 1 | 3.3V | Power | Red        | Temperature sensor power (DS18B20) |
 | 2 | 5V | Power | Red        | Relay module VCC (if 5V relay) |
-| 7 | GPIO4 | 1-Wire | Yellow     | Temperature sensor data (DS18B20) |
+| 13 | GPIO27 | 1-Wire | Yellow     | Temperature sensor data (DS18B20) |
 | 29 | GPIO5 | Digital Out | Green      | Bypass valve relay control |
 | 32 | GPIO12 | PWM (HW) | -          | Fan speed control (Intake or Exhaust) |
 | 33 | GPIO13 | PWM (HW) | -          | Fan speed control (Intake or Exhaust) |
@@ -99,19 +99,19 @@ Relay COM           ────►  Power Supply
 
 ### 3. Temperature Sensor (DS18B20)
 
-1-Wire temperature sensor for ambient temperature measurement. GPIO4 is the default 1-Wire pin on Raspberry Pi.
+1-Wire temperature sensor for outside temperature measurement. GPIO27 is used for 1-Wire on this system.
 
 | GPIO | Wire | Description |
 |------|------|-------------|
 | Pin 1 (3.3V) | Red | Power supply |
-| GPIO4 (Pin 7) | Yellow | Data (1-Wire) |
+| GPIO27 (Pin 13) | Yellow | Data (1-Wire) |
 | GND | Black | Ground |
 
 **Wiring:**
 ```
-RPi 3.3V (Pin 1)   ────►  DS18B20 VDD (Red)
-RPi GPIO4 (Pin 7)  ────►  DS18B20 DQ (Yellow)
-RPi GND            ────►  DS18B20 GND (Black)
+RPi 3.3V (Pin 1)    ────►  DS18B20 VDD (Red)
+RPi GPIO27 (Pin 13) ────►  DS18B20 DQ (Yellow)
+RPi GND             ────►  DS18B20 GND (Black)
 
          Red (VDD)
             │
@@ -135,18 +135,15 @@ RPi 3.3V ────┬────► Sensor 1 VDD ────► Sensor 2 VD
             │ │ 4.7kΩ (single resistor for all sensors)
             └┬┘
              │
-RPi GPIO4 ───┴────► Sensor 1 DQ  ────► Sensor 2 DQ  ────► Sensor N DQ
+RPi GPIO27 ──┴────► Sensor 1 DQ  ────► Sensor 2 DQ  ────► Sensor N DQ
 
 RPi GND ──────────► Sensor 1 GND ────► Sensor 2 GND ────► Sensor N GND
 ```
 
 **Enable 1-Wire interface:**
 ```bash
-# Add to /boot/config.txt (GPIO4 is the default):
-dtoverlay=w1-gpio
-
-# Or explicitly specify the pin:
-dtoverlay=w1-gpio,gpiopin=4
+# Add to /boot/config.txt with GPIO27:
+dtoverlay=w1-gpio,gpiopin=27
 
 # Reboot and check:
 ls /sys/bus/w1/devices/
@@ -166,9 +163,11 @@ ls /sys/bus/w1/devices/
 │  │  ├──┼──┤                                            │    │
 │  │  │  │6 │  ← Pin 6: GND                              │    │
 │  │  ├──┼──┤                                            │    │
-│  │  │7 │  │  ← Pin 7: GPIO4 (1-Wire DS18B20 data)      │    │
+│  │  │  │  │                                            │    │
 │  │  ├──┼──┤                                            │    │
 │  │  │  │  │  ░ Pin 11-12, 15-16: Reserved (Waveshare)  │    │
+│  │  ├──┼──┤                                            │    │
+│  │  │13│  │  ← Pin 13: GPIO27 (1-Wire DS18B20 data)    │    │
 │  │  ├──┼──┤                                            │    │
 │  │  │  │  │                                            │    │
 │  │  │ ····│                                            │    │
@@ -191,7 +190,7 @@ ls /sys/bus/w1/devices/
 
 | Component | GPIO | Pin # | Direction | Signal Type |
 |-----------|------|-------|-----------|-------------|
-| Temp Sensor | GPIO4 | 7 | Input | 1-Wire |
+| Temp Sensor | GPIO27 | 13 | Input | 1-Wire |
 | Bypass Valve | GPIO5 | 29 | Output | Digital (0/1) |
 | PWM Fan 1 | GPIO12 | 32 | Output | PWM 2kHz (HW) |
 | PWM Fan 2 | GPIO13 | 33 | Output | PWM 2kHz (HW) |
