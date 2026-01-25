@@ -40,4 +40,12 @@ Thing mqtt:topic:mosquitto:hrv_bridge "HRV Bridge" (mqtt:broker:mosquitto) {
         Type number : current_ad1 "Current AD1" [
             stateTopic="homehab/hrv/current/ad1"
         ]
+        // MH-Z19C CO2 sensor via UART
+        // Channel name = co2, topic = homehab/hrv/co2
+        Type number : co2 "CO2" [
+            stateTopic="homehab/hrv/co2"
+        ]
+        Type number : co2_temp "CO2 Temperature" [
+            stateTopic="homehab/hrv/co2_temp"
+        ]
 }

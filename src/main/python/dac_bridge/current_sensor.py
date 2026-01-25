@@ -39,6 +39,11 @@ MAX_POWER_WATTS = 500.0  # Above this, consider sensor disconnected (floating in
 SPIKE_FILTER_PERCENTILE = 10  # Remove top/bottom N% of samples as outliers
 EMA_ALPHA = 0.3  # Exponential moving average smoothing factor (0-1, lower = smoother)
 
+# Floating input detection - disconnected sensor produces stable DC with low variance
+# Real AC signal (50Hz sine) has variance proportional to amplitude
+# Minimum expected variance for real signal: (0.1V RMS)^2 = 0.01 V^2
+MIN_VARIANCE_THRESHOLD = 0.0001  # V^2 - below this, input is considered floating/disconnected
+
 # Calibration factors per ADC channel (compensates for hardware differences)
 # AD1 reads ~18% higher than AD0, so we multiply AD1 by 0.85
 CHANNEL_CALIBRATION = {
@@ -205,7 +210,27 @@ class CurrentSensor:
         Returns:
             Power in Watts (assuming resistive load, PF=1)
         """
-        current = self.read_current()
+        # Read raw samples
+        samples = self.read_raw_samples()
+
+        # Filter outliers
+        filtered = self._filter_outliers(samples)
+
+        # Calculate variance to detect floating/disconnected input
+        # Real AC signal has significant variance, floating input has near-zero variance
+        if len(filtered) > 1:
+            mean = sum(filtered) / len(filtered)
+            variance = sum((s - mean) ** 2 for s in filtered) / len(filtered)
+
+            if variance < MIN_VARIANCE_THRESHOLD:
+                # Floating input - no real AC signal
+                log.debug(f"Channel {self.channel}: floating input detected (variance={variance:.6f})")
+                return 0.0
+
+        # Calculate RMS and current
+        bias = self._bias_voltage if self._bias_voltage else None
+        rms_voltage = self.calculate_rms(samples, bias)
+        current = rms_voltage * self.ratio
         power = current * MAINS_VOLTAGE
 
         # Apply channel calibration

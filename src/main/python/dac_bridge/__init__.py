@@ -20,6 +20,8 @@ MQTT Topics (Subscribe):
 MQTT Topics (Publish):
   - {prefix}/w1/<sensor_id> -> Temperature from 1-Wire sensor (°C), e.g., w1/28-0316840d44ff
   - {prefix}/current/ad<n>  -> Power from SCT013 sensor (W), e.g., current/ad0
+  - {prefix}/co2            -> CO2 concentration (ppm) from MH-Z19C
+  - {prefix}/co2_temp       -> Temperature from MH-Z19C sensor (°C)
 """
 
 import argparse
@@ -53,6 +55,8 @@ DEFAULT_CURRENT_SAMPLE_INTERVAL = 0.2  # Current sampling interval in seconds (2
 DEFAULT_CURRENT_PUBLISH_INTERVAL = 1  # Publish to MQTT every N seconds (if changed)
 DEFAULT_CURRENT_FORCE_INTERVAL = 60  # Force publish even if unchanged every N seconds
 DEFAULT_CURRENT_CHANNELS = [0, 1]  # ADC channels for SCT013 sensors (AD0, AD1)
+DEFAULT_CO2_INTERVAL = 30  # CO2 reading interval in seconds
+DEFAULT_CO2_PORT = "/dev/serial0"  # UART port for MH-Z19C
 W1_DEVICES_PATH = "/sys/bus/w1/devices"
 
 # Logging setup
@@ -241,6 +245,66 @@ class OneWireBus:
             return None
 
 
+class CO2Reader:
+    """Reads CO2 from MH-Z19C sensor via UART."""
+
+    def __init__(self, port: str = DEFAULT_CO2_PORT):
+        """
+        Initialize CO2 reader.
+
+        Args:
+            port: Serial port path (default: /dev/serial0)
+        """
+        self.port = port
+        self.sensor = None
+        self._initialized = False
+
+    def init(self) -> bool:
+        """
+        Initialize the CO2 sensor.
+
+        Returns:
+            True if initialization successful, False otherwise
+        """
+        try:
+            from .co2_sensor import CO2Sensor
+
+            self.sensor = CO2Sensor(port=self.port)
+            if not self.sensor.init():
+                return False
+
+            self._initialized = True
+            log.info(f"CO2 sensor initialized on {self.port}")
+            return True
+
+        except Exception as e:
+            log.warning(f"Failed to initialize CO2 sensor: {e}")
+            self._initialized = False
+            return False
+
+    def read(self) -> tuple[int | None, int | None]:
+        """
+        Read CO2 and temperature.
+
+        Returns:
+            Tuple of (co2_ppm, temperature_celsius) or (None, None) on error
+        """
+        if not self._initialized or not self.sensor:
+            return None, None
+
+        try:
+            return self.sensor.read()
+        except Exception as e:
+            log.error(f"Failed to read CO2: {e}")
+            return None, None
+
+    def cleanup(self):
+        """Clean up sensor resources."""
+        if self.sensor:
+            self.sensor.cleanup()
+        self._initialized = False
+
+
 class HrvBridge:
     """Simple MQTT to PWM bridge for HRV control."""
 
@@ -248,12 +312,17 @@ class HrvBridge:
                  client_id: str, gpio17: int, gpio18: int, gpio19: int, pwm_freq: int,
                  temp_interval: int = DEFAULT_TEMP_INTERVAL,
                  current_channels: list[int] = None,
-                 current_enabled: bool = True):
+                 current_enabled: bool = True,
+                 co2_enabled: bool = True,
+                 co2_port: str = DEFAULT_CO2_PORT,
+                 co2_interval: int = DEFAULT_CO2_INTERVAL):
         self.mqtt_host = mqtt_host
         self.mqtt_port = mqtt_port
         self.topic_prefix = topic_prefix.rstrip('/')
         self.temp_interval = temp_interval
         self.current_enabled = current_enabled
+        self.co2_enabled = co2_enabled
+        self.co2_interval = co2_interval
 
         # MQTT client
         self.client = mqtt.Client(client_id=client_id)
@@ -283,6 +352,17 @@ class HrvBridge:
             if not self.current_reader.init():
                 log.warning("Current sensing disabled - ADC initialization failed")
                 self.current_reader = None
+
+        # Initialize CO2 reader (MH-Z19C via UART)
+        self.co2_reader = None
+        self.co2_thread = None
+        self._last_co2_value = None
+        self._last_co2_temp = None
+        if co2_enabled:
+            self.co2_reader = CO2Reader(port=co2_port)
+            if not self.co2_reader.init():
+                log.warning("CO2 sensing disabled - UART initialization failed")
+                self.co2_reader = None
 
         self.running = False
 
@@ -438,6 +518,47 @@ class HrvBridge:
                 self._last_current_values[channel] = median_power
                 self._last_current_publish[channel] = now
 
+    def _co2_loop(self):
+        """Background thread for reading and publishing CO2."""
+        log.info(f"CO2 reader started (interval: {self.co2_interval}s)")
+
+        # Publish initial reading immediately
+        self._publish_co2()
+
+        while self.running:
+            # Sleep in small increments to allow quick shutdown
+            for _ in range(self.co2_interval * 10):
+                if not self.running:
+                    break
+                time.sleep(0.1)
+
+            if self.running:
+                self._publish_co2()
+
+        log.info("CO2 reader stopped")
+
+    def _publish_co2(self):
+        """Read and publish CO2 data to MQTT."""
+        if not self.co2_reader:
+            return
+
+        co2, temp = self.co2_reader.read()
+
+        if co2 is not None:
+            # Publish CO2 if changed
+            if co2 != self._last_co2_value:
+                topic = f"{self.topic_prefix}/co2"
+                self.client.publish(topic, str(co2), retain=True)
+                log.info(f"Published CO2: {co2} ppm")
+                self._last_co2_value = co2
+
+            # Publish temperature if changed
+            if temp is not None and temp != self._last_co2_temp:
+                topic = f"{self.topic_prefix}/co2_temp"
+                self.client.publish(topic, str(temp), retain=True)
+                log.info(f"Published CO2 temp: {temp}°C")
+                self._last_co2_temp = temp
+
     def start(self):
         """Start the bridge."""
         self.running = True
@@ -461,6 +582,11 @@ class HrvBridge:
             self.current_thread = threading.Thread(target=self._current_loop, daemon=True)
             self.current_thread.start()
 
+        # Start CO2 reading thread if sensor is initialized
+        if self.co2_reader:
+            self.co2_thread = threading.Thread(target=self._co2_loop, daemon=True)
+            self.co2_thread.start()
+
         try:
             self.client.loop_forever()
         except KeyboardInterrupt:
@@ -481,9 +607,17 @@ class HrvBridge:
         if self.current_thread and self.current_thread.is_alive():
             self.current_thread.join(timeout=2)
 
+        # Wait for CO2 thread to stop
+        if self.co2_thread and self.co2_thread.is_alive():
+            self.co2_thread.join(timeout=2)
+
         # Cleanup current reader
         if self.current_reader:
             self.current_reader.cleanup()
+
+        # Cleanup CO2 reader
+        if self.co2_reader:
+            self.co2_reader.cleanup()
 
         if self.output:
             self.output.set_digital(17, False)
@@ -562,6 +696,22 @@ def main():
         help="Disable current sensing (SCT013 via Waveshare ADC)"
     )
     parser.add_argument(
+        "--co2-port",
+        default=DEFAULT_CO2_PORT,
+        help=f"Serial port for CO2 sensor (default: {DEFAULT_CO2_PORT})"
+    )
+    parser.add_argument(
+        "--co2-interval",
+        type=int,
+        default=DEFAULT_CO2_INTERVAL,
+        help=f"CO2 reading interval in seconds (default: {DEFAULT_CO2_INTERVAL})"
+    )
+    parser.add_argument(
+        "--no-co2",
+        action="store_true",
+        help="Disable CO2 sensing (MH-Z19C via UART)"
+    )
+    parser.add_argument(
         "--verbose", "-v",
         action="store_true",
         help="Enable verbose logging"
@@ -586,7 +736,10 @@ def main():
         pwm_freq=args.pwm_freq,
         temp_interval=args.temp_interval,
         current_channels=current_channels,
-        current_enabled=not args.no_current
+        current_enabled=not args.no_current,
+        co2_enabled=not args.no_co2,
+        co2_port=args.co2_port,
+        co2_interval=args.co2_interval
     )
 
     def signal_handler(signum, frame):

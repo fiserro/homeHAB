@@ -45,6 +45,7 @@ Dimmer hrvOutputPower "HRV - Hrv Output Power" <energy> ["computed"]
 Dimmer hrvOutputTest "HRV - Hrv Output Test" <settings> ["computed"]
 
 // Read-only items from HabModules
+Number co2 "HRV - Co2" <none> ["readonly", "computed"] { channel="mqtt:topic:mosquitto:hrv_bridge:co2" }
 Switch filterCleaningRequired "HRV - Filter Cleaning Required" <none> ["readonly", "computed"]
 Number filterLastCleanedTimestamp "HRV - Filter Last Cleaned Timestamp" <time> ["readonly", "computed"]
 Number outsideTemperature "HRV - Outside Temperature" <temperature> ["readonly", "computed"] { channel="mqtt:topic:mosquitto:hrv_bridge:gpio27_28-0316840d44ff" }
@@ -55,7 +56,6 @@ Number temporaryManualModeOffTime "HRV - Temporary Manual Mode Off Time" <time> 
 Number tickSecond "HRV - Tick Second" <none> ["readonly", "computed"]
 
 // Aggregation groups from @MqttItem annotations
-Group:Number:MAX co2 "Co2" <carbondioxide> ["mqtt", "zigbee", "computed"]
 Group:Switch:OR(ON,OFF) smoke "Smoke" <smoke> ["mqtt", "zigbee", "computed"]
 Group:Switch:OR(ON,OFF) gas "Gas" <gas> ["mqtt", "zigbee", "computed"]
 Group:Number:AVG pressure "Pressure" <pressure> ["mqtt", "zigbee", "computed"]

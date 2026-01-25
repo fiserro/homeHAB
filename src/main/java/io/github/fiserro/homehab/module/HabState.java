@@ -47,7 +47,7 @@ public interface HabState extends CommonModule<HabState>, HrvModule<HabState>, F
     }
 
     @Override @Option
-    @MqttItem(numAgg = NumericAggregation.MAX)
+    @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:co2")
     default int co2() {
         return HrvModule.super.co2();
     }
