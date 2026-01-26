@@ -94,7 +94,7 @@ echo -e "${BLUE}Useful commands:${NC}"
 if is_remote_deploy; then
     parse_remote_target
     echo "  - OpenHAB logs: ssh $REMOTE_USER_HOST 'sudo journalctl -u openhab -f'"
-    echo "  - HRV Bridge logs: ssh $REMOTE_USER_HOST 'sudo journalctl -u ${PYTHON_SERVICE_NAME:-dac-bridge} -f'"
+    echo "  - HRV Bridge logs: ssh $REMOTE_USER_HOST 'sudo journalctl -u ${PYTHON_SERVICE_NAME:-hrv-bridge} -f'"
 else
     echo "  - OpenHAB logs: docker-compose logs -f openhab"
     echo "  - Panel logs: esphome logs esp32-panel/hrv-panel.yaml"

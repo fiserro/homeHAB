@@ -37,7 +37,7 @@ SSH_KEY_OPT=$(get_ssh_key_opt)
 
 PYTHON_HOST="${PYTHON_DEPLOY_HOST:-$REMOTE_USER_HOST}"
 PYTHON_PKG_DIR="${PYTHON_PACKAGE_DIR:-src/main/python}"
-PYTHON_SVC="${PYTHON_SERVICE_NAME:-dac-bridge}"
+PYTHON_SVC="${PYTHON_SERVICE_NAME:-hrv-bridge}"
 
 if [ ! -d "$PYTHON_PKG_DIR" ]; then
     print_error "Python package directory not found: $PYTHON_PKG_DIR"
@@ -45,7 +45,7 @@ if [ ! -d "$PYTHON_PKG_DIR" ]; then
 fi
 
 # Create temporary archive of Python package
-PYTHON_ARCHIVE="/tmp/dac-bridge-deploy.tar.gz"
+PYTHON_ARCHIVE="/tmp/hrv-bridge-deploy.tar.gz"
 echo -e "${BLUE}Creating Python package archive...${NC}"
 tar -czf "$PYTHON_ARCHIVE" -C "$PYTHON_PKG_DIR" .
 
@@ -56,12 +56,12 @@ scp $SSH_KEY_OPT "$PYTHON_ARCHIVE" "$PYTHON_HOST:/tmp/"
 echo -e "${BLUE}Installing Python package...${NC}"
 ssh $SSH_KEY_OPT "$PYTHON_HOST" "
     cd /tmp && \
-    sudo rm -rf /tmp/dac-bridge-install && \
-    mkdir -p /tmp/dac-bridge-install && \
-    tar -xzf dac-bridge-deploy.tar.gz -C /tmp/dac-bridge-install && \
-    cd /tmp/dac-bridge-install && \
+    sudo rm -rf /tmp/hrv-bridge-install && \
+    mkdir -p /tmp/hrv-bridge-install && \
+    tar -xzf hrv-bridge-deploy.tar.gz -C /tmp/hrv-bridge-install && \
+    cd /tmp/hrv-bridge-install && \
     sudo pip3 install --break-system-packages --force-reinstall . && \
-    sudo rm -rf /tmp/dac-bridge-deploy.tar.gz /tmp/dac-bridge-install
+    sudo rm -rf /tmp/hrv-bridge-deploy.tar.gz /tmp/hrv-bridge-install
 "
 
 if [ $? -eq 0 ]; then

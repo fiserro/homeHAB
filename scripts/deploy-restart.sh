@@ -28,8 +28,8 @@ if is_remote_deploy; then
         echo 'Restarting OpenHAB...'
         sudo systemctl restart openhab
         if [ '${PYTHON_DEPLOY_ENABLED:-false}' = 'true' ]; then
-            echo 'Restarting ${PYTHON_SERVICE_NAME:-dac-bridge}...'
-            sudo systemctl restart ${PYTHON_SERVICE_NAME:-dac-bridge}
+            echo 'Restarting ${PYTHON_SERVICE_NAME:-hrv-bridge}...'
+            sudo systemctl restart ${PYTHON_SERVICE_NAME:-hrv-bridge}
         fi
         echo 'Services restarted'
     "

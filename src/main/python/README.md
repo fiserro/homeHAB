@@ -87,12 +87,12 @@ Each SCT013 current sensor publishes to its own topic based on ADC channel (e.g.
 
 ```bash
 cd src/main/python
-./deploy-dac-bridge.sh robertfiser@openhab.home
+./deploy-hrv-bridge.sh robertfiser@openhab.home
 ```
 
 ## Configuration
 
-Edit `/etc/systemd/system/dac-bridge.service` on Raspberry Pi:
+Edit `/etc/systemd/system/hrv-bridge.service` on Raspberry Pi:
 
 ```
 ExecStart=/usr/local/bin/hrv-bridge --mqtt-host localhost
@@ -236,8 +236,8 @@ To restore/update Waveshare library:
 ```bash
 wget -O hp-ad-da.zip https://github.com/waveshareteam/High-Precision-AD-DA-Board/archive/refs/heads/master.zip
 unzip -q hp-ad-da.zip
-cp High-Precision-AD-DA-Board-master/RaspberryPI/AD-DA/python/DAC8532.py dac_bridge/waveshare_dac8532.py
-cp High-Precision-AD-DA-Board-master/RaspberryPI/AD-DA/python/config.py dac_bridge/waveshare_config.py
+cp High-Precision-AD-DA-Board-master/RaspberryPI/AD-DA/python/DAC8532.py hrv_bridge/waveshare_dac8532.py
+cp High-Precision-AD-DA-Board-master/RaspberryPI/AD-DA/python/config.py hrv_bridge/waveshare_config.py
 # Update imports in waveshare_dac8532.py:
 # from . import waveshare_config as config
 ```
@@ -275,15 +275,15 @@ ssh openhab.home 'cat /sys/bus/w1/devices/28-*/temperature'
 mosquitto_sub -h openhab.home -t 'homehab/hrv/current/#' -v
 
 # Check service logs
-ssh openhab.home 'sudo journalctl -u dac-bridge -f'
+ssh openhab.home 'sudo journalctl -u hrv-bridge -f'
 ```
 
 ## Service Management
 
 ```bash
-ssh openhab.home 'sudo systemctl status dac-bridge'
-ssh openhab.home 'sudo systemctl restart dac-bridge'
-ssh openhab.home 'sudo journalctl -u dac-bridge -f'
+ssh openhab.home 'sudo systemctl status hrv-bridge'
+ssh openhab.home 'sudo systemctl restart hrv-bridge'
+ssh openhab.home 'sudo journalctl -u hrv-bridge -f'
 ```
 
 ## License

@@ -19,7 +19,7 @@ homeHAB provides a Java-based automation framework for OpenHAB with:
 │                    Raspberry Pi (openhab.home)              │
 │                                                             │
 │  ┌──────────────┐     ┌───────────────┐     ┌─────────────┐ │
-│  │ DAC Bridge   │────▶│   Mosquitto   │◀────│ Zigbee2MQTT │ │
+│  │ HRV Bridge   │────▶│   Mosquitto   │◀────│ Zigbee2MQTT │ │
 │  │ (Python)     │     │ (MQTT Broker) │     │             │ │
 │  └──────────────┘     └───────────────┘     └─────────────┘ │
 │         │                    ▲                     │        │
@@ -51,7 +51,7 @@ homeHAB provides a Java-based automation framework for OpenHAB with:
 │                    Raspberry Pi (openhab.home)              │
 │                                                             │
 │  ┌──────────────┐     ┌───────────────┐     ┌─────────────┐ │
-│  │ DAC Bridge   │────▶│   Mosquitto   │◀────│ Zigbee2MQTT │ │
+│  │ HRV Bridge   │────▶│   Mosquitto   │◀────│ Zigbee2MQTT │ │
 │  │ (Python)     │     │ (MQTT Broker) │     │             │ │
 │  └──────────────┘     └───────────────┘     └─────────────┘ │
 │         │                    ▲                     │        │
@@ -75,8 +75,8 @@ homeHAB/
 │       ├── HabState.java       # Central state record with annotations
 │       ├── hrv/                # HRV control logic
 │       └── generator/          # Code generators for OpenHAB config
-├── src/main/python/            # DAC Bridge service
-│   └── dac_bridge/             # MQTT to DAC8532 bridge
+├── src/main/python/            # HRV Bridge service
+│   └── hrv_bridge/             # MQTT to DAC8532 bridge
 ├── openhab-dev/                # OpenHAB dev configuration
 │   └── conf/
 │       ├── automation/         # Java rules and libraries
@@ -108,9 +108,9 @@ docker-compose up -d
 # Build and deploy Java library
 ./deploy.sh dev
 
-# Deploy DAC Bridge to Raspberry Pi
+# Deploy HRV Bridge to Raspberry Pi
 cd src/main/python
-./deploy-dac-bridge.sh
+./deploy-hrv-bridge.sh
 ```
 
 ### Generate Configuration

@@ -37,7 +37,7 @@ dev = [
 ]
 
 [project.scripts]
-hrv-bridge = "dac_bridge:main"
+hrv-bridge = "hrv_bridge:main"
 
 [tool.setuptools]
-packages = ["dac_bridge"]
+packages = ["hrv_bridge"]

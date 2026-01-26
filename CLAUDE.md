@@ -317,7 +317,7 @@ public void onZigbeeItemChanged() {
 
 The HRV Bridge is a Python service running on Raspberry Pi that receives MQTT commands and controls GPIO pins.
 
-**Location:** `src/main/python/dac_bridge/`
+**Location:** `src/main/python/hrv_bridge/`
 
 **GPIO Pin Mapping:**
 | GPIO | Function | Type | Description |
