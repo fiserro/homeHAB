@@ -72,6 +72,10 @@ __pycache__/
 esp32-panel/secrets.yaml
 esp32-panel/.esphome/
 
+# PlatformIO
+esp32/*/.pio/
+esp32/*/src/secrets.h
+
 # Docker service data directories
 mosquitto/data/
 mosquitto/log/
