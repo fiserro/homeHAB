@@ -358,6 +358,8 @@ class HrvBridge:
         self.co2_thread = None
         self._last_co2_value = None
         self._last_co2_temp = None
+        self._co2_fail_count = 0
+        self._co2_fail_threshold = 3  # Clear retained message after 3 consecutive failures
         if co2_enabled:
             self.co2_reader = CO2Reader(port=co2_port)
             if not self.co2_reader.init():
@@ -545,6 +547,8 @@ class HrvBridge:
         co2, temp = self.co2_reader.read()
 
         if co2 is not None:
+            self._co2_fail_count = 0
+
             # Publish CO2 if changed
             if co2 != self._last_co2_value:
                 topic = f"{self.topic_prefix}/co2"
@@ -558,6 +562,15 @@ class HrvBridge:
                 self.client.publish(topic, str(temp), retain=True)
                 log.info(f"Published CO2 temp: {temp}°C")
                 self._last_co2_temp = temp
+        else:
+            self._co2_fail_count += 1
+            if self._co2_fail_count == self._co2_fail_threshold:
+                # Clear retained messages so OpenHAB shows UNDEF
+                self.client.publish(f"{self.topic_prefix}/co2", "", retain=True)
+                self.client.publish(f"{self.topic_prefix}/co2_temp", "", retain=True)
+                self._last_co2_value = None
+                self._last_co2_temp = None
+                log.warning("CO2 sensor not responding, cleared retained values")
 
     def start(self):
         """Start the bridge."""
