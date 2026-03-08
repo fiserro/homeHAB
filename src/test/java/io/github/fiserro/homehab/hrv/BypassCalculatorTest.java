@@ -29,7 +29,7 @@ class BypassCalculatorTest {
       boolean manualMode,
       boolean temporaryManualMode,
       float insideTemperature,
-      float outsideTemperature,
+      float outdoorAirTemperature,
       float preferredTemperature,
       float bypassHysteresis,
       boolean currentBypass,
@@ -39,7 +39,7 @@ class BypassCalculatorTest {
         .withValue("manualMode", manualMode)
         .withValue("temporaryManualMode", temporaryManualMode)
         .withValue("insideTemperature", insideTemperature)
-        .withValue("outsideTemperature", outsideTemperature)
+        .withValue("outdoorAirTemperature", outdoorAirTemperature)
         .withValue("preferredTemperature", preferredTemperature)
         .withValue("bypassHysteresis", bypassHysteresis)
         .withValue("bypass", currentBypass);

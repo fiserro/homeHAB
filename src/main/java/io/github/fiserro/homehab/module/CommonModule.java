@@ -32,12 +32,6 @@ public interface CommonModule<T extends CommonModule<T>> extends Options<T> {
     return 20;
   }
 
-  @ReadOnlyItem
-  @Option
-  default float outsideTemperature() {
-    return 0;
-  }
-
   @Option
   default int pressure() {
     return 1000;

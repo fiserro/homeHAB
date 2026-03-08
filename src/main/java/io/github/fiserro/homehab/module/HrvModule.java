@@ -183,6 +183,36 @@ public interface HrvModule<T extends HrvModule<T>> extends CommonModule<T> {
     return false;
   }
 
+  // HRV duct temperatures (DS18B20 sensors)
+
+  /** Outdoor air temperature – fresh air entering the HRV unit (before exchanger). */
+  @ReadOnlyItem
+  @Option
+  default float outdoorAirTemperature() {
+    return 0;
+  }
+
+  /** Supply air temperature – air delivered to rooms (after exchanger). */
+  @ReadOnlyItem
+  @Option
+  default float supplyAirTemperature() {
+    return 0;
+  }
+
+  /** Extract air temperature – air extracted from rooms (before exchanger). */
+  @ReadOnlyItem
+  @Option
+  default float extractAirTemperature() {
+    return 0;
+  }
+
+  /** Exhaust air temperature – air exhausted outside (after exchanger). */
+  @ReadOnlyItem
+  @Option
+  default float exhaustAirTemperature() {
+    return 0;
+  }
+
   // Power sensors (SCT013 via Waveshare ADC)
 
   /**

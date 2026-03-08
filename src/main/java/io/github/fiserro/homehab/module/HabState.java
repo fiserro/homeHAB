@@ -18,7 +18,7 @@ import io.github.fiserro.options.Option;
  */
 public interface HabState extends CommonModule<HabState>, HrvModule<HabState>, FlowerModule<HabState> {
 
-    // CommonModule overrides with MQTT bindings (via HrvModule which extends CommonModule)
+    // CommonModule overrides with MQTT bindings
 
     @Override @Option
     @MqttItem(value = {"aqara*Temperature", "soil*Temperature"}, numAgg = NumericAggregation.AVG)
@@ -27,15 +27,35 @@ public interface HabState extends CommonModule<HabState>, HrvModule<HabState>, F
     }
 
     @Override @Option
-    @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:gpio27_28-0316840d44ff")
-    default float outsideTemperature() {
-        return HrvModule.super.outsideTemperature();
-    }
-
-    @Override @Option
     @MqttItem(value = "aqara*Pressure", numAgg = NumericAggregation.AVG)
     default int pressure() {
         return HrvModule.super.pressure();
+    }
+
+    // HrvModule overrides - duct temperatures (DS18B20 via 1-Wire)
+
+    @Override @Option
+    @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:gpio27_28-0000006fd103")
+    default float outdoorAirTemperature() {
+        return HrvModule.super.outdoorAirTemperature();
+    }
+
+    @Override @Option
+    @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:gpio27_28-000000b9594a")
+    default float supplyAirTemperature() {
+        return HrvModule.super.supplyAirTemperature();
+    }
+
+    @Override @Option
+    @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:gpio27_28-0000006d2fe0")
+    default float extractAirTemperature() {
+        return HrvModule.super.extractAirTemperature();
+    }
+
+    @Override @Option
+    @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:gpio27_28-000000b9445a")
+    default float exhaustAirTemperature() {
+        return HrvModule.super.exhaustAirTemperature();
     }
 
     // HrvModule overrides with MQTT aggregation bindings

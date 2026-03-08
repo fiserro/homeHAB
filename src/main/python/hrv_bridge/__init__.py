@@ -377,6 +377,9 @@ class HrvBridge:
             client.subscribe(f"{self.topic_prefix}/pwm/gpio12")
             client.subscribe(f"{self.topic_prefix}/pwm/gpio13")
             log.info(f"Subscribed to topics: {self.topic_prefix}/gpio17, pwm/gpio12, pwm/gpio13")
+
+            # Subscribe to w1 topics to clean up stale retained messages
+            client.subscribe(f"{self.topic_prefix}/w1/#")
         else:
             log.error(f"Connection failed with code {rc}")
 
@@ -388,6 +391,17 @@ class HrvBridge:
         try:
             payload = msg.payload.decode("utf-8").strip()
             topic = msg.topic
+
+            # Handle stale w1 retained messages
+            w1_prefix = f"{self.topic_prefix}/w1/"
+            if topic.startswith(w1_prefix):
+                if not payload:
+                    return  # Ignore empty (cleared) messages
+                sensor_id = topic[len(w1_prefix):]
+                if sensor_id not in self.w1_bus.sensors:
+                    client.publish(topic, "", retain=True)
+                    log.info(f"Cleared stale retained value for 1-Wire sensor {sensor_id}")
+                return
 
             # Handle GPIO17 digital output (ON/OFF)
             if topic == f"{self.topic_prefix}/gpio17":

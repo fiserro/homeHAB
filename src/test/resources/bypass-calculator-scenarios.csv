@@ -1,4 +1,4 @@
-scenario;manualMode;temporaryManualMode;insideTemperature;outsideTemperature;preferredTemperature;bypassHysteresis;currentBypass;expectedBypass
+scenario;manualMode;temporaryManualMode;insideTemperature;outdoorAirTemperature;preferredTemperature;bypassHysteresis;currentBypass;expectedBypass
 Manual mode active - bypass unchanged (was false);true;false;25.0;15.0;20.0;1.0;false;false
 Manual mode active - bypass unchanged (was true);true;false;18.0;20.0;20.0;1.0;true;true
 Temporary manual mode active - bypass unchanged (was false);false;true;25.0;15.0;20.0;1.0;false;false

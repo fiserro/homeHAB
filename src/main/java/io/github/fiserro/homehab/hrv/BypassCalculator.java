@@ -13,8 +13,8 @@ import lombok.extern.slf4j.Slf4j;
  * <p>Logic:
  * <ul>
  *   <li>Skip if manual mode or temporary manual mode is active</li>
- *   <li>Bypass ON when: insideTemp > preferredTemp + hysteresis/2 AND insideTemp > outsideTemp + hysteresis/2</li>
- *   <li>Bypass OFF when: insideTemp < preferredTemp - hysteresis/2 OR insideTemp < outsideTemp - hysteresis/2</li>
+ *   <li>Bypass ON when: insideTemp > preferredTemp + hysteresis/2 AND insideTemp > outdoorTemp + hysteresis/2</li>
+ *   <li>Bypass OFF when: insideTemp < preferredTemp - hysteresis/2 OR insideTemp < outdoorTemp - hysteresis/2</li>
  *   <li>Keep current state if in hysteresis zone</li>
  * </ul>
  *
@@ -32,7 +32,7 @@ public class BypassCalculator<T extends HrvModule<T>> implements Calculator<T> {
     }
 
     float insideTemp = state.insideTemperature();
-    float outsideTemp = state.outsideTemperature();
+    float outdoorTemp = state.outdoorAirTemperature();
     float preferredTemp = state.preferredTemperature();
     float hysteresis = state.bypassHysteresis();
     float halfHysteresis = hysteresis / 2;
@@ -41,8 +41,8 @@ public class BypassCalculator<T extends HrvModule<T>> implements Calculator<T> {
     // Calculate thresholds
     float preferredUpperThreshold = preferredTemp + halfHysteresis;
     float preferredLowerThreshold = preferredTemp - halfHysteresis;
-    float outsideUpperThreshold = outsideTemp + halfHysteresis;
-    float outsideLowerThreshold = outsideTemp - halfHysteresis;
+    float outsideUpperThreshold = outdoorTemp + halfHysteresis;
+    float outsideLowerThreshold = outdoorTemp - halfHysteresis;
 
     boolean shouldTurnOn = insideTemp > preferredUpperThreshold && insideTemp > outsideUpperThreshold;
     boolean shouldTurnOff = insideTemp < preferredLowerThreshold || insideTemp < outsideLowerThreshold;
@@ -50,15 +50,15 @@ public class BypassCalculator<T extends HrvModule<T>> implements Calculator<T> {
     boolean newBypass;
     if (shouldTurnOn) {
       newBypass = true;
-      log.debug("Bypass ON: inside={}, preferred={}, outside={}", insideTemp, preferredTemp, outsideTemp);
+      log.debug("Bypass ON: inside={}, preferred={}, outside={}", insideTemp, preferredTemp, outdoorTemp);
     } else if (shouldTurnOff) {
       newBypass = false;
-      log.debug("Bypass OFF: inside={}, preferred={}, outside={}", insideTemp, preferredTemp, outsideTemp);
+      log.debug("Bypass OFF: inside={}, preferred={}, outside={}", insideTemp, preferredTemp, outdoorTemp);
     } else {
       // In hysteresis zone - keep current state
       newBypass = currentBypass;
       log.debug("Bypass unchanged (hysteresis): inside={}, preferred={}, outside={}, current={}",
-          insideTemp, preferredTemp, outsideTemp, currentBypass);
+          insideTemp, preferredTemp, outdoorTemp, currentBypass);
     }
 
     return state.withBypass(newBypass);

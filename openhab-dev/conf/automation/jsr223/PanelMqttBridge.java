@@ -101,10 +101,10 @@ public class PanelMqttBridge extends Java223Script {
         publish("bypass", _items.bypass().getState());
     }
 
-    @Rule(name = "panel.outside.temp", description = "Publish outside temperature to panel")
-    @ItemStateChangeTrigger(itemName = Items.outsideTemperature)
-    public void onOutsideTemperatureChanged() {
-        publish("outsideTemperature", _items.outsideTemperature().getState());
+    @Rule(name = "panel.outdoor.air.temp", description = "Publish outdoor air temperature to panel")
+    @ItemStateChangeTrigger(itemName = Items.outdoorAirTemperature)
+    public void onOutdoorAirTemperatureChanged() {
+        publish("outdoorAirTemperature", _items.outdoorAirTemperature().getState());
     }
 
     @Rule(name = "panel.filter.status", description = "Publish filter cleaning status to panel")

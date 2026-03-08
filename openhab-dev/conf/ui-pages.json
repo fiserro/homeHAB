@@ -242,9 +242,60 @@
                     "default" : [ {
                       "component" : "oh-label-card",
                       "config" : {
-                        "title" : "Outside Temp",
-                        "item" : "outsideTemperature",
-                        "icon" : "f7:thermometer_sun",
+                        "title" : "Outdoor Air",
+                        "item" : "outdoorAirTemperature",
+                        "icon" : "f7:sun_max",
+                        "iconColor" : "orange"
+                      }
+                    } ]
+                  }
+                }, {
+                  "component" : "oh-grid-col",
+                  "config" : {
+                    "width" : "50",
+                    "medium" : "20"
+                  },
+                  "slots" : {
+                    "default" : [ {
+                      "component" : "oh-label-card",
+                      "config" : {
+                        "title" : "Supply Air",
+                        "item" : "supplyAirTemperature",
+                        "icon" : "f7:arrow_right_circle",
+                        "iconColor" : "green"
+                      }
+                    } ]
+                  }
+                }, {
+                  "component" : "oh-grid-col",
+                  "config" : {
+                    "width" : "50",
+                    "medium" : "20"
+                  },
+                  "slots" : {
+                    "default" : [ {
+                      "component" : "oh-label-card",
+                      "config" : {
+                        "title" : "Extract Air",
+                        "item" : "extractAirTemperature",
+                        "icon" : "f7:arrow_left_circle",
+                        "iconColor" : "yellow"
+                      }
+                    } ]
+                  }
+                }, {
+                  "component" : "oh-grid-col",
+                  "config" : {
+                    "width" : "50",
+                    "medium" : "20"
+                  },
+                  "slots" : {
+                    "default" : [ {
+                      "component" : "oh-label-card",
+                      "config" : {
+                        "title" : "Exhaust Air",
+                        "item" : "exhaustAirTemperature",
+                        "icon" : "f7:wind",
                         "iconColor" : "cyan"
                       }
                     } ]
@@ -634,8 +685,8 @@
                         }, {
                           "component" : "oh-label-item",
                           "config" : {
-                            "title" : "Outside Temperature",
-                            "item" : "outsideTemperature",
+                            "title" : "Outdoor Air Temperature",
+                            "item" : "outdoorAirTemperature",
                             "icon" : "f7:thermometer_sun",
                             "iconColor" : "cyan"
                           }
@@ -789,8 +840,8 @@
                         }, {
                           "component" : "oh-label-item",
                           "config" : {
-                            "title" : "Outside Temperature",
-                            "item" : "outsideTemperature",
+                            "title" : "Outdoor Air Temperature",
+                            "item" : "outdoorAirTemperature",
                             "icon" : "f7:thermometer_sun"
                           }
                         } ]

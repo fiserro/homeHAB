@@ -199,8 +199,8 @@ mqtt:
             id(inside_temp) = temp;
             lv_label_set_text_fmt(id(lbl_indoor_value), "%d", temp);
 
-    # Outside Temperature
-    - topic: homehab/state/outsideTemperature
+    # Outdoor Air Temperature
+    - topic: homehab/state/outdoorAirTemperature
       then:
         - lambda: |-
             int temp = (int)atof(x.c_str());
@@ -894,7 +894,7 @@ script:
                   lv_label_set_text_fmt(id(lbl_indoor_value), "%d", temp);
                 }
       - http_request.get:
-          url: "http://openhab.home:8888/rest/items/outsideTemperature/state"
+          url: "http://openhab.home:8888/rest/items/outdoorAirTemperature/state"
           capture_response: true
           on_response:
             - lambda: |-

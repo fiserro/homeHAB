@@ -110,10 +110,10 @@ class OptionDefAnnotationsTest {
         @Test
         @DisplayName("Annotations from parent module are visible for non-overridden methods")
         void optionDef_annotations_visibleForNonOverriddenMethods() {
-            // outsideTemperature is defined in CommonModule with @ReadOnlyItem
+            // outdoorAirTemperature is defined in CommonModule with @ReadOnlyItem
             // TestHabState doesn't override it, so the parent annotation should be visible
-            OptionDef opt = optionsByName.get("outsideTemperature");
-            assertNotNull(opt, "outsideTemperature option should exist");
+            OptionDef opt = optionsByName.get("outdoorAirTemperature");
+            assertNotNull(opt, "outdoorAirTemperature option should exist");
 
             ReadOnlyItem readOnlyItem = opt.annotations().stream()
                     .filter(ReadOnlyItem.class::isInstance)
@@ -121,7 +121,7 @@ class OptionDefAnnotationsTest {
                     .findFirst()
                     .orElse(null);
 
-            assertNotNull(readOnlyItem, "outsideTemperature should have @ReadOnlyItem from CommonModule");
+            assertNotNull(readOnlyItem, "outdoorAirTemperature should have @ReadOnlyItem from CommonModule");
             assertEquals("", readOnlyItem.channel(),
                     "Channel should be empty (from CommonModule, not overridden)");
         }
