@@ -324,8 +324,8 @@ The HRV Bridge is a Python service running on Raspberry Pi that receives MQTT co
 |------|----------|------|-------------|
 | GPIO 4 | 1-Wire bus | Input | DS18B20 temperature sensors (outside temp) |
 | GPIO 5 | Bypass valve | Digital | OFF=valve closed (air through exchanger), ON=valve open (bypass mode) |
-| GPIO 12 | PWM output | PWM (HW) | Intake or exhaust fan (configurable via `sourceGpio18`) |
-| GPIO 13 | PWM output | PWM (HW) | Intake or exhaust fan (configurable via `sourceGpio19`) |
+| GPIO 12 | PWM output | PWM (HW) | Intake or exhaust fan (configurable via `sourceGpio12`) |
+| GPIO 13 | PWM output | PWM (HW) | Intake or exhaust fan (configurable via `sourceGpio13`) |
 
 **Note:** GPIO 17, 18, 22, 23 are reserved for Waveshare AD/DA board (SPI).
 
@@ -333,8 +333,8 @@ The HRV Bridge is a Python service running on Raspberry Pi that receives MQTT co
 | Topic | Type | Values | Description |
 |-------|------|--------|-------------|
 | `homehab/hrv/gpio17` | Switch | ON/OFF | Bypass valve control (mapped to GPIO 5) |
-| `homehab/hrv/pwm/gpio18` | Number | 0-100 | PWM duty cycle (mapped to GPIO 12) |
-| `homehab/hrv/pwm/gpio19` | Number | 0-100 | PWM duty cycle (mapped to GPIO 13) |
+| `homehab/hrv/pwm/gpio12` | Number | 0-100 | PWM duty cycle (mapped to GPIO 12) |
+| `homehab/hrv/pwm/gpio13` | Number | 0-100 | PWM duty cycle (mapped to GPIO 13) |
 
 **OpenHAB Thing Configuration:** `openhab-dev/conf/things/hrv-bridge.things`
 

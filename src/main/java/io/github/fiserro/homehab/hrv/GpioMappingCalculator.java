@@ -25,14 +25,14 @@ public class GpioMappingCalculator<T extends HrvModule<T>> implements Calculator
 
   @Override
   public T calculate(T state) {
-    int gpio18 = state.targetPWM(state.sourceGpio18());
-    int gpio19 = state.targetPWM(state.sourceGpio19());
+    int gpio12 = state.targetPWM(state.sourceGpio12());
+    int gpio13 = state.targetPWM(state.sourceGpio13());
 
-    log.debug("GPIO mapping: source18={} → {}, source19={} → {}",
-        state.sourceGpio18(), gpio18, state.sourceGpio19(), gpio19);
+    log.debug("GPIO mapping: source12={} → {}, source13={} → {}",
+        state.sourceGpio12(), gpio12, state.sourceGpio13(), gpio13);
 
     return state
-        .withHrvOutputGpio18(gpio18)
-        .withHrvOutputGpio19(gpio19);
+        .withHrvOutputGpio12(gpio12)
+        .withHrvOutputGpio13(gpio13);
   }
 }

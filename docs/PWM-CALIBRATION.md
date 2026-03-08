@@ -25,7 +25,7 @@ Without calibration, there is a mismatch between the desired output and the actu
 
 This non-linearity causes:
 - **Inaccurate motor speed control** - setting 50% doesn't result in 50% speed
-- **Different behavior between GPIO18 and GPIO19** - each DAC channel may have different characteristics
+- **Different behavior between GPIO12 and GPIO13** - each DAC channel may have different characteristics
 - **Difficulty in fine-tuning ventilation** - small adjustments don't produce expected results
 
 ## Solution: Calibration Tables
@@ -75,7 +75,7 @@ Access the calibration UI at: `http://<openhab-host>:8080/static/pwm-settings.ht
 
 ### UI Components
 
-#### GPIO Configuration Cards (GPIO 18 & GPIO 19)
+#### GPIO Configuration Cards (GPIO 12 & GPIO 13)
 
 Each GPIO has:
 - **Source selector** - Choose what value drives this GPIO:

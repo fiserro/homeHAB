@@ -105,8 +105,8 @@
                     "default" : [ {
                       "component" : "oh-gauge-card",
                       "config" : {
-                        "title" : "GPIO18",
-                        "item" : "hrvOutputGpio18",
+                        "title" : "GPIO12",
+                        "item" : "hrvOutputGpio12",
                         "min" : 0,
                         "max" : 100,
                         "type" : "semicircle",
@@ -114,7 +114,7 @@
                         "borderWidth" : 12,
                         "valueTextColor" : "white",
                         "borderBgColor" : "#333",
-                        "borderColor" : "=Number(items.hrvOutputGpio18.state) > 80 ? 'red' : (Number(items.hrvOutputGpio18.state) > 50 ? 'orange' : 'green')"
+                        "borderColor" : "=Number(items.hrvOutputGpio12.state) > 80 ? 'red' : (Number(items.hrvOutputGpio12.state) > 50 ? 'orange' : 'green')"
                       }
                     } ]
                   }
@@ -128,8 +128,8 @@
                     "default" : [ {
                       "component" : "oh-gauge-card",
                       "config" : {
-                        "title" : "GPIO19",
-                        "item" : "hrvOutputGpio19",
+                        "title" : "GPIO13",
+                        "item" : "hrvOutputGpio13",
                         "min" : 0,
                         "max" : 100,
                         "type" : "semicircle",
@@ -137,7 +137,7 @@
                         "borderWidth" : 12,
                         "valueTextColor" : "white",
                         "borderBgColor" : "#333",
-                        "borderColor" : "=Number(items.hrvOutputGpio19.state) > 80 ? 'red' : (Number(items.hrvOutputGpio19.state) > 50 ? 'orange' : 'green')"
+                        "borderColor" : "=Number(items.hrvOutputGpio13.state) > 80 ? 'red' : (Number(items.hrvOutputGpio13.state) > 50 ? 'orange' : 'green')"
                       }
                     } ]
                   }

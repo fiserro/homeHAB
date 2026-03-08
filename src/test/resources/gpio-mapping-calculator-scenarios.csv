@@ -1,4 +1,4 @@
-scenario;sourceGpio18;sourceGpio19;hrvOutputPower;hrvOutputIntake;hrvOutputExhaust;hrvOutputTest;expectedGpio18;expectedGpio19
+scenario;sourceGpio12;sourceGpio13;hrvOutputPower;hrvOutputIntake;hrvOutputExhaust;hrvOutputTest;expectedGpio12;expectedGpio13
 POWER maps to hrvOutputPower;POWER;POWER;50;60;40;75;50;50
 INTAKE maps to hrvOutputIntake;INTAKE;INTAKE;50;60;40;75;60;60
 EXHAUST maps to hrvOutputExhaust;EXHAUST;EXHAUST;50;60;40;75;40;40

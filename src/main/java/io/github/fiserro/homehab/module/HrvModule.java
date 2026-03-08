@@ -206,42 +206,42 @@ public interface HrvModule<T extends HrvModule<T>> extends CommonModule<T> {
   }
 
   /**
-   * Source for GPIO 18 output value. Options: POWER, INTAKE, EXHAUST, TEST, OFF - POWER: uses
+   * Source for GPIO 12 output value. Options: POWER, INTAKE, EXHAUST, TEST, OFF - POWER: uses
    * hrvOutputPower - INTAKE: uses hrvOutputIntake - EXHAUST: uses hrvOutputExhaust - TEST: uses
    * hrvOutputTest (linear, no calibration) - OFF: disables GPIO output (0%)
    */
   @InputItem
   @Option
-  default GpioSource sourceGpio18() {
+  default GpioSource sourceGpio12() {
     return GpioSource.INTAKE;
   }
 
-  /** Source for GPIO 19 output value. Options: POWER, INTAKE, EXHAUST, TEST, OFF */
+  /** Source for GPIO 13 output value. Options: POWER, INTAKE, EXHAUST, TEST, OFF */
   @InputItem
   @Option
-  default GpioSource sourceGpio19() {
+  default GpioSource sourceGpio13() {
     return GpioSource.EXHAUST;
   }
 
   /**
-   * Calibration table for GPIO 18. JSON format: {"0": 0.0, "10": 1.48, "20": 2.63, ...} Maps PWM
+   * Calibration table for GPIO 12. JSON format: {"0": 0.0, "10": 1.48, "20": 2.63, ...} Maps PWM
    * duty cycle (%) to measured output voltage (V). Used by HrvCalculator to convert target voltage
    * to PWM %. Not applied when source is TEST.
    */
   @InputItem
   @Option
-  default String calibrationTableGpio18() {
+  default String calibrationTableGpio12() {
     return "";
   }
 
   /**
-   * Calibration table for GPIO 19. JSON format: {"0": 0.0, "10": 1.48, "20": 2.63, ...} Maps PWM
+   * Calibration table for GPIO 13. JSON format: {"0": 0.0, "10": 1.48, "20": 2.63, ...} Maps PWM
    * duty cycle (%) to measured output voltage (V). Used by HrvCalculator to convert target voltage
    * to PWM %. Not applied when source is TEST.
    */
   @InputItem
   @Option
-  default String calibrationTableGpio19() {
+  default String calibrationTableGpio13() {
     return "";
   }
 
@@ -292,28 +292,28 @@ public interface HrvModule<T extends HrvModule<T>> extends CommonModule<T> {
   }
 
   /**
-   * Final PWM value for GPIO 18 (0-100%). Calculated from source value (power/intake/exhaust/test)
+   * Final PWM value for GPIO 12 (0-100%). Calculated from source value (power/intake/exhaust/test)
    * with calibration applied.
    */
   @OutputItem
   @Option
-  default int hrvOutputGpio18() {
+  default int hrvOutputGpio12() {
     return 0;
   }
 
-  T withHrvOutputGpio18(int power);
+  T withHrvOutputGpio12(int power);
 
   /**
-   * Final PWM value for GPIO 19 (0-100%). Calculated from source value (power/intake/exhaust/test)
+   * Final PWM value for GPIO 13 (0-100%). Calculated from source value (power/intake/exhaust/test)
    * with calibration applied.
    */
   @OutputItem
   @Option
-  default int hrvOutputGpio19() {
+  default int hrvOutputGpio13() {
     return 0;
   }
 
-  T withHrvOutputGpio19(int power);
+  T withHrvOutputGpio13(int power);
 
   /**
    * Bypass valve control (GPIO 17).
@@ -389,7 +389,7 @@ public interface HrvModule<T extends HrvModule<T>> extends CommonModule<T> {
   /**
    * Determines if the output state of the current module has changed compared to the given module.
    * The comparison is performed across multiple output-related properties, including
-   * hrvOutputPower, hrvOutputIntake, hrvOutputExhaust, hrvOutputGpio18, hrvOutputGpio19, and bypass.
+   * hrvOutputPower, hrvOutputIntake, hrvOutputExhaust, hrvOutputGpio12, hrvOutputGpio13, and bypass.
    *
    * @param other the module to compare against
    * @return true if any of the output-related properties have different values between
@@ -399,8 +399,8 @@ public interface HrvModule<T extends HrvModule<T>> extends CommonModule<T> {
     return hrvOutputPower() != other.hrvOutputPower()
         || hrvOutputIntake() != other.hrvOutputIntake()
         || hrvOutputExhaust() != other.hrvOutputExhaust()
-        || hrvOutputGpio18() != other.hrvOutputGpio18()
-        || hrvOutputGpio19() != other.hrvOutputGpio19()
+        || hrvOutputGpio12() != other.hrvOutputGpio12()
+        || hrvOutputGpio13() != other.hrvOutputGpio13()
         || bypass() != other.bypass();
   }
 

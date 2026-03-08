@@ -2,23 +2,23 @@
 // Publishes final PWM values to the Python DAC Bridge via MQTT
 //
 // Output topics (OpenHAB → Bridge):
-//   - homehab/hrv/pwm/gpio18  -> Final PWM value for GPIO 18 (0-100)
-//   - homehab/hrv/pwm/gpio19  -> Final PWM value for GPIO 19 (0-100)
+//   - homehab/hrv/pwm/gpio12  -> Final PWM value for GPIO 12 (0-100)
+//   - homehab/hrv/pwm/gpio13  -> Final PWM value for GPIO 13 (0-100)
 //
 // The Python bridge only receives PWM values and sets them on GPIO pins.
 // All calculation (source selection, calibration) is done in OpenHAB/HrvCalculator.
 
 Thing mqtt:topic:mosquitto:hrv_bridge "HRV Bridge" (mqtt:broker:mosquitto) {
     Channels:
-        // Final PWM output for GPIO 18
-        Type dimmer : pwmGpio18 "HRV PWM GPIO18" [
-            commandTopic="homehab/hrv/pwm/gpio18",
+        // Final PWM output for GPIO 12
+        Type dimmer : pwmGpio12 "HRV PWM GPIO12" [
+            commandTopic="homehab/hrv/pwm/gpio12",
             min=0,
             max=100
         ]
-        // Final PWM output for GPIO 19
-        Type dimmer : pwmGpio19 "HRV PWM GPIO19" [
-            commandTopic="homehab/hrv/pwm/gpio19",
+        // Final PWM output for GPIO 13
+        Type dimmer : pwmGpio13 "HRV PWM GPIO13" [
+            commandTopic="homehab/hrv/pwm/gpio13",
             min=0,
             max=100
         ]

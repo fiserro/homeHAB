@@ -292,14 +292,14 @@
         <div class="section-title">GPIO Configuration</div>
 
         <div class="row">
-            <!-- GPIO 18 -->
+            <!-- GPIO 12 -->
             <div class="col">
                 <div class="card">
-                    <h2>GPIO 18</h2>
+                    <h2>GPIO 12</h2>
 
                     <div class="form-group">
-                        <label for="sourceGpio18">Source</label>
-                        <select id="sourceGpio18">
+                        <label for="sourceGpio12">Source</label>
+                        <select id="sourceGpio12">
                             <option value="POWER">Power</option>
                             <option value="INTAKE">Intake</option>
                             <option value="EXHAUST">Exhaust</option>
@@ -312,20 +312,20 @@
                         <div class="calibration-section">
                             <div class="form-group">
                                 <label>Calibration Table (PWM % → Voltage)</label>
-                                <div id="calibrationTableGpio18" class="calibration-table"></div>
-                                <button class="btn-add" onclick="addCalibrationRow('calibrationTableGpio18')">+ Add Row</button>
+                                <div id="calibrationTableGpio12" class="calibration-table"></div>
+                                <button class="btn-add" onclick="addCalibrationRow('calibrationTableGpio12')">+ Add Row</button>
                             </div>
 
-                            <button class="btn" onclick="saveCalibration('calibrationTableGpio18')">
+                            <button class="btn" onclick="saveCalibration('calibrationTableGpio12')">
                                 Save
                             </button>
-                            <span id="status-calibrationTableGpio18" class="status" style="display: none;"></span>
+                            <span id="status-calibrationTableGpio12" class="status" style="display: none;"></span>
                         </div>
 
                         <div class="graph-section">
                             <label>Linearity Graph</label>
                             <div class="graph-container">
-                                <svg id="graphGpio18" viewBox="0 0 220 170"></svg>
+                                <svg id="graphGpio12" viewBox="0 0 220 170"></svg>
                             </div>
                             <div class="graph-legend">
                                 <div class="legend-item">
@@ -342,14 +342,14 @@
                 </div>
             </div>
 
-            <!-- GPIO 19 -->
+            <!-- GPIO 13 -->
             <div class="col">
                 <div class="card">
-                    <h2>GPIO 19</h2>
+                    <h2>GPIO 13</h2>
 
                     <div class="form-group">
-                        <label for="sourceGpio19">Source</label>
-                        <select id="sourceGpio19">
+                        <label for="sourceGpio13">Source</label>
+                        <select id="sourceGpio13">
                             <option value="POWER">Power</option>
                             <option value="INTAKE">Intake</option>
                             <option value="EXHAUST">Exhaust</option>
@@ -362,20 +362,20 @@
                         <div class="calibration-section">
                             <div class="form-group">
                                 <label>Calibration Table (PWM % → Voltage)</label>
-                                <div id="calibrationTableGpio19" class="calibration-table"></div>
-                                <button class="btn-add" onclick="addCalibrationRow('calibrationTableGpio19')">+ Add Row</button>
+                                <div id="calibrationTableGpio13" class="calibration-table"></div>
+                                <button class="btn-add" onclick="addCalibrationRow('calibrationTableGpio13')">+ Add Row</button>
                             </div>
 
-                            <button class="btn" onclick="saveCalibration('calibrationTableGpio19')">
+                            <button class="btn" onclick="saveCalibration('calibrationTableGpio13')">
                                 Save
                             </button>
-                            <span id="status-calibrationTableGpio19" class="status" style="display: none;"></span>
+                            <span id="status-calibrationTableGpio13" class="status" style="display: none;"></span>
                         </div>
 
                         <div class="graph-section">
                             <label>Linearity Graph</label>
                             <div class="graph-container">
-                                <svg id="graphGpio19" viewBox="0 0 220 170"></svg>
+                                <svg id="graphGpio13" viewBox="0 0 220 170"></svg>
                             </div>
                             <div class="graph-legend">
                                 <div class="legend-item">
@@ -426,8 +426,8 @@
 
     <script>
         // Item names for this page
-        const SELECT_ITEMS = ['sourceGpio18', 'sourceGpio19'];
-        const CALIBRATION_ITEMS = ['calibrationTableGpio18', 'calibrationTableGpio19'];
+        const SELECT_ITEMS = ['sourceGpio12', 'sourceGpio13'];
+        const CALIBRATION_ITEMS = ['calibrationTableGpio12', 'calibrationTableGpio13'];
 
         // Graph constants
         const GRAPH = {
@@ -729,7 +729,7 @@
             const pwmValue = parseInt(pwmInput.value) || 0;
 
             // Determine source item name from container id
-            // calibrationTableGpio18 -> sourceGpio18
+            // calibrationTableGpio12 -> sourceGpio12
             const gpioNum = containerId.replace('calibrationTable', '');
             const sourceItemName = 'source' + gpioNum;
             const sourceSelect = document.getElementById(sourceItemName);
@@ -816,7 +816,7 @@
             const calibrationString = entries.map(([pwm, voltage]) => `${pwm}:${voltage}`).join(',');
 
             // Get source item name and value
-            // calibrationTableGpio18 -> sourceGpio18
+            // calibrationTableGpio12 -> sourceGpio12
             const gpioNum = itemName.replace('calibrationTable', '');
             const sourceItemName = 'source' + gpioNum;
             const sourceValue = document.getElementById(sourceItemName).value;

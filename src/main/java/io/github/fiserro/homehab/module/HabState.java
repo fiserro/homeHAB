@@ -118,15 +118,15 @@ public interface HabState extends CommonModule<HabState>, HrvModule<HabState>, F
     }
 
     @Override @Option
-    @OutputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:pwmGpio18")
-    default int hrvOutputGpio18() {
-        return HrvModule.super.hrvOutputGpio18();
+    @OutputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:pwmGpio12")
+    default int hrvOutputGpio12() {
+        return HrvModule.super.hrvOutputGpio12();
     }
 
     @Override @Option
-    @OutputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:pwmGpio19")
-    default int hrvOutputGpio19() {
-        return HrvModule.super.hrvOutputGpio19();
+    @OutputItem(channel = "mqtt:topic:mosquitto:hrv_bridge:pwmGpio13")
+    default int hrvOutputGpio13() {
+        return HrvModule.super.hrvOutputGpio13();
     }
 
     // FlowerModule overrides with MQTT bindings

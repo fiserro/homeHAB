@@ -13,8 +13,8 @@ Input: 0-100 (PWM duty cycle percentage from OpenHAB)
 Output: PWM signal on GPIO pins
 
 MQTT Topics (Subscribe):
-  - {prefix}/pwm/gpio18  -> PWM value for GPIO 18 (0-100)
-  - {prefix}/pwm/gpio19  -> PWM value for GPIO 19 (0-100)
+  - {prefix}/pwm/gpio12  -> PWM value for GPIO 12 (0-100)
+  - {prefix}/pwm/gpio13  -> PWM value for GPIO 13 (0-100)
   - {prefix}/gpio17      -> Digital output GPIO 17 (ON/OFF)
 
 MQTT Topics (Publish):
@@ -47,8 +47,8 @@ DEFAULT_MQTT_PORT = 1883
 DEFAULT_TOPIC_PREFIX = "homehab/hrv"
 DEFAULT_CLIENT_ID = "hrv-bridge"
 DEFAULT_GPIO17 = 5   # Bypass valve (digital output) - GPIO 17 reserved for Waveshare AD/DA
-DEFAULT_GPIO18 = 12  # PWM output (HW PWM) - GPIO 18 reserved for Waveshare AD/DA
-DEFAULT_GPIO19 = 13  # PWM output (HW PWM)
+DEFAULT_GPIO12 = 12  # PWM output (HW PWM)
+DEFAULT_GPIO13 = 13  # PWM output (HW PWM)
 DEFAULT_PWM_FREQ = 2000
 DEFAULT_TEMP_INTERVAL = 30  # Temperature reading interval in seconds
 DEFAULT_CURRENT_SAMPLE_INTERVAL = 0.2  # Current sampling interval in seconds (200ms)
@@ -70,11 +70,11 @@ log = logging.getLogger("hrv-bridge")
 class PwmOutput:
     """PWM output driver using lgpio."""
 
-    def __init__(self, gpio17: int = DEFAULT_GPIO17, gpio18: int = DEFAULT_GPIO18,
-                 gpio19: int = DEFAULT_GPIO19, freq: int = DEFAULT_PWM_FREQ):
+    def __init__(self, gpio17: int = DEFAULT_GPIO17, gpio12: int = DEFAULT_GPIO12,
+                 gpio13: int = DEFAULT_GPIO13, freq: int = DEFAULT_PWM_FREQ):
         self.gpio17 = gpio17  # Bypass valve (digital)
-        self.gpio18 = gpio18  # PWM
-        self.gpio19 = gpio19  # PWM
+        self.gpio12 = gpio12  # PWM
+        self.gpio13 = gpio13  # PWM
         self.freq = freq
         self.handle = None
 
@@ -83,16 +83,16 @@ class PwmOutput:
 
         self.handle = lgpio.gpiochip_open(0)
         lgpio.gpio_claim_output(self.handle, self.gpio17)
-        lgpio.gpio_claim_output(self.handle, self.gpio18)
-        lgpio.gpio_claim_output(self.handle, self.gpio19)
-        log.info(f"GPIO initialized: GPIO{self.gpio17} (bypass), GPIO{self.gpio18}, GPIO{self.gpio19} (PWM at {self.freq} Hz)")
+        lgpio.gpio_claim_output(self.handle, self.gpio12)
+        lgpio.gpio_claim_output(self.handle, self.gpio13)
+        log.info(f"GPIO initialized: GPIO{self.gpio17} (bypass), GPIO{self.gpio12}, GPIO{self.gpio13} (PWM at {self.freq} Hz)")
 
     def set_pwm(self, gpio: int, duty: float):
         """Set PWM duty cycle for specified GPIO."""
         if self.handle is None:
             return
         duty = max(0, min(100, duty))
-        pin = self.gpio18 if gpio == 18 else self.gpio19
+        pin = self.gpio12 if gpio == 12 else self.gpio13
         lgpio.tx_pwm(self.handle, pin, self.freq, duty)
         log.debug(f"GPIO{gpio} PWM set to {duty:.1f}%")
 
@@ -108,8 +108,8 @@ class PwmOutput:
         """Stop PWM and cleanup."""
         if self.handle is not None:
             lgpio.gpio_write(self.handle, self.gpio17, 0)
-            lgpio.tx_pwm(self.handle, self.gpio18, self.freq, 0)
-            lgpio.tx_pwm(self.handle, self.gpio19, self.freq, 0)
+            lgpio.tx_pwm(self.handle, self.gpio12, self.freq, 0)
+            lgpio.tx_pwm(self.handle, self.gpio13, self.freq, 0)
             lgpio.gpiochip_close(self.handle)
             self.handle = None
 
@@ -309,7 +309,7 @@ class HrvBridge:
     """Simple MQTT to PWM bridge for HRV control."""
 
     def __init__(self, mqtt_host: str, mqtt_port: int, topic_prefix: str,
-                 client_id: str, gpio17: int, gpio18: int, gpio19: int, pwm_freq: int,
+                 client_id: str, gpio17: int, gpio12: int, gpio13: int, pwm_freq: int,
                  temp_interval: int = DEFAULT_TEMP_INTERVAL,
                  current_channels: list[int] = None,
                  current_enabled: bool = True,
@@ -333,7 +333,7 @@ class HrvBridge:
         # Initialize output driver
         self.output = None
         try:
-            self.output = PwmOutput(gpio17=gpio17, gpio18=gpio18, gpio19=gpio19, freq=pwm_freq)
+            self.output = PwmOutput(gpio17=gpio17, gpio12=gpio12, gpio13=gpio13, freq=pwm_freq)
         except Exception as e:
             log.warning(f"GPIO initialization failed: {e} - running in simulation mode")
 
@@ -372,9 +372,9 @@ class HrvBridge:
 
             # Subscribe to topics
             client.subscribe(f"{self.topic_prefix}/gpio17")
-            client.subscribe(f"{self.topic_prefix}/pwm/gpio18")
-            client.subscribe(f"{self.topic_prefix}/pwm/gpio19")
-            log.info(f"Subscribed to topics: {self.topic_prefix}/gpio17, pwm/gpio18, pwm/gpio19")
+            client.subscribe(f"{self.topic_prefix}/pwm/gpio12")
+            client.subscribe(f"{self.topic_prefix}/pwm/gpio13")
+            log.info(f"Subscribed to topics: {self.topic_prefix}/gpio17, pwm/gpio12, pwm/gpio13")
         else:
             log.error(f"Connection failed with code {rc}")
 
@@ -395,16 +395,16 @@ class HrvBridge:
                     self.output.set_digital(17, value)
                 return
 
-            # Parse PWM value for GPIO18/19
+            # Parse PWM value for GPIO12/19
             payload = payload.replace(",", ".")
             value = float(payload)
             value = max(0, min(100, value))
 
             # Determine GPIO from topic
-            if topic == f"{self.topic_prefix}/pwm/gpio18":
-                gpio = 18
-            elif topic == f"{self.topic_prefix}/pwm/gpio19":
-                gpio = 19
+            if topic == f"{self.topic_prefix}/pwm/gpio12":
+                gpio = 12
+            elif topic == f"{self.topic_prefix}/pwm/gpio13":
+                gpio = 13
             else:
                 log.warning(f"Unknown topic: {topic}")
                 return
@@ -566,8 +566,8 @@ class HrvBridge:
         # Initialize GPIOs to 0
         if self.output:
             self.output.set_digital(17, False)
-            self.output.set_pwm(18, 0)
-            self.output.set_pwm(19, 0)
+            self.output.set_pwm(12, 0)
+            self.output.set_pwm(13, 0)
 
         log.info(f"Connecting to MQTT broker at {self.mqtt_host}:{self.mqtt_port}")
         self.client.connect(self.mqtt_host, self.mqtt_port, keepalive=60)
@@ -621,8 +621,8 @@ class HrvBridge:
 
         if self.output:
             self.output.set_digital(17, False)
-            self.output.set_pwm(18, 0)
-            self.output.set_pwm(19, 0)
+            self.output.set_pwm(12, 0)
+            self.output.set_pwm(13, 0)
             self.output.stop()
 
         self.client.disconnect()
@@ -661,16 +661,16 @@ def main():
         help=f"GPIO pin 17 - digital output (default: {DEFAULT_GPIO17})"
     )
     parser.add_argument(
-        "--gpio18",
+        "--gpio12",
         type=int,
-        default=DEFAULT_GPIO18,
-        help=f"GPIO pin 18 - PWM output (default: {DEFAULT_GPIO18})"
+        default=DEFAULT_GPIO12,
+        help=f"GPIO pin 18 - PWM output (default: {DEFAULT_GPIO12})"
     )
     parser.add_argument(
-        "--gpio19",
+        "--gpio13",
         type=int,
-        default=DEFAULT_GPIO19,
-        help=f"GPIO pin 19 - PWM output (default: {DEFAULT_GPIO19})"
+        default=DEFAULT_GPIO13,
+        help=f"GPIO pin 19 - PWM output (default: {DEFAULT_GPIO13})"
     )
     parser.add_argument(
         "--pwm-freq",
@@ -731,8 +731,8 @@ def main():
         topic_prefix=args.topic_prefix,
         client_id=args.client_id,
         gpio17=args.gpio17,
-        gpio18=args.gpio18,
-        gpio19=args.gpio19,
+        gpio12=args.gpio12,
+        gpio13=args.gpio13,
         pwm_freq=args.pwm_freq,
         temp_interval=args.temp_interval,
         current_channels=current_channels,

@@ -9,8 +9,8 @@ homehab/
 ├── hrv/                      # HRV Bridge (Python on RPi)
 │   ├── gpio17                # Bypass valve ON/OFF (digital)
 │   ├── pwm/                  # Final PWM values (command only)
-│   │   ├── gpio18            # PWM duty cycle 0-100
-│   │   └── gpio19            # PWM duty cycle 0-100
+│   │   ├── gpio12            # PWM duty cycle 0-100
+│   │   └── gpio13            # PWM duty cycle 0-100
 │   ├── w1/                   # 1-Wire sensors (topic per sensor ID)
 │   │   └── 28-xxxxxxxxxxxx   # Temperature from sensor with ID 28-xxxx
 │   ├── current/              # SCT013 current sensors (via Waveshare ADC)
@@ -51,8 +51,8 @@ The HRV Bridge runs on Raspberry Pi and controls GPIO outputs for ventilation.
 | Topic | Type | Values | Description |
 |-------|------|--------|-------------|
 | `homehab/hrv/gpio17` | Switch | ON/OFF | Bypass valve control (digital output) |
-| `homehab/hrv/pwm/gpio18` | Number | 0-100 | PWM duty cycle for GPIO18 |
-| `homehab/hrv/pwm/gpio19` | Number | 0-100 | PWM duty cycle for GPIO19 |
+| `homehab/hrv/pwm/gpio12` | Number | 0-100 | PWM duty cycle for GPIO12 |
+| `homehab/hrv/pwm/gpio13` | Number | 0-100 | PWM duty cycle for GPIO13 |
 
 ### Sensor Topics (Publish - Bridge → OpenHAB)
 
@@ -86,7 +86,7 @@ The HRV Bridge runs on Raspberry Pi and controls GPIO outputs for ventilation.
 - OFF = valve closed, air flows through heat exchanger (default, winter mode)
 - ON = valve open, air bypasses heat exchanger (summer mode)
 
-**PWM Outputs (GPIO18/19):**
+**PWM Outputs (GPIO12/19):**
 OpenHAB calculates the final PWM values (including source selection and calibration)
 and sends them directly to the bridge. The Python bridge simply receives these values
 and sets them on the GPIO pins. All calculation logic (source mapping, calibration
@@ -95,10 +95,10 @@ interpolation) is handled by HrvCalculator in OpenHAB.
 ### Configuration (OpenHAB Items, not MQTT)
 
 GPIO source selection and calibration tables are stored as OpenHAB items:
-- `sourceGpio18` - Source for GPIO18: POWER|INTAKE|EXHAUST|TEST|OFF
-- `sourceGpio19` - Source for GPIO19: POWER|INTAKE|EXHAUST|TEST|OFF
-- `calibrationTableGpio18` - Calibration table `pwm:voltage,pwm:voltage,...`
-- `calibrationTableGpio19` - Calibration table `pwm:voltage,pwm:voltage,...`
+- `sourceGpio12` - Source for GPIO12: POWER|INTAKE|EXHAUST|TEST|OFF
+- `sourceGpio13` - Source for GPIO13: POWER|INTAKE|EXHAUST|TEST|OFF
+- `calibrationTableGpio12` - Calibration table `pwm:voltage,pwm:voltage,...`
+- `calibrationTableGpio13` - Calibration table `pwm:voltage,pwm:voltage,...`
 
 ## ESP32 Panel Topics
 

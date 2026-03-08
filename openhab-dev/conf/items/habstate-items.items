@@ -13,8 +13,8 @@
 // Input items from HabModules
 Switch bypass "HRV - Bypass" <settings> ["user"] { channel="mqtt:topic:mosquitto:panel_commands:bypass", channel="mqtt:topic:mosquitto:hrv_bridge:gpio17" }  // default: false
 Number bypassHysteresis "HRV - Bypass Hysteresis" <settings> ["user"]  // default: 1.0
-String calibrationTableGpio18 "HRV - Calibration Table Gpio18" <settings> ["user"]  // default: 
-String calibrationTableGpio19 "HRV - Calibration Table Gpio19" <settings> ["user"]  // default: 
+String calibrationTableGpio12 "HRV - Calibration Table Gpio12" <settings> ["user"]  // default: 
+String calibrationTableGpio13 "HRV - Calibration Table Gpio13" <settings> ["user"]  // default: 
 Number co2ThresholdHigh "HRV - Co2 Threshold High" <energy> ["user"]  // default: 900
 Number co2ThresholdLow "HRV - Co2 Threshold Low" <energy> ["user"]  // default: 500
 Number co2ThresholdMid "HRV - Co2 Threshold Mid" <energy> ["user"]  // default: 700
@@ -29,8 +29,8 @@ Number powerHigh "HRV - Power High" <energy> ["user"]  // default: 95
 Number powerLow "HRV - Power Low" <energy> ["user"]  // default: 15
 Number powerMid "HRV - Power Mid" <energy> ["user"]  // default: 50
 Number preferredTemperature "HRV - Preferred Temperature" <settings> ["user"]  // default: 22.0
-String sourceGpio18 "HRV - Source Gpio18" <settings> ["user"]  // default: INTAKE
-String sourceGpio19 "HRV - Source Gpio19" <settings> ["user"]  // default: EXHAUST
+String sourceGpio12 "HRV - Source Gpio12" <settings> ["user"]  // default: INTAKE
+String sourceGpio13 "HRV - Source Gpio13" <settings> ["user"]  // default: EXHAUST
 Switch temporaryBoostMode "HRV - Temporary Boost Mode" <switch> ["user"] { channel="mqtt:topic:mosquitto:panel_commands:boostMode" }  // default: false
 Number temporaryBoostModeDurationSec "HRV - Temporary Boost Mode Duration Sec" <switch> ["user"]  // default: 600
 Switch temporaryManualMode "HRV - Temporary Manual Mode" <switch> ["user"] { channel="mqtt:topic:mosquitto:panel_commands:tempManualMode" }  // default: false
@@ -38,8 +38,8 @@ Number temporaryManualModeDurationSec "HRV - Temporary Manual Mode Duration Sec"
 
 // Output items from HabModules
 Dimmer hrvOutputExhaust "HRV - Hrv Output Exhaust" <settings> ["computed"]
-Dimmer hrvOutputGpio18 "HRV - Hrv Output Gpio18" <settings> ["computed"] { channel="mqtt:topic:mosquitto:hrv_bridge:pwmGpio18" }
-Dimmer hrvOutputGpio19 "HRV - Hrv Output Gpio19" <settings> ["computed"] { channel="mqtt:topic:mosquitto:hrv_bridge:pwmGpio19" }
+Dimmer hrvOutputGpio12 "HRV - Hrv Output Gpio12" <settings> ["computed"] { channel="mqtt:topic:mosquitto:hrv_bridge:pwmGpio12" }
+Dimmer hrvOutputGpio13 "HRV - Hrv Output Gpio13" <settings> ["computed"] { channel="mqtt:topic:mosquitto:hrv_bridge:pwmGpio13" }
 Dimmer hrvOutputIntake "HRV - Hrv Output Intake" <settings> ["computed"]
 Dimmer hrvOutputPower "HRV - Hrv Output Power" <energy> ["computed"]
 Dimmer hrvOutputTest "HRV - Hrv Output Test" <settings> ["computed"]
@@ -56,10 +56,10 @@ Number temporaryManualModeOffTime "HRV - Temporary Manual Mode Off Time" <time> 
 Number tickSecond "HRV - Tick Second" <none> ["readonly", "computed"]
 
 // Aggregation groups from @MqttItem annotations
-Group:Switch:OR(ON,OFF) smoke "Smoke" <smoke> ["mqtt", "zigbee", "computed"]
-Group:Switch:OR(ON,OFF) gas "Gas" <gas> ["mqtt", "zigbee", "computed"]
 Group:Number:AVG pressure "Pressure" <pressure> ["mqtt", "zigbee", "computed"]
 Group:Number:MAX airHumidity "Air Humidity" <humidity> ["mqtt", "zigbee", "computed"]
 Group:Number:SUM openWindows "Open Windows" <window> ["mqtt", "zigbee", "computed"]
 Group:Number:MIN soilHumidity "Soil Humidity" <humidity> ["mqtt", "zigbee", "computed"]
+Group:Switch:OR(ON,OFF) smoke "Smoke" <smoke> ["mqtt", "zigbee", "computed"]
+Group:Switch:OR(ON,OFF) gas "Gas" <gas> ["mqtt", "zigbee", "computed"]
 Group:Number:AVG insideTemperature "Inside Temperature" <temperature> ["mqtt", "zigbee", "computed"]

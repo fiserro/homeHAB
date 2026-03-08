@@ -40,8 +40,8 @@ public class HrvControl extends Java223Script {
       events.sendCommand(_items.hrvOutputPower(), calculated.hrvOutputPower());
       events.sendCommand(_items.hrvOutputIntake(), calculated.hrvOutputIntake());
       events.sendCommand(_items.hrvOutputExhaust(), calculated.hrvOutputExhaust());
-      events.sendCommand(_items.hrvOutputGpio18(), calculated.hrvOutputGpio18());
-      events.sendCommand(_items.hrvOutputGpio19(), calculated.hrvOutputGpio19());
+      events.sendCommand(_items.hrvOutputGpio12(), calculated.hrvOutputGpio12());
+      events.sendCommand(_items.hrvOutputGpio13(), calculated.hrvOutputGpio13());
       events.sendCommand(_items.bypass(), calculated.bypass() ? OnOffType.ON : OnOffType.OFF);
     }
   }

@@ -63,10 +63,8 @@ Two hardware PWM outputs control the HRV fan speeds via PWM-to-0-10V converter m
 
 | GPIO | OpenHAB Item | MQTT Topic | Description |
 |------|--------------|------------|-------------|
-| GPIO12 | `hrvOutputGpio18` | `homehab/hrv/pwm/gpio18` | Configurable: Intake or Exhaust |
-| GPIO13 | `hrvOutputGpio19` | `homehab/hrv/pwm/gpio19` | Configurable: Intake or Exhaust |
-
-**Note:** MQTT topics still use `gpio18`/`gpio19` names for backwards compatibility, but actual pins are GPIO12/GPIO13.
+| GPIO12 | `hrvOutputGpio12` | `homehab/hrv/pwm/gpio12` | Configurable: Intake or Exhaust |
+| GPIO13 | `hrvOutputGpio13` | `homehab/hrv/pwm/gpio13` | Configurable: Intake or Exhaust |
 
 **Wiring:**
 ```

@@ -21,14 +21,14 @@ public class CalibrationCalculator<T extends HrvModule<T>> implements Calculator
 
   @Override
   public T calculate(T state) {
-    int gpio18 = calibrate(state.hrvOutputGpio18(), state.calibrationTableGpio18(), state.sourceGpio18());
-    int gpio19 = calibrate(state.hrvOutputGpio19(), state.calibrationTableGpio19(), state.sourceGpio19());
+    int gpio12 = calibrate(state.hrvOutputGpio12(), state.calibrationTableGpio12(), state.sourceGpio12());
+    int gpio13 = calibrate(state.hrvOutputGpio13(), state.calibrationTableGpio13(), state.sourceGpio13());
 
-    log.debug("Calibration applied: gpio18={}, gpio19={}", gpio18, gpio19);
+    log.debug("Calibration applied: gpio12={}, gpio13={}", gpio12, gpio13);
 
     return state
-        .withHrvOutputGpio18(gpio18)
-        .withHrvOutputGpio19(gpio19);
+        .withHrvOutputGpio12(gpio12)
+        .withHrvOutputGpio13(gpio13);
   }
 
   private int calibrate(int value, String calibrationTable, GpioSource source) {

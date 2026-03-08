@@ -29,18 +29,18 @@ class GpioMappingCalculatorTest {
   @DisplayName("GpioMappingCalculator scenario")
   void testScenario(
       String scenario,
-      GpioSource sourceGpio18,
-      GpioSource sourceGpio19,
+      GpioSource sourceGpio12,
+      GpioSource sourceGpio13,
       int hrvOutputPower,
       int hrvOutputIntake,
       int hrvOutputExhaust,
       int hrvOutputTest,
-      int expectedGpio18,
-      int expectedGpio19) {
+      int expectedGpio12,
+      int expectedGpio13) {
 
     TestHabState state = OptionsFactory.create(TestHabState.class)
-        .withValue("sourceGpio18", sourceGpio18)
-        .withValue("sourceGpio19", sourceGpio19)
+        .withValue("sourceGpio12", sourceGpio12)
+        .withValue("sourceGpio13", sourceGpio13)
         .withValue("hrvOutputPower", hrvOutputPower)
         .withValue("hrvOutputIntake", hrvOutputIntake)
         .withValue("hrvOutputExhaust", hrvOutputExhaust)
@@ -49,9 +49,9 @@ class GpioMappingCalculatorTest {
     GpioMappingCalculator<TestHabState> calculator = new GpioMappingCalculator<>();
     TestHabState result = calculator.calculate(state);
 
-    assertEquals(expectedGpio18, result.hrvOutputGpio18(),
-        "hrvOutputGpio18 mismatch for scenario: " + scenario);
-    assertEquals(expectedGpio19, result.hrvOutputGpio19(),
-        "hrvOutputGpio19 mismatch for scenario: " + scenario);
+    assertEquals(expectedGpio12, result.hrvOutputGpio12(),
+        "hrvOutputGpio12 mismatch for scenario: " + scenario);
+    assertEquals(expectedGpio13, result.hrvOutputGpio13(),
+        "hrvOutputGpio13 mismatch for scenario: " + scenario);
   }
 }

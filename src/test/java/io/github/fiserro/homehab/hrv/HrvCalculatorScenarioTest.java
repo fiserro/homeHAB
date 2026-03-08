@@ -46,16 +46,16 @@ class HrvCalculatorScenarioTest {
             int co2,
             boolean smoke,
             boolean gas,
-            GpioSource sourceGpio18,
-            GpioSource sourceGpio19,
-            String calibrationTableGpio18,
-            String calibrationTableGpio19,
+            GpioSource sourceGpio12,
+            GpioSource sourceGpio13,
+            String calibrationTableGpio12,
+            String calibrationTableGpio13,
             Integer hrvOutputTest,
             int expectedPower,
             int expectedIntake,
             int expectedExhaust,
-            int expectedGpio18,
-            int expectedGpio19) {
+            int expectedGpio12,
+            int expectedGpio13) {
 
         // Create state with input values
         TestHabState state = OptionsFactory.create(TestHabState.class)
@@ -75,10 +75,10 @@ class HrvCalculatorScenarioTest {
                 .withValue("co2", co2)
                 .withValue("smoke", smoke)
                 .withValue("gas", gas)
-                .withValue("sourceGpio18", sourceGpio18)
-                .withValue("sourceGpio19", sourceGpio19)
-                .withValue("calibrationTableGpio18", calibrationTableGpio18 != null ? calibrationTableGpio18 : "")
-                .withValue("calibrationTableGpio19", calibrationTableGpio19 != null ? calibrationTableGpio19 : "")
+                .withValue("sourceGpio12", sourceGpio12)
+                .withValue("sourceGpio13", sourceGpio13)
+                .withValue("calibrationTableGpio12", calibrationTableGpio12 != null ? calibrationTableGpio12 : "")
+                .withValue("calibrationTableGpio13", calibrationTableGpio13 != null ? calibrationTableGpio13 : "")
                 .withValue("hrvOutputTest", hrvOutputTest != null ? hrvOutputTest : 0);
 
         // Run calculator
@@ -92,9 +92,9 @@ class HrvCalculatorScenarioTest {
                 "hrvOutputIntake mismatch for scenario: " + scenario);
         assertEquals(expectedExhaust, result.hrvOutputExhaust(),
                 "hrvOutputExhaust mismatch for scenario: " + scenario);
-        assertEquals(expectedGpio18, result.hrvOutputGpio18(),
-                "hrvOutputGpio18 mismatch for scenario: " + scenario);
-        assertEquals(expectedGpio19, result.hrvOutputGpio19(),
-                "hrvOutputGpio19 mismatch for scenario: " + scenario);
+        assertEquals(expectedGpio12, result.hrvOutputGpio12(),
+                "hrvOutputGpio12 mismatch for scenario: " + scenario);
+        assertEquals(expectedGpio13, result.hrvOutputGpio13(),
+                "hrvOutputGpio13 mismatch for scenario: " + scenario);
     }
 }

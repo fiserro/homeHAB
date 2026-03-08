@@ -1,4 +1,4 @@
-scenario;hrvOutputGpio18;hrvOutputGpio19;sourceGpio18;sourceGpio19;calibrationTableGpio18;calibrationTableGpio19;expectedGpio18;expectedGpio19
+scenario;hrvOutputGpio12;hrvOutputGpio13;sourceGpio12;sourceGpio13;calibrationTableGpio12;calibrationTableGpio13;expectedGpio12;expectedGpio13
 No calibration - passthrough;75;75;INTAKE;EXHAUST;-;-;75;75
 Calibration - linear (identity);50;50;INTAKE;EXHAUST;0:0,50:5,100:10;0:0,50:5,100:10;50;50
 Calibration - half scale (compressed);50;50;INTAKE;EXHAUST;0:0,50:10;0:0,50:10;25;25

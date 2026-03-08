@@ -31,7 +31,7 @@ This service is a **simple pass-through bridge** that receives commands from Ope
 ### PWM Mode (default)
 
 ```
-Raspberry Pi GPIO 18 (PWM)
+Raspberry Pi GPIO 12 (PWM)
          ↓
     PWM-to-0-10V module
          ↓
@@ -42,7 +42,7 @@ Raspberry Pi GPIO 18 (PWM)
 
 **Hardware required:**
 - PWM-to-0-10V converter module
-- Connect GPIO 18 to PWM input of the module
+- Connect GPIO 12 to PWM input of the module
 
 **PWM module requirements:**
 - Input: PWM signal (2 kHz, 3.3V-5V level)
@@ -68,8 +68,8 @@ Raspberry Pi SPI
 | Topic | Values | Description |
 |-------|--------|-------------|
 | `homehab/hrv/gpio17` | ON/OFF | Bypass valve (digital output) |
-| `homehab/hrv/pwm/gpio18` | 0-100 | PWM duty cycle for GPIO 18 |
-| `homehab/hrv/pwm/gpio19` | 0-100 | PWM duty cycle for GPIO 19 |
+| `homehab/hrv/pwm/gpio12` | 0-100 | PWM duty cycle for GPIO 12 |
+| `homehab/hrv/pwm/gpio13` | 0-100 | PWM duty cycle for GPIO 13 |
 
 **Publish (Bridge → OpenHAB):**
 | Topic | Values | Description |
@@ -109,8 +109,8 @@ Options:
   -t, --topic-prefix PRE   MQTT topic prefix (default: homehab/hrv)
   -c, --client-id ID       MQTT client ID (default: hrv-bridge)
   --gpio17 PIN             GPIO pin for bypass valve (default: 5)
-  --gpio18 PIN             GPIO pin for PWM channel 18 (default: 12)
-  --gpio19 PIN             GPIO pin for PWM channel 19 (default: 13)
+  --gpio12 PIN             GPIO pin for PWM channel 18 (default: 12)
+  --gpio13 PIN             GPIO pin for PWM channel 19 (default: 13)
   --pwm-freq FREQ          PWM frequency in Hz (default: 2000)
   --temp-interval SEC      Temperature reading interval (default: 30)
   --current-channels CH    ADC channels for SCT013 sensors (default: 0,1)
@@ -123,7 +123,7 @@ Options:
 Raspberry Pi hardware PWM capable pins:
 - GPIO 12, 13, 18, 19
 
-Default is GPIO 12 and 13 (GPIO 18 is reserved for Waveshare AD/DA board).
+Default is GPIO 12 and 13 (GPIO 12 is reserved for Waveshare AD/DA board).
 
 ## HRV Physical Wiring (PWM Mode)
 
@@ -259,11 +259,11 @@ mosquitto_pub -h openhab.home -t 'homehab/hrv/gpio17' -m 'ON'
 # Set bypass valve OFF (closed, through heat exchanger)
 mosquitto_pub -h openhab.home -t 'homehab/hrv/gpio17' -m 'OFF'
 
-# Set GPIO18 PWM to 50%
-mosquitto_pub -h openhab.home -t 'homehab/hrv/pwm/gpio18' -m '50'
+# Set GPIO12 PWM to 50%
+mosquitto_pub -h openhab.home -t 'homehab/hrv/pwm/gpio12' -m '50'
 
-# Set GPIO19 PWM to 75%
-mosquitto_pub -h openhab.home -t 'homehab/hrv/pwm/gpio19' -m '75'
+# Set GPIO13 PWM to 75%
+mosquitto_pub -h openhab.home -t 'homehab/hrv/pwm/gpio13' -m '75'
 
 # Monitor all HRV topics (including temperature)
 mosquitto_sub -h openhab.home -t 'homehab/hrv/#' -v
