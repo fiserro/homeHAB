@@ -53,7 +53,7 @@ public interface HabState extends CommonModule<HabState>, HrvModule<HabState>, F
     }
 
     @Override @Option
-    @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:w1_28-000000b9445a")
+    @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:w1_28-0000006fcfdf")
     default float exhaustAirTemperature() {
         return HrvModule.super.exhaustAirTemperature();
     }

@@ -50,7 +50,7 @@ DEFAULT_GPIO17 = 5   # Bypass valve (digital output) - GPIO 17 reserved for Wave
 DEFAULT_GPIO12 = 12  # PWM output (HW PWM)
 DEFAULT_GPIO13 = 13  # PWM output (HW PWM)
 DEFAULT_PWM_FREQ = 2000
-DEFAULT_TEMP_INTERVAL = 30  # Temperature reading interval in seconds
+DEFAULT_TEMP_INTERVAL = 10  # Temperature reading interval in seconds
 DEFAULT_CURRENT_SAMPLE_INTERVAL = 0.2  # Current sampling interval in seconds (200ms)
 DEFAULT_CURRENT_PUBLISH_INTERVAL = 1  # Publish to MQTT every N seconds (if changed)
 DEFAULT_CURRENT_FORCE_INTERVAL = 60  # Force publish even if unchanged every N seconds
@@ -356,10 +356,8 @@ class HrvBridge:
         # Initialize CO2 reader (MH-Z19C via UART)
         self.co2_reader = None
         self.co2_thread = None
-        self._last_co2_value = None
-        self._last_co2_temp = None
-        self._co2_fail_count = 0
-        self._co2_fail_threshold = 3  # Clear retained message after 3 consecutive failures
+        self._last_co2_value = "UNKNOWN"  # Sentinel to trigger initial publish (NULL or value)
+        self._last_co2_temp = "UNKNOWN"
         if co2_enabled:
             self.co2_reader = CO2Reader(port=co2_port)
             if not self.co2_reader.init():
@@ -554,37 +552,26 @@ class HrvBridge:
         log.info("CO2 reader stopped")
 
     def _publish_co2(self):
-        """Read and publish CO2 data to MQTT."""
-        if not self.co2_reader:
-            return
-
-        co2, temp = self.co2_reader.read()
+        """Read and publish CO2 data to MQTT. Publishes NULL when sensor is unavailable."""
+        co2, temp = (None, None)
+        if self.co2_reader:
+            co2, temp = self.co2_reader.read()
 
         if co2 is not None:
-            self._co2_fail_count = 0
-
-            # Publish CO2 if changed
             if co2 != self._last_co2_value:
-                topic = f"{self.topic_prefix}/co2"
-                self.client.publish(topic, str(co2), retain=True)
+                self.client.publish(f"{self.topic_prefix}/co2", str(co2), retain=True)
                 log.info(f"Published CO2: {co2} ppm")
                 self._last_co2_value = co2
-
-            # Publish temperature if changed
             if temp is not None and temp != self._last_co2_temp:
-                topic = f"{self.topic_prefix}/co2_temp"
-                self.client.publish(topic, str(temp), retain=True)
+                self.client.publish(f"{self.topic_prefix}/co2_temp", str(temp), retain=True)
                 log.info(f"Published CO2 temp: {temp}°C")
                 self._last_co2_temp = temp
-        else:
-            self._co2_fail_count += 1
-            if self._co2_fail_count == self._co2_fail_threshold:
-                # Clear retained messages so OpenHAB shows UNDEF
-                self.client.publish(f"{self.topic_prefix}/co2", "", retain=True)
-                self.client.publish(f"{self.topic_prefix}/co2_temp", "", retain=True)
-                self._last_co2_value = None
-                self._last_co2_temp = None
-                log.warning("CO2 sensor not responding, cleared retained values")
+        elif self._last_co2_value is not None:
+            self.client.publish(f"{self.topic_prefix}/co2", "NULL", retain=True)
+            self.client.publish(f"{self.topic_prefix}/co2_temp", "NULL", retain=True)
+            self._last_co2_value = None
+            self._last_co2_temp = None
+            log.info("CO2 sensor unavailable, published NULL")
 
     def start(self):
         """Start the bridge."""
@@ -609,8 +596,8 @@ class HrvBridge:
             self.current_thread = threading.Thread(target=self._current_loop, daemon=True)
             self.current_thread.start()
 
-        # Start CO2 reading thread if sensor is initialized
-        if self.co2_reader:
+        # Start CO2 reading thread (always runs, publishes NULL when sensor unavailable)
+        if self.co2_enabled:
             self.co2_thread = threading.Thread(target=self._co2_loop, daemon=True)
             self.co2_thread.start()
 

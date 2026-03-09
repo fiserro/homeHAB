@@ -46,7 +46,7 @@ Dimmer hrvOutputTest "HRV - Hrv Output Test" <settings> ["computed"]
 
 // Read-only items from HabModules
 Number co2 "HRV - Co2" <none> ["readonly", "computed"] { channel="mqtt:topic:mosquitto:hrv_bridge:co2" }
-Number exhaustAirTemperature "HRV - Exhaust Air Temperature [%.1f °C]" <temperature> ["readonly", "computed"] { channel="mqtt:topic:mosquitto:hrv_bridge:w1_28-000000b9445a" }
+Number exhaustAirTemperature "HRV - Exhaust Air Temperature [%.1f °C]" <temperature> ["readonly", "computed"] { channel="mqtt:topic:mosquitto:hrv_bridge:w1_28-0000006fcfdf" }
 Number extractAirTemperature "HRV - Extract Air Temperature [%.1f °C]" <temperature> ["readonly", "computed"] { channel="mqtt:topic:mosquitto:hrv_bridge:w1_28-0000006d2fe0" }
 Switch filterCleaningRequired "HRV - Filter Cleaning Required" <none> ["readonly", "computed"]
 Number filterLastCleanedTimestamp "HRV - Filter Last Cleaned Timestamp" <time> ["readonly", "computed"]

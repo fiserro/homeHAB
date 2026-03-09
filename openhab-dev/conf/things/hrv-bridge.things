@@ -37,8 +37,8 @@ Thing mqtt:topic:mosquitto:hrv_bridge "HRV Bridge" (mqtt:broker:mosquitto) {
         Type number : w1_28-0000006d2fe0 "W1 Extract Air" [
             stateTopic="homehab/hrv/w1/28-0000006d2fe0"
         ]
-        Type number : w1_28-000000b9445a "W1 Exhaust Air" [
-            stateTopic="homehab/hrv/w1/28-000000b9445a"
+        Type number : w1_28-0000006fcfdf "W1 Exhaust Air" [
+            stateTopic="homehab/hrv/w1/28-0000006fcfdf"
         ]
         // SCT013 current sensors via Waveshare ADC (ADS1256)
         // Channel name = current_ad<n>, topic = homehab/hrv/current/ad<n>
