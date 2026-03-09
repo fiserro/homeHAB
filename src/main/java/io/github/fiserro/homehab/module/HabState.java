@@ -35,25 +35,25 @@ public interface HabState extends CommonModule<HabState>, HrvModule<HabState>, F
     // HrvModule overrides - duct temperatures (DS18B20 via 1-Wire)
 
     @Override @Option
-    @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:gpio27_28-0000006fd103")
+    @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:w1_28-0000006fd103")
     default float outdoorAirTemperature() {
         return HrvModule.super.outdoorAirTemperature();
     }
 
     @Override @Option
-    @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:gpio27_28-000000b9594a")
+    @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:w1_28-000000b9594a")
     default float supplyAirTemperature() {
         return HrvModule.super.supplyAirTemperature();
     }
 
     @Override @Option
-    @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:gpio27_28-0000006d2fe0")
+    @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:w1_28-0000006d2fe0")
     default float extractAirTemperature() {
         return HrvModule.super.extractAirTemperature();
     }
 
     @Override @Option
-    @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:gpio27_28-000000b9445a")
+    @ReadOnlyItem(channel = "mqtt:topic:mosquitto:hrv_bridge:w1_28-000000b9445a")
     default float exhaustAirTemperature() {
         return HrvModule.super.exhaustAirTemperature();
     }

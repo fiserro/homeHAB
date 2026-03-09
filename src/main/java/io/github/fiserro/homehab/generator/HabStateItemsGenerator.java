@@ -195,7 +195,8 @@ public class HabStateItemsGenerator {
                 case COUNT -> "COUNT";
                 case NONE -> throw new IllegalStateException("NONE should not reach here");
             };
-            return String.format("Group:Number:%s %s \"%s\" <%s> %s%n", aggFunc, fieldName, label, icon, AGG_TAGS);
+            String stateDesc = fieldName.toLowerCase().contains("temperature") ? " [%.1f °C]" : "";
+            return String.format("Group:Number:%s %s \"%s%s\" <%s> %s%n", aggFunc, fieldName, label, stateDesc, icon, AGG_TAGS);
         } else if (boolAgg != BooleanAggregation.NONE) {
             String aggFunc = switch (boolAgg) {
                 case OR -> "OR(ON,OFF)";
@@ -266,13 +267,14 @@ public class HabStateItemsGenerator {
         String itemType = getReadOnlyItemType(returnType);
         String label = formatLabel(itemName);
         String icon = getReadOnlyIcon(itemName);
+        String stateDesc = getStateDescription(opt);
 
         ReadOnlyItem annotation = getAnnotation(opt, ReadOnlyItem.class);
         String channel = annotation != null ? annotation.channel() : "";
         String channelBinding = channel.isEmpty() ? "" : String.format(CHANNEL_FMT, channel);
 
-        return String.format("%s %s \"HRV - %s\" <%s> %s%s%n",
-            itemType, itemName, label, icon, READONLY_TAGS, channelBinding);
+        return String.format("%s %s \"HRV - %s%s\" <%s> %s%s%n",
+            itemType, itemName, label, stateDesc, icon, READONLY_TAGS, channelBinding);
     }
 
     private static String buildChannelBinding(String inputChannel, String outputChannel) {
@@ -338,6 +340,15 @@ public class HabStateItemsGenerator {
             return TYPE_NUMBER;
         }
         throw new IllegalArgumentException("Unsupported output type: " + type);
+    }
+
+    private static String getStateDescription(OptionDef opt) {
+        Class<?> type = opt.method().getReturnType();
+        String name = opt.name().toLowerCase();
+        if ((type == float.class || type == Float.class) && name.contains("temperature")) {
+            return " [%.1f °C]";
+        }
+        return "";
     }
 
     private static String formatLabel(String fieldName) {

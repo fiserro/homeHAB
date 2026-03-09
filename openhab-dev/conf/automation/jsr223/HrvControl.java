@@ -2,6 +2,7 @@ import helper.generated.Items;
 import helper.generated.Java223Script;
 import helper.rules.annotations.ItemStateChangeTrigger;
 import helper.rules.annotations.Rule;
+import helper.rules.eventinfo.ItemStateChange;
 import io.github.fiserro.homehab.Calculator;
 import io.github.fiserro.homehab.HabStateFactory;
 import io.github.fiserro.homehab.hrv.HrvCalculator;
@@ -27,7 +28,12 @@ public class HrvControl extends Java223Script {
 
   @Rule(name = "item.changed", description = "Handle item changes")
   @ItemStateChangeTrigger(itemName = "*")
-  public void onZigbeeItemChanged() {
+  public void onZigbeeItemChanged(ItemStateChange eventInfo) {
+    // Skip recalculation when bypass was manually toggled - onBypassChanged handles it
+    if (Items.bypass.equals(eventInfo.getItemName())) {
+      return;
+    }
+
     HabState state = HabStateFactory.of(HabState.class, items);
     HabState calculated = calculator.apply(state);
 

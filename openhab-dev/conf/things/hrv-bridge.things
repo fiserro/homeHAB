@@ -28,9 +28,17 @@ Thing mqtt:topic:mosquitto:hrv_bridge "HRV Bridge" (mqtt:broker:mosquitto) {
             commandTopic="homehab/hrv/gpio17"
         ]
         // 1-Wire temperature sensors (DS18B20) on GPIO27
-        // Channel name = gpio27_<sensor_id>, topic = homehab/hrv/w1/<sensor_id>
-        Type number : gpio27_28-0316840d44ff "W1 GPIO27 28-0316840d44ff" [
-            stateTopic="homehab/hrv/w1/28-0316840d44ff"
+        Type number : w1_28-0000006fd103 "W1 Outdoor Air" [
+            stateTopic="homehab/hrv/w1/28-0000006fd103"
+        ]
+        Type number : w1_28-000000b9594a "W1 Supply Air" [
+            stateTopic="homehab/hrv/w1/28-000000b9594a"
+        ]
+        Type number : w1_28-0000006d2fe0 "W1 Extract Air" [
+            stateTopic="homehab/hrv/w1/28-0000006d2fe0"
+        ]
+        Type number : w1_28-000000b9445a "W1 Exhaust Air" [
+            stateTopic="homehab/hrv/w1/28-000000b9445a"
         ]
         // SCT013 current sensors via Waveshare ADC (ADS1256)
         // Channel name = current_ad<n>, topic = homehab/hrv/current/ad<n>
