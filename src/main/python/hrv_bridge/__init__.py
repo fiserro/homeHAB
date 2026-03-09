@@ -567,8 +567,8 @@ class HrvBridge:
                 log.info(f"Published CO2 temp: {temp}°C")
                 self._last_co2_temp = temp
         elif self._last_co2_value is not None:
-            self.client.publish(f"{self.topic_prefix}/co2", "NULL", retain=True)
-            self.client.publish(f"{self.topic_prefix}/co2_temp", "NULL", retain=True)
+            self.client.publish(f"{self.topic_prefix}/co2", "", retain=True)
+            self.client.publish(f"{self.topic_prefix}/co2_temp", "", retain=True)
             self._last_co2_value = None
             self._last_co2_temp = None
             log.info("CO2 sensor unavailable, published NULL")
