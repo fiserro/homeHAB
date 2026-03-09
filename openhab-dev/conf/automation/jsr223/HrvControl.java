@@ -108,8 +108,11 @@ public class HrvControl extends Java223Script {
   @Rule(name = "bypass.changed", description = "Forward bypass state to HRV bridge")
   @ItemStateChangeTrigger(itemName = Items.bypass)
   public void onBypassChanged() {
-    // When bypass state changes (e.g., from panel command), send command to trigger
-    // the hrv_bridge channel's commandTopic (stateTopic updates don't trigger commandTopic)
+    // Enable temporary manual mode so BypassCalculator won't override the manual change
+    if (_items.manualMode().getStateAs(OnOffType.class) == OnOffType.OFF) {
+      events.sendCommand(_items.temporaryManualMode(), OnOffType.ON);
+    }
+    // Forward to HRV bridge (stateTopic updates don't trigger commandTopic)
     OnOffType state = _items.bypass().getStateAs(OnOffType.class);
     if (state != null) {
       events.sendCommand(_items.bypass(), state);
