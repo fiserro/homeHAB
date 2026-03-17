@@ -186,14 +186,14 @@ static void build_screen_hrv(lv_obj_t *scr)
     lv_obj_set_pos(st, 60, 58);
 
     int cw=339, ch=100, g=10, x1=16, x2=16+cw+g, ys=80;
-    lbl_outdoor_val = create_stat_card(scr, x1, ys,           cw,ch, "Outdoor Temperature","--", "\xC2\xB0""C");
-    lbl_supply_val  = create_stat_card(scr, x2, ys,           cw,ch, "Supply Temperature", "--", "\xC2\xB0""C");
-    lbl_extract_val = create_stat_card(scr, x1, ys+1*(ch+g),  cw,ch, "Extract Temperature","--", "\xC2\xB0""C");
-    lbl_exhaust_val = create_stat_card(scr, x2, ys+1*(ch+g),  cw,ch, "Exhaust Temperature","--", "\xC2\xB0""C");
-    lbl_room_val    = create_stat_card(scr, x1, ys+2*(ch+g),  cw,ch, "Room Temperature",  "--", "\xC2\xB0""C");
-    lbl_humidity_val= create_stat_card(scr, x2, ys+2*(ch+g),  cw,ch, "Humidity",          "--", "%");
-    lbl_co2_val     = create_stat_card(scr, x1, ys+3*(ch+g),  cw,ch, "CO2 Level",         "--", "ppm");
-    lbl_pressure_val= create_stat_card(scr, x2, ys+3*(ch+g),  cw,ch, "Indoor Pressure",   "--", "hPa");
+    lbl_outdoor_val = create_stat_card(scr, x1, ys,           cw,ch, "Outdoor Temperature","--");
+    lbl_supply_val  = create_stat_card(scr, x2, ys,           cw,ch, "Supply Temperature", "--");
+    lbl_extract_val = create_stat_card(scr, x1, ys+1*(ch+g),  cw,ch, "Extract Temperature","--");
+    lbl_exhaust_val = create_stat_card(scr, x2, ys+1*(ch+g),  cw,ch, "Exhaust Temperature","--");
+    lbl_room_val    = create_stat_card(scr, x1, ys+2*(ch+g),  cw,ch, "Room Temperature",  "--");
+    lbl_humidity_val= create_stat_card(scr, x2, ys+2*(ch+g),  cw,ch, "Humidity",          "--");
+    lbl_co2_val     = create_stat_card(scr, x1, ys+3*(ch+g),  cw,ch, "CO2 Level",         "--");
+    lbl_pressure_val= create_stat_card(scr, x2, ys+3*(ch+g),  cw,ch, "Indoor Pressure",   "--");
 
     /* Mode buttons */
     int my = ys + 4*(ch+g) + 8;
@@ -277,9 +277,9 @@ static void update_ui_from_state(void)
 
     switch (update_slot) {
         case 0:  lv_label_set_text(lbl_outdoor_val, state.outdoor_temp); break;
-        case 1:  lv_label_set_text(lbl_supply_val, "--"); break;  // no MQTT topic yet
-        case 2:  lv_label_set_text(lbl_extract_val, state.room_temp); break;  // using room temp
-        case 3:  lv_label_set_text(lbl_exhaust_val, state.outside_temp); break;  // using outside temp
+        case 1:  lv_label_set_text(lbl_supply_val, state.outside_temp); break;
+        case 2:  lv_label_set_text(lbl_extract_val, state.room_temp); break;
+        case 3:  break;  // exhaust - no topic yet
         case 4:  lv_label_set_text(lbl_room_val, state.room_temp); break;
         case 5:  lv_label_set_text(lbl_humidity_val, state.humidity); break;
         case 6:  lv_label_set_text(lbl_co2_val, state.co2); break;
@@ -308,12 +308,12 @@ static void mqtt_data_handler(const char *topic, int topic_len, const char *data
 
     #define M(s) (kl == (int)strlen(s) && memcmp(key, s, kl) == 0)
 
-    if      (M("outdoorAirTemperature")) snprintf(state.outdoor_temp, 16, "%.1f", atof(val));
-    else if (M("outsideTemperature"))    snprintf(state.outside_temp, 16, "%.1f", atof(val));
-    else if (M("temperature"))           snprintf(state.room_temp, 16, "%.1f", atof(val));
-    else if (M("airHumidity"))           snprintf(state.humidity, 16, "%.1f", atof(val));
-    else if (M("co2"))                   snprintf(state.co2, 16, "%d", atoi(val));
-    else if (M("pressure"))              snprintf(state.pressure, 16, "%d", atoi(val));
+    if      (M("outdoorAirTemperature")) snprintf(state.outdoor_temp, 16, "%.1f\xC2\xB0""C", atof(val));
+    else if (M("outsideTemperature"))    snprintf(state.outside_temp, 16, "%.1f\xC2\xB0""C", atof(val));
+    else if (M("temperature"))           snprintf(state.room_temp, 16, "%.1f\xC2\xB0""C", atof(val));
+    else if (M("airHumidity"))           snprintf(state.humidity, 16, "%.1f%%", atof(val));
+    else if (M("co2"))                   snprintf(state.co2, 16, "%d ppm", atoi(val));
+    else if (M("pressure"))              snprintf(state.pressure, 16, "%d hPa", atoi(val));
     else if (M("hrvOutputPower"))      { state.power_val = atoi(val); snprintf(state.power, 8, "%d%%", state.power_val); }
     else if (M("manualMode"))            state.manual_mode = (strcmp(val,"ON")==0);
     else if (M("temporaryManualMode"))   state.temp_manual_mode = (strcmp(val,"ON")==0);
