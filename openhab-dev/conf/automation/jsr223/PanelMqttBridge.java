@@ -35,10 +35,10 @@ public class PanelMqttBridge extends Java223Script {
         publish("hrvOutputPower", _items.hrvOutputPower().getState());
     }
 
-    @Rule(name = "panel.temperature", description = "Publish inside temperature to panel")
+    @Rule(name = "panel.temperature.inside", description = "Publish inside temperature to panel")
     @ItemStateChangeTrigger(itemName = Items.insideTemperature)
     public void onInsideTemperatureChanged() {
-        publish("temperature", _items.insideTemperature().getState());
+        publish("temperature/inside", _items.insideTemperature().getState());
     }
 
     @Rule(name = "panel.humidity", description = "Publish air humidity to panel")
@@ -101,10 +101,28 @@ public class PanelMqttBridge extends Java223Script {
         publish("bypass", _items.bypass().getState());
     }
 
-    @Rule(name = "panel.outdoor.air.temp", description = "Publish outdoor air temperature to panel")
+    @Rule(name = "panel.temperature.outdoor", description = "Publish outdoor air temperature to panel")
     @ItemStateChangeTrigger(itemName = Items.outdoorAirTemperature)
     public void onOutdoorAirTemperatureChanged() {
-        publish("outdoorAirTemperature", _items.outdoorAirTemperature().getState());
+        publish("temperature/outdoor", _items.outdoorAirTemperature().getState());
+    }
+
+    @Rule(name = "panel.temperature.supply", description = "Publish supply air temperature to panel")
+    @ItemStateChangeTrigger(itemName = Items.supplyAirTemperature)
+    public void onSupplyAirTemperatureChanged() {
+        publish("temperature/supply", _items.supplyAirTemperature().getState());
+    }
+
+    @Rule(name = "panel.temperature.extract", description = "Publish extract air temperature to panel")
+    @ItemStateChangeTrigger(itemName = Items.extractAirTemperature)
+    public void onExtractAirTemperatureChanged() {
+        publish("temperature/extract", _items.extractAirTemperature().getState());
+    }
+
+    @Rule(name = "panel.temperature.exhaust", description = "Publish exhaust air temperature to panel")
+    @ItemStateChangeTrigger(itemName = Items.exhaustAirTemperature)
+    public void onExhaustAirTemperatureChanged() {
+        publish("temperature/exhaust", _items.exhaustAirTemperature().getState());
     }
 
     @Rule(name = "panel.filter.status", description = "Publish filter cleaning status to panel")

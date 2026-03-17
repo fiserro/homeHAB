@@ -26,7 +26,12 @@ homehab/
 │   └── status                # online/offline (birth/will)
 ├── state/                    # OpenHAB → Panel (states for display)
 │   ├── hrvOutputPower
-│   ├── temperature
+│   ├── temperature/          # Temperature readings
+│   │   ├── inside            # Room temperature (aggregated from Zigbee)
+│   │   ├── outdoor           # Outdoor air (DS18B20, before exchanger)
+│   │   ├── supply            # Supply air (DS18B20, after exchanger)
+│   │   ├── extract           # Extract air (DS18B20, from rooms)
+│   │   └── exhaust           # Exhaust air (DS18B20, after exchanger)
 │   ├── airHumidity
 │   ├── co2
 │   ├── pressure
@@ -115,7 +120,11 @@ GPIO source selection and calibration tables are stored as OpenHAB items:
 These topics publish OpenHAB item states for display on the ESP32 panel:
 
 - `homehab/state/hrvOutputPower`
-- `homehab/state/temperature`
+- `homehab/state/temperature/inside` - Room temperature (aggregated from Zigbee sensors)
+- `homehab/state/temperature/outdoor` - Outdoor air temperature (DS18B20, before exchanger)
+- `homehab/state/temperature/supply` - Supply air temperature (DS18B20, after exchanger)
+- `homehab/state/temperature/extract` - Extract air temperature (DS18B20, from rooms)
+- `homehab/state/temperature/exhaust` - Exhaust air temperature (DS18B20, after exchanger)
 - `homehab/state/airHumidity`
 - `homehab/state/co2`
 - `homehab/state/pressure`
