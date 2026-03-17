@@ -7,6 +7,13 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_heap_caps.h"
+#include "esp_http_server.h"
+#include "esp_ota_ops.h"
+#include "esp_system.h"
+#include "esp_netif.h"
+#include "esp_eth.h"
+#include "esp_event.h"
+#include "driver/gpio.h"
 #include "lvgl.h"
 #include "bsp/esp-bsp.h"
 #include "bsp/display.h"
@@ -163,7 +170,28 @@ static void build_screen_hrv(lv_obj_t *scr)
     create_stat_card(scr, x2, y_start + (card_h + gap),     card_w, card_h, "Exhaust Temperature",  "12.2\xC2\xB0""C");
     create_stat_card(scr, x1, y_start + 2*(card_h + gap),   card_w, card_h, "Room Temperature",     "21.9\xC2\xB0""C");
     create_stat_card(scr, x2, y_start + 2*(card_h + gap),   card_w, card_h, "Humidity",             "43.9%");
-    create_stat_card(scr, x1, y_start + 3*(card_h + gap),   card_w, card_h, "CO\xE2\x82\x82 Level","665ppm");
+    // CO2 card with subscript 2
+    {
+        lv_obj_t *card = create_stat_card(scr, x1, y_start + 3*(card_h + gap), card_w, card_h, "","665ppm");
+        // Build "CO₂ Level" using two labels
+        lv_obj_t *co = lv_label_create(card);
+        lv_label_set_text(co, "CO");
+        lv_obj_set_style_text_color(co, C_TEXT_DIM, 0);
+        lv_obj_set_style_text_font(co, &lv_font_montserrat_12, 0);
+        lv_obj_set_pos(co, 0, 0);
+
+        lv_obj_t *sub2 = lv_label_create(card);
+        lv_label_set_text(sub2, "2");
+        lv_obj_set_style_text_color(sub2, C_TEXT_DIM, 0);
+        lv_obj_set_style_text_font(sub2, &lv_font_montserrat_8, 0);
+        lv_obj_set_pos(sub2, 18, 4);  // shifted right after "CO", shifted down
+
+        lv_obj_t *rest = lv_label_create(card);
+        lv_label_set_text(rest, " Level");
+        lv_obj_set_style_text_color(rest, C_TEXT_DIM, 0);
+        lv_obj_set_style_text_font(rest, &lv_font_montserrat_12, 0);
+        lv_obj_set_pos(rest, 24, 0);
+    }
     create_stat_card(scr, x2, y_start + 3*(card_h + gap),   card_w, card_h, "Indoor Pressure",      "1014hPa");
 
     /* ── Mode buttons ── */
@@ -247,6 +275,116 @@ static void build_screen_hello(lv_obj_t *scr)
     create_dots(scr, 1);
 }
 
+/* ── Ethernet + OTA ── */
+
+static httpd_handle_t ota_server = NULL;
+
+static esp_err_t ota_handler(httpd_req_t *req)
+{
+    ESP_LOGI("ota", "OTA started (%d bytes)", req->content_len);
+
+    const esp_partition_t *part = esp_ota_get_next_update_partition(NULL);
+    if (!part) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "No OTA partition");
+        return ESP_FAIL;
+    }
+
+    esp_ota_handle_t handle;
+    esp_err_t err = esp_ota_begin(part, OTA_WITH_SEQUENTIAL_WRITES, &handle);
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA begin failed");
+        return ESP_FAIL;
+    }
+
+    char *buf = malloc(4096);
+    int received = 0;
+    while (received < req->content_len) {
+        int ret = httpd_req_recv(req, buf, 4096);
+        if (ret <= 0) {
+            if (ret == HTTPD_SOCK_ERR_TIMEOUT) continue;
+            free(buf);
+            esp_ota_abort(handle);
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Receive error");
+            return ESP_FAIL;
+        }
+        esp_ota_write(handle, buf, ret);
+        received += ret;
+    }
+    free(buf);
+
+    err = esp_ota_end(handle);
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Validation failed");
+        return ESP_FAIL;
+    }
+
+    err = esp_ota_set_boot_partition(part);
+    const esp_partition_t *boot = esp_ota_get_boot_partition();
+    const esp_partition_t *running = esp_ota_get_running_partition();
+
+    char resp[256];
+    snprintf(resp, sizeof(resp),
+        "written=%s err=%s boot=%s running=%s\n",
+        part->label,
+        esp_err_to_name(err),
+        boot ? boot->label : "NULL",
+        running ? running->label : "NULL");
+    httpd_resp_sendstr(req, resp);
+    ESP_LOGI("ota", "OTA done, rebooting");
+    vTaskDelay(pdMS_TO_TICKS(200));
+    esp_restart();
+    return ESP_OK;
+}
+
+static void start_ota_server(void)
+{
+    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.recv_wait_timeout = 30;
+    if (httpd_start(&ota_server, &config) == ESP_OK) {
+        httpd_uri_t uri = { .uri = "/ota", .method = HTTP_POST, .handler = ota_handler };
+        httpd_register_uri_handler(ota_server, &uri);
+        ESP_LOGI("ota", "OTA server listening on port 80");
+    }
+}
+
+static void on_got_ip(void *arg, esp_event_base_t base, int32_t id, void *data)
+{
+    ip_event_got_ip_t *event = (ip_event_got_ip_t *)data;
+    ESP_LOGI("eth", "Got IP: " IPSTR, IP2STR(&event->ip_info.ip));
+    start_ota_server();
+}
+
+static void eth_init(void)
+{
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+    esp_netif_config_t netif_cfg = ESP_NETIF_DEFAULT_ETH();
+    esp_netif_t *netif = esp_netif_new(&netif_cfg);
+
+    eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
+    eth_esp32_emac_config_t emac_config = ETH_ESP32_EMAC_DEFAULT_CONFIG();
+    emac_config.smi_gpio.mdc_num = 31;
+    emac_config.smi_gpio.mdio_num = 52;
+
+    esp_eth_mac_t *mac = esp_eth_mac_new_esp32(&emac_config, &mac_config);
+
+    eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
+    phy_config.phy_addr = 1;
+    phy_config.reset_gpio_num = 51;
+    esp_eth_phy_t *phy = esp_eth_phy_new_ip101(&phy_config);
+
+    esp_eth_config_t eth_config = ETH_DEFAULT_CONFIG(mac, phy);
+    esp_eth_handle_t eth_handle = NULL;
+    ESP_ERROR_CHECK(esp_eth_driver_install(&eth_config, &eth_handle));
+    ESP_ERROR_CHECK(esp_netif_attach(netif, esp_eth_new_netif_glue(eth_handle)));
+
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &on_got_ip, NULL));
+    ESP_ERROR_CHECK(esp_eth_start(eth_handle));
+
+    ESP_LOGI("eth", "Ethernet initialized, waiting for IP...");
+}
+
 /* ── Main ── */
 void app_main(void)
 {
@@ -261,6 +399,8 @@ void app_main(void)
         }};
     bsp_display_start_with_config(&cfg);
     bsp_display_backlight_on();
+
+    eth_init();
 
     screen1 = lv_obj_create(NULL);
     screen2 = lv_obj_create(NULL);
