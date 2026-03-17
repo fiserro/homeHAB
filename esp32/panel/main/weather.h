@@ -1,15 +1,17 @@
 #pragma once
+#include "esp_heap_caps.h"
+
+#define WEATHER_MAX_HOURS 12
 
 typedef struct {
+    int hour;           // 0-23
     float temperature;
-    int humidity;
+    int icon;           // meteosource icon code
+    char summary[32];   // Czech description
     float wind_speed;
-    int weather_code;   // WMO weather code
-    char description[32];
-} weather_data_t;
+    char wind_dir[4];   // N, NE, S, etc.
+    float precip_mm;
+} weather_hour_t;
 
-// Fetch weather from Open-Meteo API. Returns ESP_OK on success.
-int weather_fetch(weather_data_t *out);
-
-// Convert WMO weather code to Czech description
-const char *weather_code_to_text(int code);
+// Fetch hourly forecast. Returns 0 on success.
+int weather_fetch(weather_hour_t *hours, int max_hours, int *out_count);

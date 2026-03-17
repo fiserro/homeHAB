@@ -84,8 +84,13 @@ static lv_obj_t *btn_minus, *btn_plus;
 
 // Home screen widgets
 static lv_obj_t *lbl_time, *lbl_seconds, *lbl_date, *lbl_nameday;
-static lv_obj_t *lbl_weather_temp, *lbl_weather_desc, *lbl_weather_hum, *lbl_weather_wind;
-static weather_data_t weather = { .description = "..." };
+// Weather: 12 hourly columns
+static lv_obj_t *wx_hour_lbl[WEATHER_MAX_HOURS];
+static lv_obj_t *wx_temp_lbl[WEATHER_MAX_HOURS];
+static lv_obj_t *wx_icon_lbl[WEATHER_MAX_HOURS];
+static lv_obj_t *wx_wind_lbl[WEATHER_MAX_HOURS];
+static weather_hour_t wx_hours[WEATHER_MAX_HOURS];
+static int wx_count = 0;
 
 /* ── LVGL core callbacks ── */
 static void disp_flush(lv_display_t *d, const lv_area_t *a, uint8_t *px)
@@ -368,7 +373,7 @@ static lv_obj_t *make_card_box(lv_obj_t *parent, int x, int y, int w, int h)
     lv_obj_set_style_border_color(c, C_CARD_BRD, 0);
     lv_obj_set_scrollbar_mode(c, LV_SCROLLBAR_MODE_OFF);
     lv_obj_clear_flag(c, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(c, LV_OBJ_FLAG_GESTURE_BUBBLE);
+    lv_obj_add_flag(c, LV_OBJ_FLAG_GESTURE_BUBBLE | LV_OBJ_FLAG_EVENT_BUBBLE);
     return c;
 }
 
@@ -407,58 +412,43 @@ static void build_home(lv_obj_t *scr)
     lv_obj_set_style_text_font(lbl_nameday, &lv_font_montserrat_16, 0);
     lv_obj_align(lbl_nameday, LV_ALIGN_CENTER, 0, 18);
 
-    // Weather card
+    // Weather forecast card - 12 hourly columns
     lv_obj_t *wx_box = make_card_box(scr, 16, 354, 688, 320);
 
     lv_obj_t *wx_title = lv_label_create(wx_box);
     lv_label_set_text(wx_title, "Pocasi");
     lv_obj_set_style_text_color(wx_title, C_TEXT, 0);
-    lv_obj_set_style_text_font(wx_title, &lv_font_montserrat_18, 0);
-    lv_obj_set_pos(wx_title, 20, 12);
+    lv_obj_set_style_text_font(wx_title, &lv_font_montserrat_16, 0);
+    lv_obj_set_pos(wx_title, 20, 8);
 
-    lbl_weather_temp = lv_label_create(wx_box);
-    lv_label_set_text(lbl_weather_temp, "--\xC2\xB0""C");
-    lv_obj_set_style_text_color(lbl_weather_temp, C_TEXT, 0);
-    lv_obj_set_style_text_font(lbl_weather_temp, &lv_font_montserrat_26, 0);
-    lv_obj_set_pos(lbl_weather_temp, 20, 50);
+    int col_w = 56;  // 688 / 12 ≈ 57
+    for (int i = 0; i < WEATHER_MAX_HOURS; i++) {
+        int cx = 2 + i * col_w;
 
-    lbl_weather_desc = lv_label_create(wx_box);
-    lv_label_set_text(lbl_weather_desc, "...");
-    lv_obj_set_style_text_color(lbl_weather_desc, C_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(lbl_weather_desc, &lv_font_montserrat_16, 0);
-    lv_obj_set_pos(lbl_weather_desc, 20, 90);
+        wx_hour_lbl[i] = lv_label_create(wx_box);
+        lv_label_set_text(wx_hour_lbl[i], "--");
+        lv_obj_set_style_text_color(wx_hour_lbl[i], C_TEXT_DIM, 0);
+        lv_obj_set_style_text_font(wx_hour_lbl[i], &lv_font_montserrat_12, 0);
+        lv_obj_set_pos(wx_hour_lbl[i], cx + 10, 36);
 
-    // Cloud icon placeholder (right side)
-    lv_obj_t *cloud = lv_label_create(wx_box);
-    lv_label_set_text(cloud, LV_SYMBOL_IMAGE);
-    lv_obj_set_style_text_color(cloud, C_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(cloud, &lv_font_montserrat_26, 0);
-    lv_obj_set_pos(cloud, 550, 55);
+        wx_icon_lbl[i] = lv_label_create(wx_box);
+        lv_label_set_text(wx_icon_lbl[i], "");
+        lv_obj_set_style_text_color(wx_icon_lbl[i], C_TEXT_DIM, 0);
+        lv_obj_set_style_text_font(wx_icon_lbl[i], &lv_font_montserrat_16, 0);
+        lv_obj_set_pos(wx_icon_lbl[i], cx + 10, 56);
 
-    // Humidity + Wind row
-    lv_obj_t *h_lbl = lv_label_create(wx_box);
-    lv_label_set_text(h_lbl, "Vlhkost");
-    lv_obj_set_style_text_color(h_lbl, C_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(h_lbl, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(h_lbl, 20, 130);
+        wx_temp_lbl[i] = lv_label_create(wx_box);
+        lv_label_set_text(wx_temp_lbl[i], "");
+        lv_obj_set_style_text_color(wx_temp_lbl[i], C_TEXT, 0);
+        lv_obj_set_style_text_font(wx_temp_lbl[i], &lv_font_montserrat_12, 0);
+        lv_obj_set_pos(wx_temp_lbl[i], cx + 4, 80);
 
-    lbl_weather_hum = lv_label_create(wx_box);
-    lv_label_set_text(lbl_weather_hum, "--%");
-    lv_obj_set_style_text_color(lbl_weather_hum, C_TEXT, 0);
-    lv_obj_set_style_text_font(lbl_weather_hum, &lv_font_montserrat_18, 0);
-    lv_obj_set_pos(lbl_weather_hum, 20, 148);
-
-    lv_obj_t *w_lbl = lv_label_create(wx_box);
-    lv_label_set_text(w_lbl, "Vitr");
-    lv_obj_set_style_text_color(w_lbl, C_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(w_lbl, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(w_lbl, 150, 130);
-
-    lbl_weather_wind = lv_label_create(wx_box);
-    lv_label_set_text(lbl_weather_wind, "-- km/h");
-    lv_obj_set_style_text_color(lbl_weather_wind, C_TEXT, 0);
-    lv_obj_set_style_text_font(lbl_weather_wind, &lv_font_montserrat_18, 0);
-    lv_obj_set_pos(lbl_weather_wind, 150, 148);
+        wx_wind_lbl[i] = lv_label_create(wx_box);
+        lv_label_set_text(wx_wind_lbl[i], "");
+        lv_obj_set_style_text_color(wx_wind_lbl[i], C_TEXT_DIM, 0);
+        lv_obj_set_style_text_font(wx_wind_lbl[i], &lv_font_montserrat_8, 0);
+        lv_obj_set_pos(wx_wind_lbl[i], cx + 4, 100);
+    }
 
     create_footer(scr, 0);
 }
@@ -647,22 +637,18 @@ static void eth_init(void)
     esp_eth_start(eh);
 }
 
-/* ── Weather task (only fetches data, main loop updates LVGL) ── */
+/* ── Weather task ── */
 static volatile bool weather_dirty = false;
-static char wx_temp_str[16] = "--\xC2\xB0""C";
-static char wx_desc_str[32] = "...";
-static char wx_hum_str[16] = "--%";
-static char wx_wind_str[16] = "-- km/h";
 
 static void weather_task(void *arg)
 {
     vTaskDelay(pdMS_TO_TICKS(10000));
     while (1) {
-        if (weather_fetch(&weather) == 0) {
-            snprintf(wx_temp_str, 16, "%.0f\xC2\xB0""C", weather.temperature);
-            snprintf(wx_desc_str, 32, "%s", weather.description);
-            snprintf(wx_hum_str, 16, "%d%%", weather.humidity);
-            snprintf(wx_wind_str, 16, "%.0f km/h", weather.wind_speed);
+        weather_hour_t tmp[WEATHER_MAX_HOURS];
+        int cnt = 0;
+        if (weather_fetch(tmp, WEATHER_MAX_HOURS, &cnt) == 0 && cnt > 0) {
+            memcpy(wx_hours, tmp, sizeof(tmp));
+            wx_count = cnt;
             weather_dirty = true;
         }
         vTaskDelay(pdMS_TO_TICKS(600000));
@@ -723,10 +709,28 @@ void app_main(void)
         update_ui();
         if (weather_dirty) {
             weather_dirty = false;
-            lv_label_set_text(lbl_weather_temp, wx_temp_str);
-            lv_label_set_text(lbl_weather_desc, wx_desc_str);
-            lv_label_set_text(lbl_weather_hum, wx_hum_str);
-            lv_label_set_text(lbl_weather_wind, wx_wind_str);
+            char buf[16];
+            for (int i = 0; i < wx_count && i < WEATHER_MAX_HOURS; i++) {
+                snprintf(buf, 16, "%02d:00", wx_hours[i].hour);
+                lv_label_set_text(wx_hour_lbl[i], buf);
+
+                // Icon: sun/moon/cloud/rain symbols
+                const char *sym;
+                int ic = wx_hours[i].icon;
+                if (ic <= 3) sym = LV_SYMBOL_IMAGE;           // sun
+                else if (ic <= 6) sym = LV_SYMBOL_EYE_CLOSE;  // cloudy
+                else if (ic <= 12) sym = LV_SYMBOL_TINT;      // rain
+                else if (ic <= 17) sym = LV_SYMBOL_DOWNLOAD;  // snow
+                else if (ic <= 26) sym = LV_SYMBOL_IMAGE;     // night clear
+                else sym = LV_SYMBOL_EYE_CLOSE;               // night cloudy
+                lv_label_set_text(wx_icon_lbl[i], sym);
+
+                snprintf(buf, 16, "%.0f\xC2\xB0", wx_hours[i].temperature);
+                lv_label_set_text(wx_temp_lbl[i], buf);
+
+                snprintf(buf, 16, "%.0f %s", wx_hours[i].wind_speed, wx_hours[i].wind_dir);
+                lv_label_set_text(wx_wind_lbl[i], buf);
+            }
         }
 
         // Clock update every second
