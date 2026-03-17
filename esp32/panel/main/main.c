@@ -1,13 +1,14 @@
 /**
- * HRV Panel - two screens with swipe navigation + MQTT + OTA.
- *
- * Safety: Ethernet + OTA start FIRST in app_main (before display).
- * MQTT runs in separate task - if it crashes, panel and OTA survive.
+ * HRV Panel v2 - clean rewrite without esp_lvgl_port.
+ * Arduino-style LVGL: manual init, direct draw_bitmap flush.
  */
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_heap_caps.h"
+#include "esp_timer.h"
+#include "esp_lcd_panel_ops.h"
+#include "esp_lcd_touch_gt911.h"
 #include "esp_http_server.h"
 #include "esp_ota_ops.h"
 #include "esp_system.h"
@@ -19,6 +20,7 @@
 #include "lvgl.h"
 #include "bsp/esp-bsp.h"
 #include "bsp/display.h"
+#include "bsp/touch.h"
 #include "bsp_board_extra.h"
 #include <string.h>
 #include <stdlib.h>
@@ -28,6 +30,11 @@
 #include "esp_sntp.h"
 
 static const char *TAG = "panel";
+
+/* ── HW handles ── */
+static esp_lcd_panel_handle_t lcd_panel = NULL;
+static esp_lcd_touch_handle_t touch_handle = NULL;
+static esp_mqtt_client_handle_t mqtt_client = NULL;
 
 /* ── Colors ── */
 #define C_BG         lv_color_hex(0x0d1117)
@@ -40,7 +47,7 @@ static const char *TAG = "panel";
 #define C_BAR_BG     lv_color_hex(0x30363d)
 #define C_BAR_IND    lv_color_hex(0x4488ff)
 
-/* ── Shared state (written by MQTT task, read by LVGL loop) ── */
+/* ── State ── */
 static volatile bool state_dirty = false;
 static struct {
     char temp_inside[16];
@@ -63,31 +70,49 @@ static struct {
     .humidity = "--", .co2 = "--", .pressure = "--", .power = "--",
 };
 
-/* ── LVGL widget refs ── */
+/* ── LVGL widgets ── */
 static lv_obj_t *screen1, *screen2;
 static int current_screen = 0;
-static lv_obj_t *lbl_outdoor_val, *lbl_supply_val, *lbl_extract_val, *lbl_exhaust_val;
-static lv_obj_t *lbl_room_val, *lbl_humidity_val, *lbl_co2_val, *lbl_pressure_val;
-static lv_obj_t *lbl_power_val;
+static lv_obj_t *lbl_outdoor, *lbl_supply, *lbl_extract, *lbl_exhaust;
+static lv_obj_t *lbl_room, *lbl_humidity, *lbl_co2, *lbl_pressure;
+static lv_obj_t *lbl_power;
 static lv_obj_t *power_bar;
 static lv_obj_t *mode_btns[5];
-static lv_obj_t *lbl_datetime;
 static lv_obj_t *btn_minus, *btn_plus;
-static esp_mqtt_client_handle_t mqtt_client = NULL;
+static lv_obj_t *lbl_datetime;
 
-/* ── Footer: datetime left, dots center ── */
-static void create_footer(lv_obj_t *parent, int active, bool show_datetime)
+/* ── LVGL core callbacks ── */
+static void disp_flush(lv_display_t *d, const lv_area_t *a, uint8_t *px)
 {
-    // Datetime label - left side
-    if (show_datetime) {
-        lbl_datetime = lv_label_create(parent);
-        lv_label_set_text(lbl_datetime, "");
-        lv_obj_set_style_text_color(lbl_datetime, C_TEXT_DIM, 0);
-        lv_obj_set_style_text_font(lbl_datetime, &lv_font_montserrat_12, 0);
-        lv_obj_set_pos(lbl_datetime, 16, 700);
-    }
+    esp_lcd_panel_draw_bitmap(lcd_panel, a->x1, a->y1, a->x2+1, a->y2+1, px);
+    lv_display_flush_ready(d);
+}
+static void tick_cb(void *arg) { lv_tick_inc(5); }
+static void touch_read(lv_indev_t *inv, lv_indev_data_t *d)
+{
+    uint16_t x[1], y[1], s[1]; uint8_t cnt = 0;
+    esp_lcd_touch_read_data(touch_handle);
+    if (esp_lcd_touch_get_coordinates(touch_handle, x, y, s, &cnt, 1) && cnt > 0) {
+        d->point.x = x[0]; d->point.y = y[0]; d->state = LV_INDEV_STATE_PRESSED;
+    } else { d->state = LV_INDEV_STATE_RELEASED; }
+}
 
-    // Page dots - center
+/* ── Swipe gesture ── */
+static void on_gesture(lv_event_t *e)
+{
+    lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_active());
+    if (dir == LV_DIR_LEFT && current_screen == 0) {
+        current_screen = 1;
+        lv_screen_load_anim(screen2, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, false);
+    } else if (dir == LV_DIR_RIGHT && current_screen == 1) {
+        current_screen = 0;
+        lv_screen_load_anim(screen1, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, false);
+    }
+}
+
+/* ── Page dots ── */
+static void create_footer(lv_obj_t *parent, int active)
+{
     for (int i = 0; i < 2; i++) {
         lv_obj_t *d = lv_obj_create(parent);
         lv_obj_set_size(d, 8, 8);
@@ -101,209 +126,109 @@ static void create_footer(lv_obj_t *parent, int active, bool show_datetime)
     }
 }
 
-static void on_gesture(lv_event_t *e)
+/* ── Stat card ── */
+static lv_obj_t *create_card(lv_obj_t *p, int x, int y, int w, int h,
+                              const char *icon, lv_color_t ic, const char *label, const char *val)
 {
-    lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_active());
-    if (dir == LV_DIR_LEFT && current_screen == 0) {
-        current_screen = 1;
-        lv_screen_load_anim(screen2, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, false);
-    } else if (dir == LV_DIR_RIGHT && current_screen == 1) {
-        current_screen = 0;
-        lv_screen_load_anim(screen1, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, false);
-    }
+    lv_obj_t *c = lv_obj_create(p);
+    lv_obj_set_pos(c, x, y); lv_obj_set_size(c, w, h);
+    lv_obj_set_style_bg_color(c, C_CARD, 0);
+    lv_obj_set_style_bg_opa(c, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(c, 14, 0);
+    lv_obj_set_style_border_width(c, 1, 0);
+    lv_obj_set_style_border_color(c, C_CARD_BRD, 0);
+    lv_obj_set_style_pad_left(c, 16, 0);
+    lv_obj_set_style_pad_top(c, 12, 0);
+    lv_obj_set_scrollbar_mode(c, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_clear_flag(c, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *i1 = lv_label_create(c);
+    lv_label_set_text(i1, icon);
+    lv_obj_set_style_text_color(i1, ic, 0);
+    lv_obj_set_style_text_font(i1, &lv_font_montserrat_12, 0);
+    lv_obj_set_pos(i1, 0, 1);
+
+    lv_obj_t *l = lv_label_create(c);
+    lv_label_set_text(l, label);
+    lv_obj_set_style_text_color(l, C_TEXT_DIM, 0);
+    lv_obj_set_style_text_font(l, &lv_font_montserrat_12, 0);
+    lv_obj_set_pos(l, 18, 0);
+
+    lv_obj_t *v = lv_label_create(c);
+    lv_label_set_text(v, val);
+    lv_obj_set_style_text_color(v, C_TEXT, 0);
+    lv_obj_set_style_text_font(v, &lv_font_montserrat_22, 0);
+    lv_obj_set_pos(v, 0, 30);
+    return v;
 }
 
-/* ── Stat card with icon ── */
-static lv_obj_t *create_stat_card(lv_obj_t *parent, int x, int y, int w, int h,
-                                   const char *icon, lv_color_t ic_color,
-                                   const char *label_text, const char *value_text)
+/* ── Mode button ── */
+static lv_obj_t *create_mode_btn(lv_obj_t *p, int x, int w, const char *icon, const char *text, bool active)
 {
-    lv_obj_t *card = lv_obj_create(parent);
-    lv_obj_set_pos(card, x, y);
-    lv_obj_set_size(card, w, h);
-    lv_obj_set_style_bg_color(card, C_CARD, 0);
-    lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(card, 14, 0);
-    lv_obj_set_style_border_width(card, 1, 0);
-    lv_obj_set_style_border_color(card, C_CARD_BRD, 0);
-    lv_obj_set_style_pad_left(card, 16, 0);
-    lv_obj_set_style_pad_top(card, 12, 0);
-    lv_obj_set_scrollbar_mode(card, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_t *b = lv_obj_create(p);
+    lv_obj_set_pos(b, x, 0); lv_obj_set_size(b, w, 56);
+    lv_obj_set_style_bg_color(b, active ? C_MODE_ACT : C_MODE_BG, 0);
+    lv_obj_set_style_bg_opa(b, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(b, 14, 0);
+    lv_obj_set_style_border_width(b, active ? 0 : 1, 0);
+    lv_obj_set_style_border_color(b, C_CARD_BRD, 0);
+    lv_obj_set_scrollbar_mode(b, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_clear_flag(b, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(b, 0, 0);
+    lv_obj_add_flag(b, LV_OBJ_FLAG_CLICKABLE);
 
-    lv_obj_t *ic1 = lv_label_create(card);
-    lv_label_set_text(ic1, icon);
-    lv_obj_set_style_text_color(ic1, ic_color, 0);
-    lv_obj_set_style_text_font(ic1, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(ic1, 0, 1);
-
-    lv_obj_t *lbl = lv_label_create(card);
-    lv_label_set_text(lbl, label_text);
-    lv_obj_set_style_text_color(lbl, C_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(lbl, 18, 0);
-
-    lv_obj_t *val = lv_label_create(card);
-    lv_label_set_text(val, value_text);
-    lv_obj_set_style_text_color(val, C_TEXT, 0);
-    lv_obj_set_style_text_font(val, &lv_font_montserrat_22, 0);
-    lv_obj_set_pos(val, 0, 30);
-
-    return val;
-}
-
-/* ── Mode button with icon ── */
-static lv_obj_t *create_mode_btn(lv_obj_t *parent, int x, int w,
-                                  const char *icon, const char *text, bool active)
-{
-    lv_obj_t *btn = lv_obj_create(parent);
-    lv_obj_set_pos(btn, x, 0);
-    lv_obj_set_size(btn, w, 56);
-    lv_obj_set_style_bg_color(btn, active ? C_MODE_ACT : C_MODE_BG, 0);
-    lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(btn, 14, 0);
-    lv_obj_set_style_border_width(btn, active ? 0 : 1, 0);
-    lv_obj_set_style_border_color(btn, C_CARD_BRD, 0);
-    lv_obj_set_scrollbar_mode(btn, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_clear_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_style_pad_all(btn, 0, 0);
-
-    lv_obj_t *ic = lv_label_create(btn);
+    lv_obj_t *ic = lv_label_create(b);
     lv_label_set_text(ic, icon);
     lv_obj_set_style_text_color(ic, C_TEXT, 0);
     lv_obj_set_style_text_font(ic, &lv_font_montserrat_16, 0);
     lv_obj_set_pos(ic, (w - 16) / 2, 6);
 
-    lv_obj_t *lbl = lv_label_create(btn);
-    lv_label_set_text(lbl, text);
-    lv_obj_set_style_text_color(lbl, C_TEXT, 0);
-    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(lbl, 0, 34);
-    lv_obj_set_width(lbl, w);
-    lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, 0);
-    return btn;
+    lv_obj_t *l = lv_label_create(b);
+    lv_label_set_text(l, text);
+    lv_obj_set_style_text_color(l, C_TEXT, 0);
+    lv_obj_set_style_text_font(l, &lv_font_montserrat_12, 0);
+    lv_obj_set_pos(l, 0, 36);
+    lv_obj_set_width(l, w);
+    lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
+    return b;
 }
 
-static void update_single_mode_btn(int idx)
-{
-    // Manual button lights for both manualMode and temporaryManualMode (unless Off)
-    bool is_manual = (state.manual_mode || state.temp_manual_mode) && state.power_val > 0;
-    bool is_off = (state.manual_mode || state.temp_manual_mode) && state.power_val == 0;
-    bool auto_mode = !state.manual_mode && !state.temp_manual_mode && !state.boost_mode;
-    bool active[] = { auto_mode, is_manual, state.boost_mode, is_off, state.bypass_active };
-    lv_obj_set_style_bg_color(mode_btns[idx], active[idx] ? C_MODE_ACT : C_MODE_BG, 0);
-    lv_obj_set_style_border_width(mode_btns[idx], active[idx] ? 0 : 1, 0);
-}
+/* ── Mode logic ── */
+static bool is_manual_mode(void) { return state.manual_mode || state.temp_manual_mode; }
 
-/* ── MQTT publish helper (safe - no-op if not connected) ── */
-static void mqtt_pub(const char *topic, const char *payload)
+static void update_mode_visuals(void)
 {
-    if (mqtt_client) {
-        esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 0, 0);
+    bool man = is_manual_mode() && state.power_val > 0;
+    bool off = is_manual_mode() && state.power_val == 0;
+    bool aut = !state.manual_mode && !state.temp_manual_mode && !state.boost_mode;
+    bool act[] = { aut, man, state.boost_mode, off, state.bypass_active };
+    for (int i = 0; i < 5; i++) {
+        lv_obj_set_style_bg_color(mode_btns[i], act[i] ? C_MODE_ACT : C_MODE_BG, 0);
+        lv_obj_set_style_border_width(mode_btns[i], act[i] ? 0 : 1, 0);
     }
+    bool show = is_manual_mode();
+    if (show) { lv_obj_clear_flag(btn_minus, LV_OBJ_FLAG_HIDDEN); lv_obj_clear_flag(btn_plus, LV_OBJ_FLAG_HIDDEN); }
+    else { lv_obj_add_flag(btn_minus, LV_OBJ_FLAG_HIDDEN); lv_obj_add_flag(btn_plus, LV_OBJ_FLAG_HIDDEN); }
 }
 
-/* ── Mode button click handlers ── */
-/* Set local state + send MQTT commands.
- * Panel always sends temporaryManualMode (never manualMode).
- * MQTT incoming: both manualMode and temporaryManualMode → "Manual" button.
- * Auto/Manual/Boost/Off = radio group. Bypass = independent toggle.
- */
-/* ── Pending MQTT commands (set by click, sent by main loop) ── */
-enum { CMD_NONE=0, CMD_AUTO, CMD_MANUAL, CMD_BOOST, CMD_OFF, CMD_BYPASS };
+/* ── MQTT command queue ── */
+enum { CMD_NONE=0, CMD_AUTO, CMD_MANUAL, CMD_BOOST, CMD_OFF, CMD_BYPASS, CMD_POWER };
 static volatile int pending_cmd = CMD_NONE;
+static volatile uint32_t mode_click_time = 0;  // tick when mode button was clicked
 
-static void on_power_minus(lv_event_t *e)
-{
-    if (state.power_val >= 10) state.power_val -= 10;
-    else state.power_val = 0;
-    snprintf(state.power, 8, "%d%%", state.power_val);
-    state_dirty = true;
-    pending_cmd = CMD_MANUAL;  // resend current manual power
-}
-
-static void on_power_plus(lv_event_t *e)
-{
-    if (state.power_val <= 90) state.power_val += 10;
-    else state.power_val = 100;
-    snprintf(state.power, 8, "%d%%", state.power_val);
-    state_dirty = true;
-    pending_cmd = CMD_MANUAL;  // resend current manual power
-}
-
-static bool is_manual_mode(void)
-{
-    return state.manual_mode || state.temp_manual_mode;
-}
-
-static void on_auto_click(lv_event_t *e)    { state.manual_mode = false; state.temp_manual_mode = false; state.boost_mode = false; state_dirty = true; pending_cmd = CMD_AUTO; }
-static void on_manual_click(lv_event_t *e)  { state.manual_mode = false; state.temp_manual_mode = true;  state.boost_mode = false; state_dirty = true; pending_cmd = CMD_MANUAL; }
-static void on_boost_click(lv_event_t *e)   { state.manual_mode = false; state.temp_manual_mode = false; state.boost_mode = true;  state_dirty = true; pending_cmd = CMD_BOOST; }
-static void on_off_click(lv_event_t *e)     { state.manual_mode = false; state.temp_manual_mode = true;  state.boost_mode = false; state.power_val = 0; snprintf(state.power, 8, "0%%"); state_dirty = true; pending_cmd = CMD_OFF; }
-static void on_bypass_click(lv_event_t *e)  { state.bypass_active = !state.bypass_active; state_dirty = true; pending_cmd = CMD_BYPASS; }
-
-static void send_pending_cmd(void)
-{
-    if (!mqtt_client || pending_cmd == CMD_NONE) return;
-    int cmd = pending_cmd;
-    pending_cmd = CMD_NONE;
-
-    switch (cmd) {
-    case CMD_AUTO:
-        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryManualMode", "OFF", 0, 0, 0);
-        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryBoostMode", "OFF", 0, 0, 0);
-        break;
-    case CMD_MANUAL: {
-        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryManualMode", "ON", 0, 0, 0);
-        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryBoostMode", "OFF", 0, 0, 0);
-        char pw[8]; snprintf(pw, 8, "%d", state.power_val);
-        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/manualPower", pw, 0, 0, 0);
-        break;
-    }
-    case CMD_BOOST:
-        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryBoostMode", "ON", 0, 0, 0);
-        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryManualMode", "OFF", 0, 0, 0);
-        break;
-    case CMD_OFF:
-        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryManualMode", "ON", 0, 0, 0);
-        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryBoostMode", "OFF", 0, 0, 0);
-        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/manualPower", "0", 0, 0, 0);
-        break;
-    case CMD_BYPASS:
-        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/bypass",
-            state.bypass_active ? "ON" : "OFF", 0, 0, 0);
-        break;
-    }
-}
-
-/* ── SNTP time sync ── */
-static void time_sync_init(void)
-{
-    setenv("TZ", "CET-1CEST,M3.5.0,M10.5.0/3", 1);
-    tzset();
-    esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
-    esp_sntp_setservername(0, "pool.ntp.org");
-    esp_sntp_init();
-}
-
-static void update_datetime(void)
-{
-    time_t now;
-    time(&now);
-    struct tm ti;
-    localtime_r(&now, &ti);
-    if (ti.tm_year < (2024 - 1900)) return;  // not synced yet
-
-    static const char *days[] = {"Ne","Po","Ut","St","Ct","Pa","So"};
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%s %d.%d. %02d:%02d",
-             days[ti.tm_wday], ti.tm_mday, ti.tm_mon + 1,
-             ti.tm_hour, ti.tm_min);
-    lv_label_set_text(lbl_datetime, buf);
-}
+/* ── Click handlers ── */
+#define MODE_COOLDOWN_MS 2000
+static void mode_click(void) { mode_click_time = xTaskGetTickCount(); }
+static void on_auto(lv_event_t *e)   { state.manual_mode=0; state.temp_manual_mode=0; state.boost_mode=0; update_mode_visuals(); pending_cmd=CMD_AUTO; mode_click(); }
+static void on_manual(lv_event_t *e) { state.manual_mode=0; state.temp_manual_mode=1; state.boost_mode=0; if(state.power_val==0){state.power_val=50; snprintf(state.power,8,"50%%"); lv_label_set_text(lbl_power,state.power); lv_bar_set_value(power_bar,50,LV_ANIM_OFF);} update_mode_visuals(); pending_cmd=CMD_MANUAL; mode_click(); }
+static void on_boost(lv_event_t *e)  { state.manual_mode=0; state.temp_manual_mode=0; state.boost_mode=1; update_mode_visuals(); pending_cmd=CMD_BOOST; mode_click(); }
+static void on_off(lv_event_t *e)    { state.manual_mode=0; state.temp_manual_mode=1; state.boost_mode=0; state.power_val=0; snprintf(state.power,8,"0%%"); lv_label_set_text(lbl_power,state.power); lv_bar_set_value(power_bar,0,LV_ANIM_OFF); update_mode_visuals(); pending_cmd=CMD_OFF; mode_click(); }
+static void on_bypass(lv_event_t *e) { state.bypass_active=!state.bypass_active; update_mode_visuals(); pending_cmd=CMD_BYPASS; mode_click(); }
+static void on_minus(lv_event_t *e)  { if(state.power_val>=10) state.power_val-=10; else state.power_val=0; snprintf(state.power,8,"%d%%",state.power_val); lv_label_set_text(lbl_power,state.power); lv_bar_set_value(power_bar,state.power_val,LV_ANIM_OFF); pending_cmd=CMD_POWER; }
+static void on_plus(lv_event_t *e)   { if(state.power_val<=90) state.power_val+=10; else state.power_val=100; snprintf(state.power,8,"%d%%",state.power_val); lv_label_set_text(lbl_power,state.power); lv_bar_set_value(power_bar,state.power_val,LV_ANIM_OFF); pending_cmd=CMD_POWER; }
 
 /* ── Build HRV Screen ── */
-static void build_screen_hrv(lv_obj_t *scr)
+static void build_hrv(lv_obj_t *scr)
 {
     lv_obj_set_style_bg_color(scr, C_BG, 0);
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
@@ -321,27 +246,31 @@ static void build_screen_hrv(lv_obj_t *scr)
     lv_obj_set_style_text_font(st, &lv_font_montserrat_12, 0);
     lv_obj_set_pos(st, 60, 58);
 
+    lbl_datetime = lv_label_create(scr);
+    lv_label_set_text(lbl_datetime, "");
+    lv_obj_set_style_text_color(lbl_datetime, C_TEXT_DIM, 0);
+    lv_obj_set_style_text_font(lbl_datetime, &lv_font_montserrat_12, 0);
+    lv_obj_set_pos(lbl_datetime, 16, 700);
+
+    #define IY lv_color_hex(0xd29922)
+    #define IG lv_color_hex(0x3fb950)
+    #define IO lv_color_hex(0xe3872d)
+    #define IR lv_color_hex(0xf85149)
+    #define IB lv_color_hex(0x58a6ff)
     int cw=339, ch=100, g=10, x1=16, x2=16+cw+g, ys=80;
-    // Icons: closest LVGL symbols matching Figma design
-    #define IC_YELLOW lv_color_hex(0xd29922)
-    #define IC_GREEN  lv_color_hex(0x3fb950)
-    #define IC_ORANGE lv_color_hex(0xe3872d)
-    #define IC_RED    lv_color_hex(0xf85149)
-    #define IC_BLUE   lv_color_hex(0x58a6ff)
-    lbl_outdoor_val = create_stat_card(scr, x1, ys,           cw,ch, LV_SYMBOL_IMAGE,    IC_YELLOW, "Outdoor Temperature","--");  // sun-like
-    lbl_supply_val  = create_stat_card(scr, x2, ys,           cw,ch, LV_SYMBOL_DOWNLOAD, IC_GREEN,  "Supply Temperature", "--");  // arrow down/in
-    lbl_extract_val = create_stat_card(scr, x1, ys+1*(ch+g),  cw,ch, LV_SYMBOL_UPLOAD,   IC_ORANGE, "Extract Temperature","--");  // arrow up/out
-    lbl_exhaust_val = create_stat_card(scr, x2, ys+1*(ch+g),  cw,ch, LV_SYMBOL_REFRESH,  IC_RED,    "Exhaust Temperature","--");  // fan-like
-    lbl_room_val    = create_stat_card(scr, x1, ys+2*(ch+g),  cw,ch, LV_SYMBOL_HOME,     IC_BLUE,   "Room Temperature",  "--");
-    lbl_humidity_val= create_stat_card(scr, x2, ys+2*(ch+g),  cw,ch, LV_SYMBOL_TINT,     IC_BLUE,   "Humidity",          "--");
-    lbl_co2_val     = create_stat_card(scr, x1, ys+3*(ch+g),  cw,ch, LV_SYMBOL_LOOP,     IC_YELLOW, "CO2 Level",         "--");  // wind-like
-    lbl_pressure_val= create_stat_card(scr, x2, ys+3*(ch+g),  cw,ch, LV_SYMBOL_GPS,      IC_BLUE,   "Indoor Pressure",   "--");  // gauge-like
+    lbl_outdoor = create_card(scr, x1, ys,         cw,ch, LV_SYMBOL_IMAGE,   IY, "Outdoor Temperature","--");
+    lbl_supply  = create_card(scr, x2, ys,         cw,ch, LV_SYMBOL_DOWNLOAD,IG, "Supply Temperature", "--");
+    lbl_extract = create_card(scr, x1, ys+1*(ch+g),cw,ch, LV_SYMBOL_UPLOAD,  IO, "Extract Temperature","--");
+    lbl_exhaust = create_card(scr, x2, ys+1*(ch+g),cw,ch, LV_SYMBOL_REFRESH, IR, "Exhaust Temperature","--");
+    lbl_room    = create_card(scr, x1, ys+2*(ch+g),cw,ch, LV_SYMBOL_HOME,    IB, "Room Temperature",  "--");
+    lbl_humidity= create_card(scr, x2, ys+2*(ch+g),cw,ch, LV_SYMBOL_TINT,    IB, "Humidity",          "--");
+    lbl_co2     = create_card(scr, x1, ys+3*(ch+g),cw,ch, LV_SYMBOL_LOOP,    IY, "CO2 Level",         "--");
+    lbl_pressure= create_card(scr, x2, ys+3*(ch+g),cw,ch, LV_SYMBOL_GPS,     IB, "Indoor Pressure",   "--");
 
     /* Mode buttons */
     int my = ys + 4*(ch+g) + 8;
     lv_obj_t *mb = lv_obj_create(scr);
-    lv_obj_set_pos(mb, 16, my);
-    lv_obj_set_size(mb, 688, 56);
+    lv_obj_set_pos(mb, 16, my); lv_obj_set_size(mb, 688, 56);
     lv_obj_set_style_bg_opa(mb, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(mb, 0, 0);
     lv_obj_set_style_pad_all(mb, 0, 0);
@@ -353,23 +282,16 @@ static void build_screen_hrv(lv_obj_t *scr)
     mode_btns[2] = create_mode_btn(mb, 2*(bw+bg), bw, LV_SYMBOL_CHARGE,   "Boost",  false);
     mode_btns[3] = create_mode_btn(mb, 3*(bw+bg), bw, LV_SYMBOL_POWER,    "Off",    false);
     mode_btns[4] = create_mode_btn(mb, 4*(bw+bg), bw, LV_SYMBOL_SHUFFLE,  "Bypass", false);
+    lv_obj_add_event_cb(mode_btns[0], on_auto,  LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(mode_btns[1], on_manual,LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(mode_btns[2], on_boost, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(mode_btns[3], on_off,   LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(mode_btns[4], on_bypass,LV_EVENT_CLICKED, NULL);
 
-    lv_obj_add_flag(mode_btns[0], LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(mode_btns[1], LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(mode_btns[2], LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(mode_btns[3], LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(mode_btns[4], LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(mode_btns[0], on_auto_click,   LV_EVENT_CLICKED, NULL);
-    lv_obj_add_event_cb(mode_btns[1], on_manual_click,  LV_EVENT_CLICKED, NULL);
-    lv_obj_add_event_cb(mode_btns[2], on_boost_click,   LV_EVENT_CLICKED, NULL);
-    lv_obj_add_event_cb(mode_btns[3], on_off_click,     LV_EVENT_CLICKED, NULL);
-    lv_obj_add_event_cb(mode_btns[4], on_bypass_click,  LV_EVENT_CLICKED, NULL);
-
-    /* Power bar with +/- buttons */
+    /* Power bar with +/- */
     int py = my + 64;
     lv_obj_t *pc = lv_obj_create(scr);
-    lv_obj_set_pos(pc, 16, py);
-    lv_obj_set_size(pc, 688, 72);
+    lv_obj_set_pos(pc, 16, py); lv_obj_set_size(pc, 688, 72);
     lv_obj_set_style_bg_color(pc, C_CARD, 0);
     lv_obj_set_style_bg_opa(pc, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(pc, 14, 0);
@@ -379,70 +301,63 @@ static void build_screen_hrv(lv_obj_t *scr)
     lv_obj_set_scrollbar_mode(pc, LV_SCROLLBAR_MODE_OFF);
     lv_obj_clear_flag(pc, LV_OBJ_FLAG_SCROLLABLE);
 
-    // Minus button (left, red, hidden initially)
     btn_minus = lv_obj_create(pc);
-    lv_obj_set_pos(btn_minus, 0, 0);
-    lv_obj_set_size(btn_minus, 64, 72);
+    lv_obj_set_pos(btn_minus, 0, 0); lv_obj_set_size(btn_minus, 64, 72);
     lv_obj_set_style_bg_color(btn_minus, lv_color_hex(0xc0392b), 0);
     lv_obj_set_style_bg_opa(btn_minus, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(btn_minus, 14, 0);
     lv_obj_set_style_border_width(btn_minus, 0, 0);
     lv_obj_set_scrollbar_mode(btn_minus, LV_SCROLLBAR_MODE_OFF);
     lv_obj_clear_flag(btn_minus, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(btn_minus, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(btn_minus, on_power_minus, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_flag(btn_minus, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_event_cb(btn_minus, on_minus, LV_EVENT_CLICKED, NULL);
     lv_obj_t *ml = lv_label_create(btn_minus);
     lv_label_set_text(ml, LV_SYMBOL_MINUS);
     lv_obj_set_style_text_color(ml, C_TEXT, 0);
     lv_obj_set_style_text_font(ml, &lv_font_montserrat_22, 0);
     lv_obj_center(ml);
-    lv_obj_add_flag(btn_minus, LV_OBJ_FLAG_HIDDEN);
 
-    // Plus button (right, green, hidden initially)
     btn_plus = lv_obj_create(pc);
-    lv_obj_set_pos(btn_plus, 688 - 64, 0);
-    lv_obj_set_size(btn_plus, 64, 72);
+    lv_obj_set_pos(btn_plus, 624, 0); lv_obj_set_size(btn_plus, 64, 72);
     lv_obj_set_style_bg_color(btn_plus, lv_color_hex(0x27ae60), 0);
     lv_obj_set_style_bg_opa(btn_plus, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(btn_plus, 14, 0);
     lv_obj_set_style_border_width(btn_plus, 0, 0);
     lv_obj_set_scrollbar_mode(btn_plus, LV_SCROLLBAR_MODE_OFF);
     lv_obj_clear_flag(btn_plus, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(btn_plus, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(btn_plus, on_power_plus, LV_EVENT_CLICKED, NULL);
-    lv_obj_t *plbl = lv_label_create(btn_plus);
-    lv_label_set_text(plbl, LV_SYMBOL_PLUS);
-    lv_obj_set_style_text_color(plbl, C_TEXT, 0);
-    lv_obj_set_style_text_font(plbl, &lv_font_montserrat_22, 0);
-    lv_obj_center(plbl);
-    lv_obj_add_flag(btn_plus, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(btn_plus, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_event_cb(btn_plus, on_plus, LV_EVENT_CLICKED, NULL);
+    lv_obj_t *pl = lv_label_create(btn_plus);
+    lv_label_set_text(pl, LV_SYMBOL_PLUS);
+    lv_obj_set_style_text_color(pl, C_TEXT, 0);
+    lv_obj_set_style_text_font(pl, &lv_font_montserrat_22, 0);
+    lv_obj_center(pl);
 
-    // Power label + bar (centered between buttons)
-    lv_obj_t *pl = lv_label_create(pc);
-    lv_label_set_text(pl, "Power Level");
-    lv_obj_set_style_text_color(pl, C_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(pl, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(pl, 80, 8);
+    lv_obj_t *pwl = lv_label_create(pc);
+    lv_label_set_text(pwl, "Power Level");
+    lv_obj_set_style_text_color(pwl, C_TEXT_DIM, 0);
+    lv_obj_set_style_text_font(pwl, &lv_font_montserrat_12, 0);
+    lv_obj_set_pos(pwl, 80, 8);
 
-    lbl_power_val = lv_label_create(pc);
-    lv_label_set_text(lbl_power_val, "--%");
-    lv_obj_set_style_text_color(lbl_power_val, C_TEXT, 0);
-    lv_obj_set_style_text_font(lbl_power_val, &lv_font_montserrat_24, 0);
-    lv_obj_set_pos(lbl_power_val, 560, 4);
+    lbl_power = lv_label_create(pc);
+    lv_label_set_text(lbl_power, "--%");
+    lv_obj_set_style_text_color(lbl_power, C_TEXT, 0);
+    lv_obj_set_style_text_font(lbl_power, &lv_font_montserrat_24, 0);
+    lv_obj_set_pos(lbl_power, 560, 4);
 
     power_bar = lv_bar_create(pc);
-    lv_obj_set_pos(power_bar, 80, 40);
-    lv_obj_set_size(power_bar, 520, 12);
+    lv_obj_set_pos(power_bar, 80, 40); lv_obj_set_size(power_bar, 520, 12);
     lv_bar_set_range(power_bar, 0, 100);
     lv_obj_set_style_bg_color(power_bar, C_BAR_BG, 0);
     lv_obj_set_style_radius(power_bar, 6, 0);
     lv_obj_set_style_bg_color(power_bar, C_BAR_IND, LV_PART_INDICATOR);
     lv_obj_set_style_radius(power_bar, 6, LV_PART_INDICATOR);
 
-    create_footer(scr, 0, true);
+    create_footer(scr, 0);
 }
 
-static void build_screen_hello(lv_obj_t *scr)
+/* ── Build Hello Screen ── */
+static void build_hello(lv_obj_t *scr)
 {
     lv_obj_set_style_bg_color(scr, C_BG, 0);
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
@@ -457,119 +372,117 @@ static void build_screen_hello(lv_obj_t *scr)
     lv_label_set_text(s, "Swipe right to go back");
     lv_obj_set_style_text_color(s, C_TEXT_DIM, 0);
     lv_obj_align(s, LV_ALIGN_CENTER, 0, 20);
-    create_footer(scr, 1, false);
+    create_footer(scr, 1);
 }
 
-static int update_slot = 0;
-
-static void update_ui_from_state(void)
+/* ── UI update from state ── */
+static void update_ui(void)
 {
     if (!state_dirty) return;
-
-    switch (update_slot) {
-        case 0:  lv_label_set_text(lbl_outdoor_val, state.temp_outdoor); break;
-        case 1:  lv_label_set_text(lbl_supply_val, state.temp_supply); break;
-        case 2:  lv_label_set_text(lbl_extract_val, state.temp_extract); break;
-        case 3:  lv_label_set_text(lbl_exhaust_val, state.temp_exhaust); break;
-        case 4:  lv_label_set_text(lbl_room_val, state.temp_inside); break;
-        case 5:  lv_label_set_text(lbl_humidity_val, state.humidity); break;
-        case 6:  lv_label_set_text(lbl_co2_val, state.co2); break;
-        case 7:  lv_label_set_text(lbl_pressure_val, state.pressure); break;
-        case 8:  lv_label_set_text(lbl_power_val, state.power); break;
-        case 9:  lv_bar_set_value(power_bar, state.power_val, LV_ANIM_OFF); break;
-        case 10: update_single_mode_btn(0); break;
-        case 11: update_single_mode_btn(1); break;
-        case 12: update_single_mode_btn(2); break;
-        case 13: update_single_mode_btn(3); break;
-        case 14: update_single_mode_btn(4); break;
-        case 15: {
-            bool show = is_manual_mode();
-            bool hid = lv_obj_has_flag(btn_minus, LV_OBJ_FLAG_HIDDEN);
-            if (show && hid) { lv_obj_clear_flag(btn_minus, LV_OBJ_FLAG_HIDDEN); lv_obj_clear_flag(btn_plus, LV_OBJ_FLAG_HIDDEN); }
-            if (!show && !hid) { lv_obj_add_flag(btn_minus, LV_OBJ_FLAG_HIDDEN); lv_obj_add_flag(btn_plus, LV_OBJ_FLAG_HIDDEN); }
-            state_dirty = false;
-            break;
-        }
-    }
-    update_slot = (update_slot + 1) % 16;
+    state_dirty = false;
+    lv_label_set_text(lbl_outdoor, state.temp_outdoor);
+    lv_label_set_text(lbl_supply, state.temp_supply);
+    lv_label_set_text(lbl_extract, state.temp_extract);
+    lv_label_set_text(lbl_exhaust, state.temp_exhaust);
+    lv_label_set_text(lbl_room, state.temp_inside);
+    lv_label_set_text(lbl_humidity, state.humidity);
+    lv_label_set_text(lbl_co2, state.co2);
+    lv_label_set_text(lbl_pressure, state.pressure);
+    lv_label_set_text(lbl_power, state.power);
+    lv_bar_set_value(power_bar, state.power_val, LV_ANIM_OFF);
+    update_mode_visuals();
 }
 
-/* ══════════════════════════════════════════════════════
- *  MQTT - runs in its own task, crash-isolated
- * ══════════════════════════════════════════════════════ */
-
-static void mqtt_data_handler(const char *topic, int topic_len, const char *data, int data_len)
+/* ── MQTT ── */
+static void mqtt_data_handler(const char *topic, int tl, const char *data, int dl)
 {
-    char val[32];
-    int len = data_len < 31 ? data_len : 31;
-    memcpy(val, data, len);
-    val[len] = '\0';
-
-    if (topic_len <= 14) return;
-    const char *key = topic + 14;
-    int kl = topic_len - 14;
-
-    #define M(s) (kl == (int)strlen(s) && memcmp(key, s, kl) == 0)
-
-    if      (M("temperature/inside") || M("temperature"))
-                                         snprintf(state.temp_inside, 16, "%.1f\xC2\xB0""C", atof(val));
-    else if (M("temperature/outdoor"))   snprintf(state.temp_outdoor, 16, "%.1f\xC2\xB0""C", atof(val));
-    else if (M("temperature/supply"))    snprintf(state.temp_supply, 16, "%.1f\xC2\xB0""C", atof(val));
-    else if (M("temperature/extract"))   snprintf(state.temp_extract, 16, "%.1f\xC2\xB0""C", atof(val));
-    else if (M("temperature/exhaust"))   snprintf(state.temp_exhaust, 16, "%.1f\xC2\xB0""C", atof(val));
-    else if (M("airHumidity"))           snprintf(state.humidity, 16, "%.1f%%", atof(val));
-    else if (M("co2"))                   snprintf(state.co2, 16, "%d ppm", atoi(val));
-    else if (M("pressure"))              snprintf(state.pressure, 16, "%d hPa", atoi(val));
-    else if (M("hrvOutputPower"))      { state.power_val = atoi(val); snprintf(state.power, 8, "%d%%", state.power_val); }
-    else if (M("manualMode"))            state.manual_mode = (strcmp(val,"ON")==0);
-    else if (M("temporaryManualMode"))   state.temp_manual_mode = (strcmp(val,"ON")==0);
-    else if (M("temporaryBoostMode"))    state.boost_mode = (strcmp(val,"ON")==0);
-    else if (M("bypass"))                state.bypass_active = (strcmp(val,"ON")==0);
+    char val[32]; int len = dl < 31 ? dl : 31;
+    memcpy(val, data, len); val[len] = '\0';
+    if (tl <= 14) return;
+    const char *k = topic + 14; int kl = tl - 14;
+    #define M(s) (kl == (int)strlen(s) && memcmp(k, s, kl) == 0)
+    if      (M("temperature/inside") || M("temperature")) snprintf(state.temp_inside, 16, "%.1f\xC2\xB0""C", atof(val));
+    else if (M("temperature/outdoor"))  snprintf(state.temp_outdoor, 16, "%.1f\xC2\xB0""C", atof(val));
+    else if (M("temperature/supply"))   snprintf(state.temp_supply, 16, "%.1f\xC2\xB0""C", atof(val));
+    else if (M("temperature/extract"))  snprintf(state.temp_extract, 16, "%.1f\xC2\xB0""C", atof(val));
+    else if (M("temperature/exhaust"))  snprintf(state.temp_exhaust, 16, "%.1f\xC2\xB0""C", atof(val));
+    else if (M("airHumidity"))          snprintf(state.humidity, 16, "%.1f%%", atof(val));
+    else if (M("co2"))                  snprintf(state.co2, 16, "%d ppm", atoi(val));
+    else if (M("pressure"))             snprintf(state.pressure, 16, "%d hPa", atoi(val));
+    else if (M("hrvOutputPower"))     { state.power_val = atoi(val); snprintf(state.power, 8, "%d%%", state.power_val); }
+    else if (M("manualMode") || M("temporaryManualMode") || M("temporaryBoostMode") || M("bypass")) {
+        // Ignore mode updates during cooldown after user click
+        uint32_t elapsed = (xTaskGetTickCount() - mode_click_time) * portTICK_PERIOD_MS;
+        if (elapsed < MODE_COOLDOWN_MS) return;
+        if (M("manualMode"))           state.manual_mode = (strcmp(val,"ON")==0);
+        else if (M("temporaryManualMode"))  state.temp_manual_mode = (strcmp(val,"ON")==0);
+        else if (M("temporaryBoostMode"))   state.boost_mode = (strcmp(val,"ON")==0);
+        else if (M("bypass"))               state.bypass_active = (strcmp(val,"ON")==0);
+    }
     else return;
-
     state_dirty = true;
     #undef M
 }
 
-static void mqtt_event_handler(void *args, esp_event_base_t base, int32_t id, void *data)
+static void mqtt_event_handler(void *a, esp_event_base_t b, int32_t id, void *d)
 {
-    esp_mqtt_event_handle_t event = data;
-    switch (event->event_id) {
+    esp_mqtt_event_handle_t ev = d;
+    switch (ev->event_id) {
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT connected");
-        esp_mqtt_client_subscribe(event->client, "homehab/state/temperature/#", 0);
-        esp_mqtt_client_subscribe(event->client, "homehab/state/temperature/inside", 0);
-        esp_mqtt_client_subscribe(event->client, "homehab/state/airHumidity", 0);
-        esp_mqtt_client_subscribe(event->client, "homehab/state/co2", 0);
-        esp_mqtt_client_subscribe(event->client, "homehab/state/pressure", 0);
-        esp_mqtt_client_subscribe(event->client, "homehab/state/hrvOutputPower", 0);
-        esp_mqtt_client_subscribe(event->client, "homehab/state/manualMode", 0);
-        esp_mqtt_client_subscribe(event->client, "homehab/state/temporaryManualMode", 0);
-        esp_mqtt_client_subscribe(event->client, "homehab/state/temporaryBoostMode", 0);
-        esp_mqtt_client_subscribe(event->client, "homehab/state/bypass", 0);
-        esp_mqtt_client_publish(event->client, "homehab/panel/status", "online", 0, 1, 1);
+        esp_mqtt_client_subscribe(ev->client, "homehab/state/temperature/#", 0);
+        esp_mqtt_client_subscribe(ev->client, "homehab/state/temperature/inside", 0);
+        esp_mqtt_client_subscribe(ev->client, "homehab/state/airHumidity", 0);
+        esp_mqtt_client_subscribe(ev->client, "homehab/state/co2", 0);
+        esp_mqtt_client_subscribe(ev->client, "homehab/state/pressure", 0);
+        esp_mqtt_client_subscribe(ev->client, "homehab/state/hrvOutputPower", 0);
+        esp_mqtt_client_subscribe(ev->client, "homehab/state/manualMode", 0);
+        esp_mqtt_client_subscribe(ev->client, "homehab/state/temporaryManualMode", 0);
+        esp_mqtt_client_subscribe(ev->client, "homehab/state/temporaryBoostMode", 0);
+        esp_mqtt_client_subscribe(ev->client, "homehab/state/bypass", 0);
+        esp_mqtt_client_publish(ev->client, "homehab/panel/status", "online", 0, 1, 1);
         break;
     case MQTT_EVENT_DATA:
-        if (event->topic && event->topic_len > 0 && event->data && event->data_len > 0) {
-            mqtt_data_handler(event->topic, event->topic_len, event->data, event->data_len);
-        }
+        if (ev->topic && ev->topic_len > 0 && ev->data && ev->data_len > 0)
+            mqtt_data_handler(ev->topic, ev->topic_len, ev->data, ev->data_len);
         break;
-    case MQTT_EVENT_DISCONNECTED:
-        ESP_LOGW(TAG, "MQTT disconnected");
+    default: break;
+    }
+}
+
+static void send_pending(void)
+{
+    if (!mqtt_client || pending_cmd == CMD_NONE) return;
+    int cmd = pending_cmd; pending_cmd = CMD_NONE;
+    switch (cmd) {
+    case CMD_AUTO:
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryManualMode", "OFF", 0, 0, 0);
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryBoostMode", "OFF", 0, 0, 0);
         break;
-    case MQTT_EVENT_ERROR:
-        ESP_LOGE(TAG, "MQTT error");
+    case CMD_MANUAL: case CMD_POWER: {
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryManualMode", "ON", 0, 0, 0);
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryBoostMode", "OFF", 0, 0, 0);
+        char pw[8]; snprintf(pw, 8, "%d", state.power_val);
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/manualPower", pw, 0, 0, 0);
+        break; }
+    case CMD_BOOST:
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryBoostMode", "ON", 0, 0, 0);
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryManualMode", "OFF", 0, 0, 0);
         break;
-    default:
+    case CMD_OFF:
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryManualMode", "ON", 0, 0, 0);
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryBoostMode", "OFF", 0, 0, 0);
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/manualPower", "0", 0, 0, 0);
+        break;
+    case CMD_BYPASS:
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/bypass", state.bypass_active ? "ON" : "OFF", 0, 0, 0);
         break;
     }
 }
 
 static void mqtt_task(void *arg)
 {
-    // Wait for network to be ready
     vTaskDelay(pdMS_TO_TICKS(3000));
-
     esp_mqtt_client_config_t cfg = {};
     cfg.broker.address.uri = "mqtt://192.168.1.132:1883";
     cfg.credentials.client_id = "homehab-panel";
@@ -583,157 +496,124 @@ static void mqtt_task(void *arg)
     cfg.task.stack_size = 4096;
     cfg.task.priority = 1;
     cfg.buffer.size = 2048;
-
-    esp_mqtt_client_handle_t client = esp_mqtt_client_init(&cfg);
-    if (client) {
-        mqtt_client = client;
-        esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
-        esp_mqtt_client_start(client);
-        ESP_LOGI(TAG, "MQTT client started");
-    } else {
-        ESP_LOGE(TAG, "MQTT client init failed");
+    mqtt_client = esp_mqtt_client_init(&cfg);
+    if (mqtt_client) {
+        esp_mqtt_client_register_event(mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
+        esp_mqtt_client_start(mqtt_client);
     }
-
-    // Task stays alive (MQTT runs in its own internal task)
-    // but we keep this task to prevent stack being freed
-    while (1) {
-        send_pending_cmd();
-        vTaskDelay(pdMS_TO_TICKS(100));
-    }
+    while (1) { send_pending(); vTaskDelay(pdMS_TO_TICKS(100)); }
 }
 
-/* ══════════════════════════════════════════════════════
- *  OTA HTTP Server
- * ══════════════════════════════════════════════════════ */
-
+/* ── OTA ── */
 static esp_err_t ota_handler(httpd_req_t *req)
 {
-    ESP_LOGI("ota", "OTA started (%d bytes)", req->content_len);
     const esp_partition_t *part = esp_ota_get_next_update_partition(NULL);
     if (!part) { httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "No OTA partition"); return ESP_FAIL; }
-
-    esp_ota_handle_t handle;
-    esp_err_t err = esp_ota_begin(part, OTA_WITH_SEQUENTIAL_WRITES, &handle);
-    if (err != ESP_OK) { httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA begin failed"); return ESP_FAIL; }
-
-    char *buf = malloc(4096);
-    int received = 0;
-    while (received < req->content_len) {
-        int ret = httpd_req_recv(req, buf, 4096);
-        if (ret <= 0) { if (ret == HTTPD_SOCK_ERR_TIMEOUT) continue; free(buf); esp_ota_abort(handle); return ESP_FAIL; }
-        esp_ota_write(handle, buf, ret);
-        received += ret;
+    esp_ota_handle_t h; esp_err_t err = esp_ota_begin(part, OTA_WITH_SEQUENTIAL_WRITES, &h);
+    if (err != ESP_OK) { httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "begin fail"); return ESP_FAIL; }
+    char *buf = malloc(4096); int rx = 0;
+    while (rx < req->content_len) {
+        int r = httpd_req_recv(req, buf, 4096);
+        if (r <= 0) { if (r == HTTPD_SOCK_ERR_TIMEOUT) continue; free(buf); esp_ota_abort(h); return ESP_FAIL; }
+        esp_ota_write(h, buf, r); rx += r;
     }
     free(buf);
-
-    err = esp_ota_end(handle);
-    if (err != ESP_OK) { httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Validation failed"); return ESP_FAIL; }
-
+    if (esp_ota_end(h) != ESP_OK) { httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "validate fail"); return ESP_FAIL; }
     err = esp_ota_set_boot_partition(part);
     const esp_partition_t *boot = esp_ota_get_boot_partition();
-    const esp_partition_t *running = esp_ota_get_running_partition();
-    char resp[256];
-    snprintf(resp, sizeof(resp), "written=%s err=%s boot=%s running=%s\n",
-        part->label, esp_err_to_name(err), boot?boot->label:"?", running?running->label:"?");
+    char resp[128]; snprintf(resp, 128, "written=%s err=%s boot=%s\n", part->label, esp_err_to_name(err), boot?boot->label:"?");
     httpd_resp_sendstr(req, resp);
-    vTaskDelay(pdMS_TO_TICKS(200));
-    esp_restart();
-    return ESP_OK;
+    vTaskDelay(pdMS_TO_TICKS(200)); esp_restart(); return ESP_OK;
 }
 
-static void start_ota_server(void)
+static void on_got_ip(void *a, esp_event_base_t b, int32_t id, void *d)
 {
-    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.recv_wait_timeout = 30;
-    httpd_handle_t server = NULL;
-    if (httpd_start(&server, &config) == ESP_OK) {
-        httpd_uri_t uri = { .uri = "/ota", .method = HTTP_POST, .handler = ota_handler };
-        httpd_register_uri_handler(server, &uri);
-        ESP_LOGI("ota", "OTA server on port 80");
+    ip_event_got_ip_t *ev = (ip_event_got_ip_t *)d;
+    ESP_LOGI("eth", "IP: " IPSTR, IP2STR(&ev->ip_info.ip));
+    httpd_config_t hc = HTTPD_DEFAULT_CONFIG(); hc.recv_wait_timeout = 30;
+    httpd_handle_t srv = NULL;
+    if (httpd_start(&srv, &hc) == ESP_OK) {
+        httpd_uri_t u = { .uri = "/ota", .method = HTTP_POST, .handler = ota_handler };
+        httpd_register_uri_handler(srv, &u);
     }
-}
-
-/* ══════════════════════════════════════════════════════
- *  Ethernet
- * ══════════════════════════════════════════════════════ */
-
-static void on_got_ip(void *arg, esp_event_base_t base, int32_t id, void *data)
-{
-    ip_event_got_ip_t *event = (ip_event_got_ip_t *)data;
-    ESP_LOGI("eth", "Got IP: " IPSTR, IP2STR(&event->ip_info.ip));
-    start_ota_server();
-    time_sync_init();
+    setenv("TZ", "CET-1CEST,M3.5.0,M10.5.0/3", 1); tzset();
+    esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, "pool.ntp.org");
+    esp_sntp_init();
 }
 
 static void eth_init(void)
 {
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_config_t nc = ESP_NETIF_DEFAULT_ETH();
-    esp_netif_t *netif = esp_netif_new(&nc);
-
+    esp_netif_init(); esp_event_loop_create_default();
+    esp_netif_t *n = esp_netif_new(&(esp_netif_config_t)ESP_NETIF_DEFAULT_ETH());
     eth_mac_config_t mc = ETH_MAC_DEFAULT_CONFIG();
     eth_esp32_emac_config_t ec = ETH_ESP32_EMAC_DEFAULT_CONFIG();
-    ec.smi_gpio.mdc_num = 31;
-    ec.smi_gpio.mdio_num = 52;
+    ec.smi_gpio.mdc_num = 31; ec.smi_gpio.mdio_num = 52;
     esp_eth_mac_t *mac = esp_eth_mac_new_esp32(&ec, &mc);
-
-    eth_phy_config_t pc = ETH_PHY_DEFAULT_CONFIG();
-    pc.phy_addr = 1;
-    pc.reset_gpio_num = 51;
+    eth_phy_config_t pc = ETH_PHY_DEFAULT_CONFIG(); pc.phy_addr = 1; pc.reset_gpio_num = 51;
     esp_eth_phy_t *phy = esp_eth_phy_new_ip101(&pc);
-
-    esp_eth_config_t ethc = ETH_DEFAULT_CONFIG(mac, phy);
     esp_eth_handle_t eh = NULL;
-    ESP_ERROR_CHECK(esp_eth_driver_install(&ethc, &eh));
-    ESP_ERROR_CHECK(esp_netif_attach(netif, esp_eth_new_netif_glue(eh)));
-    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &on_got_ip, NULL));
-    ESP_ERROR_CHECK(esp_eth_start(eh));
-    ESP_LOGI("eth", "Ethernet init, waiting for IP...");
+    esp_eth_driver_install(&(esp_eth_config_t)ETH_DEFAULT_CONFIG(mac, phy), &eh);
+    esp_netif_attach(n, esp_eth_new_netif_glue(eh));
+    esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &on_got_ip, NULL);
+    esp_eth_start(eh);
 }
 
-/* ══════════════════════════════════════════════════════
- *  Main
- * ══════════════════════════════════════════════════════ */
-
+/* ── Main ── */
 void app_main(void)
 {
-    // 1. Display FIRST (BSP needs to init before other peripherals)
-    bsp_display_cfg_t cfg = {
-        .lvgl_port_cfg = ESP_LVGL_PORT_INIT_CONFIG(),
-        .buffer_size = BSP_LCD_DRAW_BUFF_SIZE,
-        .double_buffer = BSP_LCD_DRAW_BUFF_DOUBLE,
-        .flags = { .buff_dma = true, .buff_spiram = false, .sw_rotate = false }
-    };
-    bsp_display_start_with_config(&cfg);
-    bsp_display_backlight_on();
+    ESP_LOGI(TAG, "=== HRV Panel v2 ===");
 
-    // 2. Ethernet + OTA
+    // HW
+    bsp_lcd_handles_t h;
+    bsp_display_new_with_handles(NULL, &h);
+    lcd_panel = h.panel;
+    bsp_display_backlight_on();
+    bsp_i2c_init();
+    bsp_touch_new(NULL, &touch_handle);
     eth_init();
 
-    // 3. UI
+    // LVGL
+    lv_init();
+    esp_timer_handle_t tt;
+    esp_timer_create(&(esp_timer_create_args_t){ .callback = tick_cb, .name = "t" }, &tt);
+    esp_timer_start_periodic(tt, 5000);
+
+    lv_display_t *disp = lv_display_create(720, 720);
+    size_t bsz = 720 * 50 * sizeof(lv_color16_t);
+    void *b1 = heap_caps_malloc(bsz, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+    void *b2 = heap_caps_malloc(bsz, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+    lv_display_set_buffers(disp, b1, b2, bsz, LV_DISPLAY_RENDER_MODE_PARTIAL);
+    lv_display_set_flush_cb(disp, disp_flush);
+    lv_display_set_color_format(disp, LV_COLOR_FORMAT_RGB565);
+
+    lv_indev_t *in = lv_indev_create();
+    lv_indev_set_type(in, LV_INDEV_TYPE_POINTER);
+    lv_indev_set_read_cb(in, touch_read);
+
+    // UI
     screen1 = lv_obj_create(NULL);
     screen2 = lv_obj_create(NULL);
-    build_screen_hrv(screen1);
-    build_screen_hello(screen2);
+    build_hrv(screen1);
+    build_hello(screen2);
     lv_screen_load(screen1);
 
-    // 4. MQTT in separate task (crash-isolated, delayed start)
+    // MQTT
     xTaskCreate(mqtt_task, "mqtt", 8192, NULL, 1, NULL);
 
-    // 5. LVGL loop
-    int update_counter = 0;
-    int time_counter = 0;
+    // Loop
+    int tc = 0;
     while (true) {
-        if (++update_counter >= 10) {  // ~50ms per slot, 16 slots = 800ms cycle
-            update_counter = 0;
-            update_ui_from_state();
+        update_ui();
+        if (++tc >= 6000) { tc = 0;
+            time_t now; time(&now); struct tm ti; localtime_r(&now, &ti);
+            if (ti.tm_year > 124 && lbl_datetime) {
+                static const char *days[] = {"Ne","Po","Ut","St","Ct","Pa","So"};
+                char buf[32]; snprintf(buf, 32, "%s %d.%d. %02d:%02d", days[ti.tm_wday], ti.tm_mday, ti.tm_mon+1, ti.tm_hour, ti.tm_min);
+                lv_label_set_text(lbl_datetime, buf);
+            }
         }
-        if (++time_counter >= 6000) {  // ~30s
-            time_counter = 0;
-            update_datetime();
-        }
+        lv_timer_handler();
         vTaskDelay(pdMS_TO_TICKS(5));
-        lv_task_handler();
     }
 }
