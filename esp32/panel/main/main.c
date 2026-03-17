@@ -460,7 +460,6 @@ static void build_screen_hello(lv_obj_t *scr)
     create_footer(scr, 1, false);
 }
 
-// Rotate through labels one at a time to avoid rendering storm
 static int update_slot = 0;
 
 static void update_ui_from_state(void)
@@ -485,12 +484,9 @@ static void update_ui_from_state(void)
         case 14: update_single_mode_btn(4); break;
         case 15: {
             bool show = is_manual_mode();
-            bool mhid = lv_obj_has_flag(btn_minus, LV_OBJ_FLAG_HIDDEN);
-            bool phid = lv_obj_has_flag(btn_plus, LV_OBJ_FLAG_HIDDEN);
-            if (show && mhid) lv_obj_clear_flag(btn_minus, LV_OBJ_FLAG_HIDDEN);
-            if (!show && !mhid) lv_obj_add_flag(btn_minus, LV_OBJ_FLAG_HIDDEN);
-            if (show && phid) lv_obj_clear_flag(btn_plus, LV_OBJ_FLAG_HIDDEN);
-            if (!show && !phid) lv_obj_add_flag(btn_plus, LV_OBJ_FLAG_HIDDEN);
+            bool hid = lv_obj_has_flag(btn_minus, LV_OBJ_FLAG_HIDDEN);
+            if (show && hid) { lv_obj_clear_flag(btn_minus, LV_OBJ_FLAG_HIDDEN); lv_obj_clear_flag(btn_plus, LV_OBJ_FLAG_HIDDEN); }
+            if (!show && !hid) { lv_obj_add_flag(btn_minus, LV_OBJ_FLAG_HIDDEN); lv_obj_add_flag(btn_plus, LV_OBJ_FLAG_HIDDEN); }
             state_dirty = false;
             break;
         }
@@ -510,7 +506,7 @@ static void mqtt_data_handler(const char *topic, int topic_len, const char *data
     val[len] = '\0';
 
     if (topic_len <= 14) return;
-    const char *key = topic + 14;  // skip "homehab/state/"
+    const char *key = topic + 14;
     int kl = topic_len - 14;
 
     #define M(s) (kl == (int)strlen(s) && memcmp(key, s, kl) == 0)
@@ -600,7 +596,10 @@ static void mqtt_task(void *arg)
 
     // Task stays alive (MQTT runs in its own internal task)
     // but we keep this task to prevent stack being freed
-    while (1) vTaskDelay(pdMS_TO_TICKS(60000));
+    while (1) {
+        send_pending_cmd();
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
 }
 
 /* ══════════════════════════════════════════════════════
@@ -726,10 +725,9 @@ void app_main(void)
     int update_counter = 0;
     int time_counter = 0;
     while (true) {
-        if (++update_counter >= 10) {  // ~50ms per slot
+        if (++update_counter >= 10) {  // ~50ms per slot, 16 slots = 800ms cycle
             update_counter = 0;
             update_ui_from_state();
-            send_pending_cmd();
         }
         if (++time_counter >= 6000) {  // ~30s
             time_counter = 0;
