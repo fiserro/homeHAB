@@ -40,9 +40,11 @@ static const char *TAG = "panel";
 /* ── Shared state (written by MQTT task, read by LVGL loop) ── */
 static volatile bool state_dirty = false;
 static struct {
-    char outdoor_temp[16];
-    char outside_temp[16];
-    char room_temp[16];
+    char temp_inside[16];
+    char temp_outdoor[16];
+    char temp_supply[16];
+    char temp_extract[16];
+    char temp_exhaust[16];
     char humidity[16];
     char co2[16];
     char pressure[16];
@@ -53,7 +55,8 @@ static struct {
     bool boost_mode;
     bool bypass_active;
 } state = {
-    .outdoor_temp = "--", .outside_temp = "--", .room_temp = "--",
+    .temp_inside = "--", .temp_outdoor = "--", .temp_supply = "--",
+    .temp_extract = "--", .temp_exhaust = "--",
     .humidity = "--", .co2 = "--", .pressure = "--", .power = "--",
 };
 
@@ -103,8 +106,9 @@ static void on_gesture(lv_event_t *e)
     }
 }
 
-/* ── Stat card ── */
+/* ── Stat card with icon ── */
 static lv_obj_t *create_stat_card(lv_obj_t *parent, int x, int y, int w, int h,
+                                   const char *icon, lv_color_t ic_color,
                                    const char *label_text, const char *value_text)
 {
     lv_obj_t *card = lv_obj_create(parent);
@@ -120,22 +124,30 @@ static lv_obj_t *create_stat_card(lv_obj_t *parent, int x, int y, int w, int h,
     lv_obj_set_scrollbar_mode(card, LV_SCROLLBAR_MODE_OFF);
     lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
 
+    lv_obj_t *ic1 = lv_label_create(card);
+    lv_label_set_text(ic1, icon);
+    lv_obj_set_style_text_color(ic1, ic_color, 0);
+    lv_obj_set_style_text_font(ic1, &lv_font_montserrat_12, 0);
+    lv_obj_set_pos(ic1, 0, 1);
+
     lv_obj_t *lbl = lv_label_create(card);
     lv_label_set_text(lbl, label_text);
     lv_obj_set_style_text_color(lbl, C_TEXT_DIM, 0);
     lv_obj_set_style_text_font(lbl, &lv_font_montserrat_12, 0);
+    lv_obj_set_pos(lbl, 18, 0);
 
     lv_obj_t *val = lv_label_create(card);
     lv_label_set_text(val, value_text);
     lv_obj_set_style_text_color(val, C_TEXT, 0);
     lv_obj_set_style_text_font(val, &lv_font_montserrat_22, 0);
-    lv_obj_set_pos(val, 0, 22);
+    lv_obj_set_pos(val, 0, 30);
 
     return val;
 }
 
-/* ── Mode button ── */
-static lv_obj_t *create_mode_btn(lv_obj_t *parent, int x, int w, const char *text, bool active)
+/* ── Mode button with icon ── */
+static lv_obj_t *create_mode_btn(lv_obj_t *parent, int x, int w,
+                                  const char *icon, const char *text, bool active)
 {
     lv_obj_t *btn = lv_obj_create(parent);
     lv_obj_set_pos(btn, x, 0);
@@ -147,11 +159,18 @@ static lv_obj_t *create_mode_btn(lv_obj_t *parent, int x, int w, const char *tex
     lv_obj_set_style_border_color(btn, C_CARD_BRD, 0);
     lv_obj_set_scrollbar_mode(btn, LV_SCROLLBAR_MODE_OFF);
     lv_obj_clear_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *ic = lv_label_create(btn);
+    lv_label_set_text(ic, icon);
+    lv_obj_set_style_text_color(ic, C_TEXT, 0);
+    lv_obj_set_style_text_font(ic, &lv_font_montserrat_18, 0);
+    lv_obj_align(ic, LV_ALIGN_CENTER, 0, -8);
+
     lv_obj_t *lbl = lv_label_create(btn);
     lv_label_set_text(lbl, text);
     lv_obj_set_style_text_color(lbl, C_TEXT, 0);
     lv_obj_set_style_text_font(lbl, &lv_font_montserrat_12, 0);
-    lv_obj_align(lbl, LV_ALIGN_BOTTOM_MID, 0, -6);
+    lv_obj_align(lbl, LV_ALIGN_BOTTOM_MID, 0, -4);
     return btn;
 }
 
@@ -186,14 +205,20 @@ static void build_screen_hrv(lv_obj_t *scr)
     lv_obj_set_pos(st, 60, 58);
 
     int cw=339, ch=100, g=10, x1=16, x2=16+cw+g, ys=80;
-    lbl_outdoor_val = create_stat_card(scr, x1, ys,           cw,ch, "Outdoor Temperature","--");
-    lbl_supply_val  = create_stat_card(scr, x2, ys,           cw,ch, "Supply Temperature", "--");
-    lbl_extract_val = create_stat_card(scr, x1, ys+1*(ch+g),  cw,ch, "Extract Temperature","--");
-    lbl_exhaust_val = create_stat_card(scr, x2, ys+1*(ch+g),  cw,ch, "Exhaust Temperature","--");
-    lbl_room_val    = create_stat_card(scr, x1, ys+2*(ch+g),  cw,ch, "Room Temperature",  "--");
-    lbl_humidity_val= create_stat_card(scr, x2, ys+2*(ch+g),  cw,ch, "Humidity",          "--");
-    lbl_co2_val     = create_stat_card(scr, x1, ys+3*(ch+g),  cw,ch, "CO2 Level",         "--");
-    lbl_pressure_val= create_stat_card(scr, x2, ys+3*(ch+g),  cw,ch, "Indoor Pressure",   "--");
+    // Icons: closest LVGL symbols matching Figma design
+    #define IC_YELLOW lv_color_hex(0xd29922)
+    #define IC_GREEN  lv_color_hex(0x3fb950)
+    #define IC_ORANGE lv_color_hex(0xe3872d)
+    #define IC_RED    lv_color_hex(0xf85149)
+    #define IC_BLUE   lv_color_hex(0x58a6ff)
+    lbl_outdoor_val = create_stat_card(scr, x1, ys,           cw,ch, LV_SYMBOL_IMAGE,    IC_YELLOW, "Outdoor Temperature","--");  // sun-like
+    lbl_supply_val  = create_stat_card(scr, x2, ys,           cw,ch, LV_SYMBOL_DOWNLOAD, IC_GREEN,  "Supply Temperature", "--");  // arrow down/in
+    lbl_extract_val = create_stat_card(scr, x1, ys+1*(ch+g),  cw,ch, LV_SYMBOL_UPLOAD,   IC_ORANGE, "Extract Temperature","--");  // arrow up/out
+    lbl_exhaust_val = create_stat_card(scr, x2, ys+1*(ch+g),  cw,ch, LV_SYMBOL_REFRESH,  IC_RED,    "Exhaust Temperature","--");  // fan-like
+    lbl_room_val    = create_stat_card(scr, x1, ys+2*(ch+g),  cw,ch, LV_SYMBOL_HOME,     IC_BLUE,   "Room Temperature",  "--");
+    lbl_humidity_val= create_stat_card(scr, x2, ys+2*(ch+g),  cw,ch, LV_SYMBOL_TINT,     IC_BLUE,   "Humidity",          "--");
+    lbl_co2_val     = create_stat_card(scr, x1, ys+3*(ch+g),  cw,ch, LV_SYMBOL_LOOP,     IC_YELLOW, "CO2 Level",         "--");  // wind-like
+    lbl_pressure_val= create_stat_card(scr, x2, ys+3*(ch+g),  cw,ch, LV_SYMBOL_GPS,      IC_BLUE,   "Indoor Pressure",   "--");  // gauge-like
 
     /* Mode buttons */
     int my = ys + 4*(ch+g) + 8;
@@ -206,11 +231,11 @@ static void build_screen_hrv(lv_obj_t *scr)
     lv_obj_set_scrollbar_mode(mb, LV_SCROLLBAR_MODE_OFF);
     lv_obj_clear_flag(mb, LV_OBJ_FLAG_SCROLLABLE);
     int bw=128, bg=12;
-    mode_btns[0] = create_mode_btn(mb, 0*(bw+bg), bw, "Auto",   true);
-    mode_btns[1] = create_mode_btn(mb, 1*(bw+bg), bw, "Manual", false);
-    mode_btns[2] = create_mode_btn(mb, 2*(bw+bg), bw, "Boost",  false);
-    mode_btns[3] = create_mode_btn(mb, 3*(bw+bg), bw, "Off",    false);
-    mode_btns[4] = create_mode_btn(mb, 4*(bw+bg), bw, "Bypass", false);
+    mode_btns[0] = create_mode_btn(mb, 0*(bw+bg), bw, LV_SYMBOL_SETTINGS, "Auto",   true);
+    mode_btns[1] = create_mode_btn(mb, 1*(bw+bg), bw, LV_SYMBOL_EDIT,     "Manual", false);
+    mode_btns[2] = create_mode_btn(mb, 2*(bw+bg), bw, LV_SYMBOL_CHARGE,   "Boost",  false);
+    mode_btns[3] = create_mode_btn(mb, 3*(bw+bg), bw, LV_SYMBOL_POWER,    "Off",    false);
+    mode_btns[4] = create_mode_btn(mb, 4*(bw+bg), bw, LV_SYMBOL_SHUFFLE,  "Bypass", false);
 
     /* Power bar */
     int py = my + 64;
@@ -276,11 +301,11 @@ static void update_ui_from_state(void)
     if (!state_dirty) return;
 
     switch (update_slot) {
-        case 0:  lv_label_set_text(lbl_outdoor_val, state.outdoor_temp); break;
-        case 1:  lv_label_set_text(lbl_supply_val, state.outside_temp); break;
-        case 2:  lv_label_set_text(lbl_extract_val, state.room_temp); break;
-        case 3:  break;  // exhaust - no topic yet
-        case 4:  lv_label_set_text(lbl_room_val, state.room_temp); break;
+        case 0:  lv_label_set_text(lbl_outdoor_val, state.temp_outdoor); break;
+        case 1:  lv_label_set_text(lbl_supply_val, state.temp_supply); break;
+        case 2:  lv_label_set_text(lbl_extract_val, state.temp_extract); break;
+        case 3:  lv_label_set_text(lbl_exhaust_val, state.temp_exhaust); break;
+        case 4:  lv_label_set_text(lbl_room_val, state.temp_inside); break;
         case 5:  lv_label_set_text(lbl_humidity_val, state.humidity); break;
         case 6:  lv_label_set_text(lbl_co2_val, state.co2); break;
         case 7:  lv_label_set_text(lbl_pressure_val, state.pressure); break;
@@ -308,9 +333,11 @@ static void mqtt_data_handler(const char *topic, int topic_len, const char *data
 
     #define M(s) (kl == (int)strlen(s) && memcmp(key, s, kl) == 0)
 
-    if      (M("outdoorAirTemperature")) snprintf(state.outdoor_temp, 16, "%.1f\xC2\xB0""C", atof(val));
-    else if (M("outsideTemperature"))    snprintf(state.outside_temp, 16, "%.1f\xC2\xB0""C", atof(val));
-    else if (M("temperature"))           snprintf(state.room_temp, 16, "%.1f\xC2\xB0""C", atof(val));
+    if      (M("temperature/inside"))    snprintf(state.temp_inside, 16, "%.1f\xC2\xB0""C", atof(val));
+    else if (M("temperature/outdoor"))   snprintf(state.temp_outdoor, 16, "%.1f\xC2\xB0""C", atof(val));
+    else if (M("temperature/supply"))    snprintf(state.temp_supply, 16, "%.1f\xC2\xB0""C", atof(val));
+    else if (M("temperature/extract"))   snprintf(state.temp_extract, 16, "%.1f\xC2\xB0""C", atof(val));
+    else if (M("temperature/exhaust"))   snprintf(state.temp_exhaust, 16, "%.1f\xC2\xB0""C", atof(val));
     else if (M("airHumidity"))           snprintf(state.humidity, 16, "%.1f%%", atof(val));
     else if (M("co2"))                   snprintf(state.co2, 16, "%d ppm", atoi(val));
     else if (M("pressure"))              snprintf(state.pressure, 16, "%d hPa", atoi(val));
@@ -331,9 +358,7 @@ static void mqtt_event_handler(void *args, esp_event_base_t base, int32_t id, vo
     switch (event->event_id) {
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT connected");
-        esp_mqtt_client_subscribe(event->client, "homehab/state/outdoorAirTemperature", 0);
-        esp_mqtt_client_subscribe(event->client, "homehab/state/outsideTemperature", 0);
-        esp_mqtt_client_subscribe(event->client, "homehab/state/temperature", 0);
+        esp_mqtt_client_subscribe(event->client, "homehab/state/temperature/#", 0);
         esp_mqtt_client_subscribe(event->client, "homehab/state/airHumidity", 0);
         esp_mqtt_client_subscribe(event->client, "homehab/state/co2", 0);
         esp_mqtt_client_subscribe(event->client, "homehab/state/pressure", 0);

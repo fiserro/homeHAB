@@ -59,10 +59,10 @@ Number temporaryManualModeOffTime "HRV - Temporary Manual Mode Off Time" <time> 
 Number tickSecond "HRV - Tick Second" <none> ["readonly", "computed"]
 
 // Aggregation groups from @MqttItem annotations
+Group:Number:AVG insideTemperature "Inside Temperature [%.1f °C]" <temperature> ["mqtt", "zigbee", "computed"]
+Group:Switch:OR(ON,OFF) smoke "Smoke" <smoke> ["mqtt", "zigbee", "computed"]
+Group:Switch:OR(ON,OFF) gas "Gas" <gas> ["mqtt", "zigbee", "computed"]
 Group:Number:AVG pressure "Pressure" <pressure> ["mqtt", "zigbee", "computed"]
 Group:Number:MAX airHumidity "Air Humidity" <humidity> ["mqtt", "zigbee", "computed"]
 Group:Number:SUM openWindows "Open Windows" <window> ["mqtt", "zigbee", "computed"]
 Group:Number:MIN soilHumidity "Soil Humidity" <humidity> ["mqtt", "zigbee", "computed"]
-Group:Switch:OR(ON,OFF) smoke "Smoke" <smoke> ["mqtt", "zigbee", "computed"]
-Group:Switch:OR(ON,OFF) gas "Gas" <gas> ["mqtt", "zigbee", "computed"]
-Group:Number:AVG insideTemperature "Inside Temperature [%.1f °C]" <temperature> ["mqtt", "zigbee", "computed"]
