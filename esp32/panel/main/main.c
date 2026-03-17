@@ -23,6 +23,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
+#include <sys/time.h>
+#include "esp_sntp.h"
 
 static const char *TAG = "panel";
 
@@ -68,22 +71,23 @@ static lv_obj_t *lbl_room_val, *lbl_humidity_val, *lbl_co2_val, *lbl_pressure_va
 static lv_obj_t *lbl_power_val;
 static lv_obj_t *power_bar;
 static lv_obj_t *mode_btns[5];
+static lv_obj_t *lbl_datetime;
 
-/* ── Page dots ── */
-static void create_dots(lv_obj_t *parent, int active)
+/* ── Footer: datetime left, dots center ── */
+static void create_footer(lv_obj_t *parent, int active, bool show_datetime)
 {
-    lv_obj_t *f = lv_obj_create(parent);
-    lv_obj_set_size(f, 720, 24);
-    lv_obj_align(f, LV_ALIGN_BOTTOM_MID, 0, 0);
-    lv_obj_set_style_bg_opa(f, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(f, 0, 0);
-    lv_obj_set_flex_flow(f, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(f, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_column(f, 10, 0);
-    lv_obj_set_scrollbar_mode(f, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_clear_flag(f, LV_OBJ_FLAG_SCROLLABLE);
+    // Datetime label - left side
+    if (show_datetime) {
+        lbl_datetime = lv_label_create(parent);
+        lv_label_set_text(lbl_datetime, "");
+        lv_obj_set_style_text_color(lbl_datetime, C_TEXT_DIM, 0);
+        lv_obj_set_style_text_font(lbl_datetime, &lv_font_montserrat_12, 0);
+        lv_obj_set_pos(lbl_datetime, 16, 700);
+    }
+
+    // Page dots - center
     for (int i = 0; i < 2; i++) {
-        lv_obj_t *d = lv_obj_create(f);
+        lv_obj_t *d = lv_obj_create(parent);
         lv_obj_set_size(d, 8, 8);
         lv_obj_set_style_radius(d, 4, 0);
         lv_obj_set_style_border_width(d, 0, 0);
@@ -91,6 +95,7 @@ static void create_dots(lv_obj_t *parent, int active)
         lv_obj_set_style_bg_color(d, (i == active) ? C_TEXT : lv_color_hex(0x444444), 0);
         lv_obj_set_style_bg_opa(d, LV_OPA_COVER, 0);
         lv_obj_clear_flag(d, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_pos(d, 350 + i * 18, 704);
     }
 }
 
@@ -159,30 +164,64 @@ static lv_obj_t *create_mode_btn(lv_obj_t *parent, int x, int w,
     lv_obj_set_style_border_color(btn, C_CARD_BRD, 0);
     lv_obj_set_scrollbar_mode(btn, LV_SCROLLBAR_MODE_OFF);
     lv_obj_clear_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(btn, 0, 0);
 
     lv_obj_t *ic = lv_label_create(btn);
     lv_label_set_text(ic, icon);
     lv_obj_set_style_text_color(ic, C_TEXT, 0);
-    lv_obj_set_style_text_font(ic, &lv_font_montserrat_18, 0);
-    lv_obj_align(ic, LV_ALIGN_CENTER, 0, -8);
+    lv_obj_set_style_text_font(ic, &lv_font_montserrat_16, 0);
+    lv_obj_set_pos(ic, (w - 16) / 2, 6);
 
     lv_obj_t *lbl = lv_label_create(btn);
     lv_label_set_text(lbl, text);
     lv_obj_set_style_text_color(lbl, C_TEXT, 0);
     lv_obj_set_style_text_font(lbl, &lv_font_montserrat_12, 0);
-    lv_obj_align(lbl, LV_ALIGN_BOTTOM_MID, 0, -4);
+    lv_obj_set_pos(lbl, 0, 34);
+    lv_obj_set_width(lbl, w);
+    lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, 0);
     return btn;
 }
 
-static void update_mode_buttons(void)
+static void update_single_mode_btn(int idx)
 {
     bool auto_mode = !state.manual_mode && !state.temp_manual_mode && !state.boost_mode;
     bool active[] = { auto_mode, state.temp_manual_mode, state.boost_mode,
                       state.manual_mode && state.power_val == 0, state.bypass_active };
-    for (int i = 0; i < 5; i++) {
-        lv_obj_set_style_bg_color(mode_btns[i], active[i] ? C_MODE_ACT : C_MODE_BG, 0);
-        lv_obj_set_style_border_width(mode_btns[i], active[i] ? 0 : 1, 0);
-    }
+    lv_obj_set_style_bg_color(mode_btns[idx], active[idx] ? C_MODE_ACT : C_MODE_BG, 0);
+    lv_obj_set_style_border_width(mode_btns[idx], active[idx] ? 0 : 1, 0);
+}
+
+/* ── Mode button click handlers (only set state, never touch LVGL directly) ── */
+static void on_auto_click(lv_event_t *e)    { state.manual_mode = false; state.temp_manual_mode = false; state.boost_mode = false; state_dirty = true; }
+static void on_manual_click(lv_event_t *e)  { state.manual_mode = false; state.temp_manual_mode = true;  state.boost_mode = false; state_dirty = true; }
+static void on_boost_click(lv_event_t *e)   { state.manual_mode = false; state.temp_manual_mode = false; state.boost_mode = true;  state_dirty = true; }
+static void on_off_click(lv_event_t *e)     { state.manual_mode = true;  state.temp_manual_mode = false; state.boost_mode = false; state.power_val = 0; snprintf(state.power, 8, "0%%"); state_dirty = true; }
+static void on_bypass_click(lv_event_t *e)  { state.bypass_active = !state.bypass_active; state_dirty = true; }
+
+/* ── SNTP time sync ── */
+static void time_sync_init(void)
+{
+    setenv("TZ", "CET-1CEST,M3.5.0,M10.5.0/3", 1);
+    tzset();
+    esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, "pool.ntp.org");
+    esp_sntp_init();
+}
+
+static void update_datetime(void)
+{
+    time_t now;
+    time(&now);
+    struct tm ti;
+    localtime_r(&now, &ti);
+    if (ti.tm_year < (2024 - 1900)) return;  // not synced yet
+
+    static const char *days[] = {"Ne","Po","Ut","St","Ct","Pa","So"};
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%s %d.%d. %02d:%02d",
+             days[ti.tm_wday], ti.tm_mday, ti.tm_mon + 1,
+             ti.tm_hour, ti.tm_min);
+    lv_label_set_text(lbl_datetime, buf);
 }
 
 /* ── Build HRV Screen ── */
@@ -237,6 +276,17 @@ static void build_screen_hrv(lv_obj_t *scr)
     mode_btns[3] = create_mode_btn(mb, 3*(bw+bg), bw, LV_SYMBOL_POWER,    "Off",    false);
     mode_btns[4] = create_mode_btn(mb, 4*(bw+bg), bw, LV_SYMBOL_SHUFFLE,  "Bypass", false);
 
+    lv_obj_add_flag(mode_btns[0], LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(mode_btns[1], LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(mode_btns[2], LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(mode_btns[3], LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(mode_btns[4], LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(mode_btns[0], on_auto_click,   LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(mode_btns[1], on_manual_click,  LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(mode_btns[2], on_boost_click,   LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(mode_btns[3], on_off_click,     LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(mode_btns[4], on_bypass_click,  LV_EVENT_CLICKED, NULL);
+
     /* Power bar */
     int py = my + 64;
     lv_obj_t *pc = lv_obj_create(scr);
@@ -272,7 +322,7 @@ static void build_screen_hrv(lv_obj_t *scr)
     lv_obj_set_style_bg_color(power_bar, C_BAR_IND, LV_PART_INDICATOR);
     lv_obj_set_style_radius(power_bar, 6, LV_PART_INDICATOR);
 
-    create_dots(scr, 0);
+    create_footer(scr, 0, true);
 }
 
 static void build_screen_hello(lv_obj_t *scr)
@@ -290,7 +340,7 @@ static void build_screen_hello(lv_obj_t *scr)
     lv_label_set_text(s, "Swipe right to go back");
     lv_obj_set_style_text_color(s, C_TEXT_DIM, 0);
     lv_obj_align(s, LV_ALIGN_CENTER, 0, 20);
-    create_dots(scr, 1);
+    create_footer(scr, 1, false);
 }
 
 // Rotate through labels one at a time to avoid rendering storm
@@ -309,11 +359,15 @@ static void update_ui_from_state(void)
         case 5:  lv_label_set_text(lbl_humidity_val, state.humidity); break;
         case 6:  lv_label_set_text(lbl_co2_val, state.co2); break;
         case 7:  lv_label_set_text(lbl_pressure_val, state.pressure); break;
-        case 8:  lv_label_set_text(lbl_power_val, state.power);
-                 lv_bar_set_value(power_bar, state.power_val, LV_ANIM_ON); break;
-        case 9:  update_mode_buttons(); state_dirty = false; break;
+        case 8:  lv_label_set_text(lbl_power_val, state.power); break;
+        case 9:  lv_bar_set_value(power_bar, state.power_val, LV_ANIM_OFF); break;
+        case 10: update_single_mode_btn(0); break;
+        case 11: update_single_mode_btn(1); break;
+        case 12: update_single_mode_btn(2); break;
+        case 13: update_single_mode_btn(3); break;
+        case 14: update_single_mode_btn(4); state_dirty = false; break;
     }
-    update_slot = (update_slot + 1) % 10;
+    update_slot = (update_slot + 1) % 15;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -333,7 +387,8 @@ static void mqtt_data_handler(const char *topic, int topic_len, const char *data
 
     #define M(s) (kl == (int)strlen(s) && memcmp(key, s, kl) == 0)
 
-    if      (M("temperature/inside"))    snprintf(state.temp_inside, 16, "%.1f\xC2\xB0""C", atof(val));
+    if      (M("temperature/inside") || M("temperature"))
+                                         snprintf(state.temp_inside, 16, "%.1f\xC2\xB0""C", atof(val));
     else if (M("temperature/outdoor"))   snprintf(state.temp_outdoor, 16, "%.1f\xC2\xB0""C", atof(val));
     else if (M("temperature/supply"))    snprintf(state.temp_supply, 16, "%.1f\xC2\xB0""C", atof(val));
     else if (M("temperature/extract"))   snprintf(state.temp_extract, 16, "%.1f\xC2\xB0""C", atof(val));
@@ -359,6 +414,7 @@ static void mqtt_event_handler(void *args, esp_event_base_t base, int32_t id, vo
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT connected");
         esp_mqtt_client_subscribe(event->client, "homehab/state/temperature/#", 0);
+        esp_mqtt_client_subscribe(event->client, "homehab/state/temperature/inside", 0);
         esp_mqtt_client_subscribe(event->client, "homehab/state/airHumidity", 0);
         esp_mqtt_client_subscribe(event->client, "homehab/state/co2", 0);
         esp_mqtt_client_subscribe(event->client, "homehab/state/pressure", 0);
@@ -477,8 +533,8 @@ static void on_got_ip(void *arg, esp_event_base_t base, int32_t id, void *data)
 {
     ip_event_got_ip_t *event = (ip_event_got_ip_t *)data;
     ESP_LOGI("eth", "Got IP: " IPSTR, IP2STR(&event->ip_info.ip));
-    // OTA server starts immediately - always available for recovery
     start_ota_server();
+    time_sync_init();
 }
 
 static void eth_init(void)
@@ -539,11 +595,15 @@ void app_main(void)
 
     // 5. LVGL loop
     int update_counter = 0;
+    int time_counter = 0;
     while (true) {
-        // Update UI from MQTT state every ~500ms (not every frame)
-        if (++update_counter >= 100) {
+        if (++update_counter >= 100) {  // ~500ms
             update_counter = 0;
             update_ui_from_state();
+        }
+        if (++time_counter >= 6000) {  // ~30s
+            time_counter = 0;
+            update_datetime();
         }
         vTaskDelay(pdMS_TO_TICKS(5));
         lv_task_handler();
