@@ -72,6 +72,7 @@ static lv_obj_t *lbl_power_val;
 static lv_obj_t *power_bar;
 static lv_obj_t *mode_btns[5];
 static lv_obj_t *lbl_datetime;
+static lv_obj_t *btn_minus, *btn_plus;
 static esp_mqtt_client_handle_t mqtt_client = NULL;
 
 /* ── Footer: datetime left, dots center ── */
@@ -212,6 +213,29 @@ static void mqtt_pub(const char *topic, const char *payload)
 enum { CMD_NONE=0, CMD_AUTO, CMD_MANUAL, CMD_BOOST, CMD_OFF, CMD_BYPASS };
 static volatile int pending_cmd = CMD_NONE;
 
+static void on_power_minus(lv_event_t *e)
+{
+    if (state.power_val >= 10) state.power_val -= 10;
+    else state.power_val = 0;
+    snprintf(state.power, 8, "%d%%", state.power_val);
+    state_dirty = true;
+    pending_cmd = CMD_MANUAL;  // resend current manual power
+}
+
+static void on_power_plus(lv_event_t *e)
+{
+    if (state.power_val <= 90) state.power_val += 10;
+    else state.power_val = 100;
+    snprintf(state.power, 8, "%d%%", state.power_val);
+    state_dirty = true;
+    pending_cmd = CMD_MANUAL;  // resend current manual power
+}
+
+static bool is_manual_mode(void)
+{
+    return state.manual_mode || state.temp_manual_mode;
+}
+
 static void on_auto_click(lv_event_t *e)    { state.manual_mode = false; state.temp_manual_mode = false; state.boost_mode = false; state_dirty = true; pending_cmd = CMD_AUTO; }
 static void on_manual_click(lv_event_t *e)  { state.manual_mode = false; state.temp_manual_mode = true;  state.boost_mode = false; state_dirty = true; pending_cmd = CMD_MANUAL; }
 static void on_boost_click(lv_event_t *e)   { state.manual_mode = false; state.temp_manual_mode = false; state.boost_mode = true;  state_dirty = true; pending_cmd = CMD_BOOST; }
@@ -229,10 +253,13 @@ static void send_pending_cmd(void)
         esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryManualMode", "OFF", 0, 0, 0);
         esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryBoostMode", "OFF", 0, 0, 0);
         break;
-    case CMD_MANUAL:
+    case CMD_MANUAL: {
         esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryManualMode", "ON", 0, 0, 0);
         esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryBoostMode", "OFF", 0, 0, 0);
+        char pw[8]; snprintf(pw, 8, "%d", state.power_val);
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/manualPower", pw, 0, 0, 0);
         break;
+    }
     case CMD_BOOST:
         esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryBoostMode", "ON", 0, 0, 0);
         esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryManualMode", "OFF", 0, 0, 0);
@@ -243,7 +270,8 @@ static void send_pending_cmd(void)
         esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/manualPower", "0", 0, 0, 0);
         break;
     case CMD_BYPASS:
-        // TODO: bypass command topic
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/bypass",
+            state.bypass_active ? "ON" : "OFF", 0, 0, 0);
         break;
     }
 }
@@ -337,7 +365,7 @@ static void build_screen_hrv(lv_obj_t *scr)
     lv_obj_add_event_cb(mode_btns[3], on_off_click,     LV_EVENT_CLICKED, NULL);
     lv_obj_add_event_cb(mode_btns[4], on_bypass_click,  LV_EVENT_CLICKED, NULL);
 
-    /* Power bar */
+    /* Power bar with +/- buttons */
     int py = my + 64;
     lv_obj_t *pc = lv_obj_create(scr);
     lv_obj_set_pos(pc, 16, py);
@@ -347,25 +375,64 @@ static void build_screen_hrv(lv_obj_t *scr)
     lv_obj_set_style_radius(pc, 14, 0);
     lv_obj_set_style_border_width(pc, 1, 0);
     lv_obj_set_style_border_color(pc, C_CARD_BRD, 0);
-    lv_obj_set_style_pad_all(pc, 12, 0);
+    lv_obj_set_style_pad_all(pc, 0, 0);
     lv_obj_set_scrollbar_mode(pc, LV_SCROLLBAR_MODE_OFF);
     lv_obj_clear_flag(pc, LV_OBJ_FLAG_SCROLLABLE);
 
+    // Minus button (left, red, hidden initially)
+    btn_minus = lv_obj_create(pc);
+    lv_obj_set_pos(btn_minus, 0, 0);
+    lv_obj_set_size(btn_minus, 64, 72);
+    lv_obj_set_style_bg_color(btn_minus, lv_color_hex(0xc0392b), 0);
+    lv_obj_set_style_bg_opa(btn_minus, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(btn_minus, 14, 0);
+    lv_obj_set_style_border_width(btn_minus, 0, 0);
+    lv_obj_set_scrollbar_mode(btn_minus, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_clear_flag(btn_minus, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(btn_minus, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(btn_minus, on_power_minus, LV_EVENT_CLICKED, NULL);
+    lv_obj_t *ml = lv_label_create(btn_minus);
+    lv_label_set_text(ml, LV_SYMBOL_MINUS);
+    lv_obj_set_style_text_color(ml, C_TEXT, 0);
+    lv_obj_set_style_text_font(ml, &lv_font_montserrat_22, 0);
+    lv_obj_center(ml);
+    lv_obj_add_flag(btn_minus, LV_OBJ_FLAG_HIDDEN);
+
+    // Plus button (right, green, hidden initially)
+    btn_plus = lv_obj_create(pc);
+    lv_obj_set_pos(btn_plus, 688 - 64, 0);
+    lv_obj_set_size(btn_plus, 64, 72);
+    lv_obj_set_style_bg_color(btn_plus, lv_color_hex(0x27ae60), 0);
+    lv_obj_set_style_bg_opa(btn_plus, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(btn_plus, 14, 0);
+    lv_obj_set_style_border_width(btn_plus, 0, 0);
+    lv_obj_set_scrollbar_mode(btn_plus, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_clear_flag(btn_plus, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(btn_plus, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(btn_plus, on_power_plus, LV_EVENT_CLICKED, NULL);
+    lv_obj_t *plbl = lv_label_create(btn_plus);
+    lv_label_set_text(plbl, LV_SYMBOL_PLUS);
+    lv_obj_set_style_text_color(plbl, C_TEXT, 0);
+    lv_obj_set_style_text_font(plbl, &lv_font_montserrat_22, 0);
+    lv_obj_center(plbl);
+    lv_obj_add_flag(btn_plus, LV_OBJ_FLAG_HIDDEN);
+
+    // Power label + bar (centered between buttons)
     lv_obj_t *pl = lv_label_create(pc);
     lv_label_set_text(pl, "Power Level");
     lv_obj_set_style_text_color(pl, C_TEXT_DIM, 0);
     lv_obj_set_style_text_font(pl, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(pl, 20, 0);
+    lv_obj_set_pos(pl, 80, 8);
 
     lbl_power_val = lv_label_create(pc);
     lv_label_set_text(lbl_power_val, "--%");
     lv_obj_set_style_text_color(lbl_power_val, C_TEXT, 0);
     lv_obj_set_style_text_font(lbl_power_val, &lv_font_montserrat_24, 0);
-    lv_obj_align(lbl_power_val, LV_ALIGN_TOP_RIGHT, 0, -4);
+    lv_obj_set_pos(lbl_power_val, 560, 4);
 
     power_bar = lv_bar_create(pc);
-    lv_obj_set_pos(power_bar, 20, 30);
-    lv_obj_set_size(power_bar, 620, 12);
+    lv_obj_set_pos(power_bar, 80, 40);
+    lv_obj_set_size(power_bar, 520, 12);
     lv_bar_set_range(power_bar, 0, 100);
     lv_obj_set_style_bg_color(power_bar, C_BAR_BG, 0);
     lv_obj_set_style_radius(power_bar, 6, 0);
@@ -415,9 +482,20 @@ static void update_ui_from_state(void)
         case 11: update_single_mode_btn(1); break;
         case 12: update_single_mode_btn(2); break;
         case 13: update_single_mode_btn(3); break;
-        case 14: update_single_mode_btn(4); state_dirty = false; break;
+        case 14: update_single_mode_btn(4); break;
+        case 15: {
+            bool show = is_manual_mode();
+            bool mhid = lv_obj_has_flag(btn_minus, LV_OBJ_FLAG_HIDDEN);
+            bool phid = lv_obj_has_flag(btn_plus, LV_OBJ_FLAG_HIDDEN);
+            if (show && mhid) lv_obj_clear_flag(btn_minus, LV_OBJ_FLAG_HIDDEN);
+            if (!show && !mhid) lv_obj_add_flag(btn_minus, LV_OBJ_FLAG_HIDDEN);
+            if (show && phid) lv_obj_clear_flag(btn_plus, LV_OBJ_FLAG_HIDDEN);
+            if (!show && !phid) lv_obj_add_flag(btn_plus, LV_OBJ_FLAG_HIDDEN);
+            state_dirty = false;
+            break;
+        }
     }
-    update_slot = (update_slot + 1) % 15;
+    update_slot = (update_slot + 1) % 16;
 }
 
 /* ══════════════════════════════════════════════════════
