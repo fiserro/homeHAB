@@ -72,6 +72,7 @@ static lv_obj_t *lbl_power_val;
 static lv_obj_t *power_bar;
 static lv_obj_t *mode_btns[5];
 static lv_obj_t *lbl_datetime;
+static esp_mqtt_client_handle_t mqtt_client = NULL;
 
 /* ── Footer: datetime left, dots center ── */
 static void create_footer(lv_obj_t *parent, int active, bool show_datetime)
@@ -184,19 +185,68 @@ static lv_obj_t *create_mode_btn(lv_obj_t *parent, int x, int w,
 
 static void update_single_mode_btn(int idx)
 {
+    // Manual button lights for both manualMode and temporaryManualMode (unless Off)
+    bool is_manual = (state.manual_mode || state.temp_manual_mode) && state.power_val > 0;
+    bool is_off = (state.manual_mode || state.temp_manual_mode) && state.power_val == 0;
     bool auto_mode = !state.manual_mode && !state.temp_manual_mode && !state.boost_mode;
-    bool active[] = { auto_mode, state.temp_manual_mode, state.boost_mode,
-                      state.manual_mode && state.power_val == 0, state.bypass_active };
+    bool active[] = { auto_mode, is_manual, state.boost_mode, is_off, state.bypass_active };
     lv_obj_set_style_bg_color(mode_btns[idx], active[idx] ? C_MODE_ACT : C_MODE_BG, 0);
     lv_obj_set_style_border_width(mode_btns[idx], active[idx] ? 0 : 1, 0);
 }
 
-/* ── Mode button click handlers (only set state, never touch LVGL directly) ── */
-static void on_auto_click(lv_event_t *e)    { state.manual_mode = false; state.temp_manual_mode = false; state.boost_mode = false; state_dirty = true; }
-static void on_manual_click(lv_event_t *e)  { state.manual_mode = false; state.temp_manual_mode = true;  state.boost_mode = false; state_dirty = true; }
-static void on_boost_click(lv_event_t *e)   { state.manual_mode = false; state.temp_manual_mode = false; state.boost_mode = true;  state_dirty = true; }
-static void on_off_click(lv_event_t *e)     { state.manual_mode = true;  state.temp_manual_mode = false; state.boost_mode = false; state.power_val = 0; snprintf(state.power, 8, "0%%"); state_dirty = true; }
-static void on_bypass_click(lv_event_t *e)  { state.bypass_active = !state.bypass_active; state_dirty = true; }
+/* ── MQTT publish helper (safe - no-op if not connected) ── */
+static void mqtt_pub(const char *topic, const char *payload)
+{
+    if (mqtt_client) {
+        esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 0, 0);
+    }
+}
+
+/* ── Mode button click handlers ── */
+/* Set local state + send MQTT commands.
+ * Panel always sends temporaryManualMode (never manualMode).
+ * MQTT incoming: both manualMode and temporaryManualMode → "Manual" button.
+ * Auto/Manual/Boost/Off = radio group. Bypass = independent toggle.
+ */
+/* ── Pending MQTT commands (set by click, sent by main loop) ── */
+enum { CMD_NONE=0, CMD_AUTO, CMD_MANUAL, CMD_BOOST, CMD_OFF, CMD_BYPASS };
+static volatile int pending_cmd = CMD_NONE;
+
+static void on_auto_click(lv_event_t *e)    { state.manual_mode = false; state.temp_manual_mode = false; state.boost_mode = false; state_dirty = true; pending_cmd = CMD_AUTO; }
+static void on_manual_click(lv_event_t *e)  { state.manual_mode = false; state.temp_manual_mode = true;  state.boost_mode = false; state_dirty = true; pending_cmd = CMD_MANUAL; }
+static void on_boost_click(lv_event_t *e)   { state.manual_mode = false; state.temp_manual_mode = false; state.boost_mode = true;  state_dirty = true; pending_cmd = CMD_BOOST; }
+static void on_off_click(lv_event_t *e)     { state.manual_mode = false; state.temp_manual_mode = true;  state.boost_mode = false; state.power_val = 0; snprintf(state.power, 8, "0%%"); state_dirty = true; pending_cmd = CMD_OFF; }
+static void on_bypass_click(lv_event_t *e)  { state.bypass_active = !state.bypass_active; state_dirty = true; pending_cmd = CMD_BYPASS; }
+
+static void send_pending_cmd(void)
+{
+    if (!mqtt_client || pending_cmd == CMD_NONE) return;
+    int cmd = pending_cmd;
+    pending_cmd = CMD_NONE;
+
+    switch (cmd) {
+    case CMD_AUTO:
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryManualMode", "OFF", 0, 0, 0);
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryBoostMode", "OFF", 0, 0, 0);
+        break;
+    case CMD_MANUAL:
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryManualMode", "ON", 0, 0, 0);
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryBoostMode", "OFF", 0, 0, 0);
+        break;
+    case CMD_BOOST:
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryBoostMode", "ON", 0, 0, 0);
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryManualMode", "OFF", 0, 0, 0);
+        break;
+    case CMD_OFF:
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryManualMode", "ON", 0, 0, 0);
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryBoostMode", "OFF", 0, 0, 0);
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/manualPower", "0", 0, 0, 0);
+        break;
+    case CMD_BYPASS:
+        // TODO: bypass command topic
+        break;
+    }
+}
 
 /* ── SNTP time sync ── */
 static void time_sync_init(void)
@@ -462,6 +512,7 @@ static void mqtt_task(void *arg)
 
     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&cfg);
     if (client) {
+        mqtt_client = client;
         esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
         esp_mqtt_client_start(client);
         ESP_LOGI(TAG, "MQTT client started");
@@ -597,9 +648,10 @@ void app_main(void)
     int update_counter = 0;
     int time_counter = 0;
     while (true) {
-        if (++update_counter >= 100) {  // ~500ms
+        if (++update_counter >= 10) {  // ~50ms per slot
             update_counter = 0;
             update_ui_from_state();
+            send_pending_cmd();
         }
         if (++time_counter >= 6000) {  // ~30s
             time_counter = 0;
