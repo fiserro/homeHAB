@@ -26,7 +26,7 @@ WIND_COLOR = '#8b949e'
 
 
 def render_chart(forecasts: list[HourlyForecast], output_path: str,
-                 width: int = 688, height: int = 320):
+                 width: int = 688, height: int = 434):
     """Render weather forecast chart as PNG.
 
     Includes temperature line, precipitation bars, and wind speed overlay.

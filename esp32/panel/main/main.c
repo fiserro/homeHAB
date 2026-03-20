@@ -30,8 +30,14 @@
 #include "esp_sntp.h"
 #include "namedays.h"
 #include "screen_forecast.h"
+#include "weather_icons.h"
 
 static const char *TAG = "panel";
+
+/* Czech fonts with diacritics */
+LV_FONT_DECLARE(font_cz_12);
+LV_FONT_DECLARE(font_cz_16);
+LV_FONT_DECLARE(font_cz_22);
 
 /* ── HW handles ── */
 static esp_lcd_panel_handle_t lcd_panel = NULL;
@@ -73,11 +79,8 @@ static struct {
 };
 
 /* ── LVGL widgets ── */
-static lv_obj_t *scr_home, *scr_forecast, *scr_hrv;
+static lv_obj_t *scr_home, *scr_hrv;
 static int current_screen = 0;
-#define SCREEN_HOME 0
-#define SCREEN_FORECAST 1
-#define SCREEN_HRV 2
 static lv_obj_t *lbl_outdoor, *lbl_supply, *lbl_extract, *lbl_exhaust;
 static lv_obj_t *lbl_room, *lbl_humidity, *lbl_co2, *lbl_pressure;
 static lv_obj_t *lbl_power;
@@ -86,9 +89,20 @@ static lv_obj_t *mode_btns[5];
 static lv_obj_t *btn_minus, *btn_plus;
 
 // Home screen widgets
-static lv_obj_t *lbl_time, *lbl_seconds, *lbl_date, *lbl_nameday;
-// Weather chart image on home screen (shared with forecast screen)
+static lv_obj_t *lbl_time, *lbl_nameday;
+static lv_obj_t *img_wx_icon, *lbl_wx_temp, *lbl_wx_detail, *lbl_wx_summary;
 static lv_obj_t *home_chart_img = NULL;
+
+// Weather state from MQTT
+static volatile bool wx_dirty = false;
+static struct {
+    char temperature[16];
+    char summary[32];
+    char wind[16];
+    char precip[8];
+    char humidity[8];
+    int icon;
+} wx = { .temperature = "--", .summary = "--", .wind = "--", .precip = "--", .humidity = "--" };
 
 /* ── LVGL core callbacks ── */
 static void disp_flush(lv_display_t *d, const lv_area_t *a, uint8_t *px)
@@ -110,29 +124,19 @@ static void touch_read(lv_indev_t *inv, lv_indev_data_t *d)
 static void on_gesture(lv_event_t *e)
 {
     lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_active());
-    if (dir == LV_DIR_LEFT) {
-        if (current_screen == SCREEN_HOME) {
-            current_screen = SCREEN_FORECAST;
-            lv_screen_load_anim(scr_forecast, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, false);
-        } else if (current_screen == SCREEN_FORECAST) {
-            current_screen = SCREEN_HRV;
-            lv_screen_load_anim(scr_hrv, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, false);
-        }
-    } else if (dir == LV_DIR_RIGHT) {
-        if (current_screen == SCREEN_HRV) {
-            current_screen = SCREEN_FORECAST;
-            lv_screen_load_anim(scr_forecast, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, false);
-        } else if (current_screen == SCREEN_FORECAST) {
-            current_screen = SCREEN_HOME;
-            lv_screen_load_anim(scr_home, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, false);
-        }
+    if (dir == LV_DIR_LEFT && current_screen == 0) {
+        current_screen = 1;
+        lv_screen_load_anim(scr_hrv, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, false);
+    } else if (dir == LV_DIR_RIGHT && current_screen == 1) {
+        current_screen = 0;
+        lv_screen_load_anim(scr_home, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, false);
     }
 }
 
 /* ── Page dots ── */
 static void create_footer(lv_obj_t *parent, int active)
 {
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 2; i++) {
         lv_obj_t *d = lv_obj_create(parent);
         lv_obj_set_size(d, 8, 8);
         lv_obj_set_style_radius(d, 4, 0);
@@ -141,7 +145,7 @@ static void create_footer(lv_obj_t *parent, int active)
         lv_obj_set_style_bg_color(d, (i == active) ? C_TEXT : lv_color_hex(0x444444), 0);
         lv_obj_set_style_bg_opa(d, LV_OPA_COVER, 0);
         lv_obj_clear_flag(d, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_set_pos(d, 333 + i * 18, 704);
+        lv_obj_set_pos(d, 350 + i * 18, 704);
     }
 }
 
@@ -366,7 +370,7 @@ static void build_hrv(lv_obj_t *scr)
     lv_obj_set_style_bg_color(power_bar, C_BAR_IND, LV_PART_INDICATOR);
     lv_obj_set_style_radius(power_bar, 6, LV_PART_INDICATOR);
 
-    create_footer(scr, 2);
+    create_footer(scr, 1);
 }
 
 /* ── Build Home Screen (clock, date, nameday, weather) ── */
@@ -392,48 +396,67 @@ static void build_home(lv_obj_t *scr)
     lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_event_cb(scr, on_gesture, LV_EVENT_GESTURE, NULL);
 
-    // Clock card
-    lv_obj_t *clk_box = make_card_box(scr, 16, 20, 688, 200);
+    // Clock + date + nameday card
+    lv_obj_t *clk_box = make_card_box(scr, 16, 16, 688, 100);
+
     lbl_time = lv_label_create(clk_box);
-    lv_label_set_text(lbl_time, "00:00");
+    lv_label_set_text(lbl_time, "");
     lv_obj_set_style_text_color(lbl_time, C_TEXT, 0);
-    lv_obj_set_style_text_font(lbl_time, &lv_font_montserrat_26, 0);
-    lv_obj_align(lbl_time, LV_ALIGN_CENTER, -20, 0);
+    lv_obj_set_style_text_font(lbl_time, &font_cz_22, 0);
+    lv_obj_align(lbl_time, LV_ALIGN_TOP_MID, 0, 14);
 
-    lbl_seconds = lv_label_create(clk_box);
-    lv_label_set_text(lbl_seconds, ":00");
-    lv_obj_set_style_text_color(lbl_seconds, C_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(lbl_seconds, &lv_font_montserrat_20, 0);
-    lv_obj_align(lbl_seconds, LV_ALIGN_CENTER, 40, 6);
-
-    // Date + nameday card
-    lv_obj_t *date_box = make_card_box(scr, 16, 232, 688, 110);
-    lbl_date = lv_label_create(date_box);
-    lv_label_set_text(lbl_date, "");
-    lv_obj_set_style_text_color(lbl_date, C_TEXT, 0);
-    lv_obj_set_style_text_font(lbl_date, &lv_font_montserrat_20, 0);
-    lv_obj_align(lbl_date, LV_ALIGN_CENTER, 0, -14);
-
-    lbl_nameday = lv_label_create(date_box);
+    lbl_nameday = lv_label_create(clk_box);
     lv_label_set_text(lbl_nameday, "");
     lv_obj_set_style_text_color(lbl_nameday, lv_color_hex(0x58a6ff), 0);
-    lv_obj_set_style_text_font(lbl_nameday, &lv_font_montserrat_16, 0);
-    lv_obj_align(lbl_nameday, LV_ALIGN_CENTER, 0, 18);
+    lv_obj_set_style_text_font(lbl_nameday, &font_cz_16, 0);
+    lv_obj_align(lbl_nameday, LV_ALIGN_TOP_MID, 0, 56);
 
-    // Weather chart card
-    lv_obj_t *wx_box = make_card_box(scr, 16, 354, 688, 340);
-    lv_obj_set_style_pad_all(wx_box, 0, 0);
+    // Current weather summary card
+    lv_obj_t *wx_box = make_card_box(scr, 16, 128, 688, 120);
 
-    home_chart_img = lv_image_create(wx_box);
+    /* Weather icon from sprite atlas (clipped + rounded) */
+    lv_obj_t *icon_clip = lv_obj_create(wx_box);
+    lv_obj_set_pos(icon_clip, 16, 12);
+    lv_obj_set_size(icon_clip, WX_ICON_SIZE, WX_ICON_SIZE);
+    lv_obj_set_style_radius(icon_clip, WX_ICON_SIZE / 2, 0);
+    lv_obj_set_style_bg_opa(icon_clip, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(icon_clip, 0, 0);
+    lv_obj_set_style_pad_all(icon_clip, 0, 0);
+    lv_obj_set_scrollbar_mode(icon_clip, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_clear_flag(icon_clip, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(icon_clip, LV_OBJ_FLAG_GESTURE_BUBBLE | LV_OBJ_FLAG_EVENT_BUBBLE);
+
+    img_wx_icon = lv_image_create(icon_clip);
+    lv_image_set_src(img_wx_icon, &wx_icons_atlas);
+    lv_obj_add_flag(img_wx_icon, LV_OBJ_FLAG_GESTURE_BUBBLE | LV_OBJ_FLAG_EVENT_BUBBLE);
+
+    lbl_wx_temp = lv_label_create(wx_box);
+    lv_label_set_text(lbl_wx_temp, "--\xC2\xB0""C");
+    lv_obj_set_style_text_color(lbl_wx_temp, C_TEXT, 0);
+    lv_obj_set_style_text_font(lbl_wx_temp, &font_cz_22, 0);
+    lv_obj_set_pos(lbl_wx_temp, 96, 10);
+
+    lbl_wx_summary = lv_label_create(wx_box);
+    lv_label_set_text(lbl_wx_summary, "");
+    lv_obj_set_style_text_color(lbl_wx_summary, C_TEXT_DIM, 0);
+    lv_obj_set_style_text_font(lbl_wx_summary, &font_cz_16, 0);
+    lv_obj_set_pos(lbl_wx_summary, 96, 46);
+
+    lbl_wx_detail = lv_label_create(wx_box);
+    lv_label_set_text(lbl_wx_detail, "");
+    lv_obj_set_style_text_color(lbl_wx_detail, C_TEXT_DIM, 0);
+    lv_obj_set_style_text_font(lbl_wx_detail, &font_cz_12, 0);
+    lv_obj_set_pos(lbl_wx_detail, 96, 78);
+
+    // Forecast chart card
+    lv_obj_t *chart_box = make_card_box(scr, 16, 260, 688, 434);
+    lv_obj_set_style_pad_all(chart_box, 0, 0);
+
+    home_chart_img = lv_image_create(chart_box);
     lv_obj_set_pos(home_chart_img, 0, 0);
     lv_obj_add_flag(home_chart_img, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(home_chart_img, LV_OBJ_FLAG_GESTURE_BUBBLE | LV_OBJ_FLAG_EVENT_BUBBLE);
 
-    lv_obj_t *wx_loading = lv_label_create(wx_box);
-    lv_label_set_text(wx_loading, "Nacitani predpovedi...");
-    lv_obj_set_style_text_color(wx_loading, C_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(wx_loading, &lv_font_montserrat_12, 0);
-    lv_obj_align(wx_loading, LV_ALIGN_CENTER, 0, 0);
 
     create_footer(scr, 0);
 }
@@ -456,9 +479,33 @@ static void update_ui(void)
     update_mode_visuals();
 }
 
+/* ── Weather MQTT ── */
+static void weather_mqtt_handler(const char *topic, int tl, const char *data, int dl)
+{
+    char val[32]; int len = dl < 31 ? dl : 31;
+    memcpy(val, data, len); val[len] = '\0';
+    if (tl <= 16) return;
+    const char *k = topic + 16; int kl = tl - 16;
+    #define W(s) (kl == (int)strlen(s) && memcmp(k, s, kl) == 0)
+    if      (W("temperature")) snprintf(wx.temperature, 16, "%s\xC2\xB0""C", val);
+    else if (W("summary"))     { strncpy(wx.summary, val, 31); wx.summary[31] = '\0'; }
+    else if (W("icon"))        wx.icon = atoi(val);
+    else if (W("wind"))        { strncpy(wx.wind, val, 15); wx.wind[15] = '\0'; }
+    else if (W("precip"))      { strncpy(wx.precip, val, 7); wx.precip[7] = '\0'; }
+    else if (W("humidity"))    { strncpy(wx.humidity, val, 7); wx.humidity[7] = '\0'; }
+    else return;
+    wx_dirty = true;
+    #undef W
+}
+
 /* ── MQTT ── */
 static void mqtt_data_handler(const char *topic, int tl, const char *data, int dl)
 {
+    // Route weather topics
+    if (tl > 16 && memcmp(topic, "homehab/weather/", 16) == 0) {
+        weather_mqtt_handler(topic, tl, data, dl);
+        return;
+    }
     char val[32]; int len = dl < 31 ? dl : 31;
     memcpy(val, data, len); val[len] = '\0';
     if (tl <= 14) return;
@@ -503,6 +550,7 @@ static void mqtt_event_handler(void *a, esp_event_base_t b, int32_t id, void *d)
         esp_mqtt_client_subscribe(ev->client, "homehab/state/temporaryManualMode", 0);
         esp_mqtt_client_subscribe(ev->client, "homehab/state/temporaryBoostMode", 0);
         esp_mqtt_client_subscribe(ev->client, "homehab/state/bypass", 0);
+        esp_mqtt_client_subscribe(ev->client, "homehab/weather/#", 0);
         esp_mqtt_client_publish(ev->client, "homehab/panel/status", "online", 0, 1, 1);
         break;
     case MQTT_EVENT_DATA:
@@ -658,12 +706,10 @@ void app_main(void)
 
     // UI
     scr_home = lv_obj_create(NULL);
-    scr_forecast = screen_forecast_create();
-    lv_obj_add_event_cb(scr_forecast, on_gesture, LV_EVENT_GESTURE, NULL);
-    create_footer(scr_forecast, 1);
     scr_hrv = lv_obj_create(NULL);
     build_home(scr_home);
     screen_forecast_set_home_img(home_chart_img);
+    screen_forecast_init();
     build_hrv(scr_hrv);
     lv_screen_load(scr_home);
 
@@ -674,33 +720,41 @@ void app_main(void)
     // Chart fetch is started inside screen_forecast_create()
 
     // Loop
-    static const char *cz_days[] = {"Nedele","Pondeli","Utery","Streda","Ctvrtek","Patek","Sobota"};
-    static const char *cz_months[] = {"Ledna","Unora","Brezna","Dubna","Kvetna","Cervna","Cervence","Srpna","Zari","Rijna","Listopadu","Prosince"};
+    static const char *cz_days[] = {"Ned\xC4\x9Ble","Pond\xC4\x9Bl\xC3\xAD","\xC3\x9Ater\xC3\xBD","St\xC5\x99""eda","\xC4\x8Ctvrtek","P\xC3\xA1tek","Sobota"};
+    static const char *cz_months[] = {"ledna","\xC3\xBAnora","b\xC5\x99""ezna","dubna","kv\xC4\x9Btna","\xC4\x8Dervna","\xC4\x8Dervence","srpna","z\xC3\xA1\xC5\x99\xC3\xAD","\xC5\x99\xC3\xADjna","listopadu","prosince"};
     int last_sec = -1;
     bool date_needs_update = true;
     while (true) {
         update_ui();
         screen_forecast_update();
-        /* Home screen chart is updated via screen_forecast_update() above */
+        if (wx_dirty) {
+            wx_dirty = false;
+            int irow, icol;
+            wx_icon_pos(wx.icon, &irow, &icol);
+            lv_obj_set_pos(img_wx_icon, -(icol * WX_ICON_SIZE), -(irow * WX_ICON_SIZE));
+            lv_label_set_text(lbl_wx_temp, wx.temperature);
+            lv_label_set_text(lbl_wx_summary, wx.summary);
+            char detail[64];
+            snprintf(detail, 64, "Srazky: %s mm   Vlhkost: %s%%   Vitr: %s",
+                     wx.precip, wx.humidity, wx.wind);
+            lv_label_set_text(lbl_wx_detail, detail);
+        }
 
         // Clock update every second
         time_t now; time(&now); struct tm ti; localtime_r(&now, &ti);
         if (ti.tm_year > 124 && ti.tm_sec != last_sec) {
             last_sec = ti.tm_sec;
             char buf[64];
-            snprintf(buf, 32, "%02d:%02d", ti.tm_hour, ti.tm_min);
+            snprintf(buf, 64, "%s, %d. %s %02d:%02d:%02d",
+                cz_days[ti.tm_wday], ti.tm_mday, cz_months[ti.tm_mon],
+                ti.tm_hour, ti.tm_min, ti.tm_sec);
             lv_label_set_text(lbl_time, buf);
-            snprintf(buf, 32, ":%02d", ti.tm_sec);
-            lv_label_set_text(lbl_seconds, buf);
-            // Date + nameday on first run and every minute
+            // Nameday on first run and every minute
             if (date_needs_update || ti.tm_sec == 0) {
                 date_needs_update = false;
-                snprintf(buf, 64, "%s, %d. %s %d",
-                    cz_days[ti.tm_wday], ti.tm_mday, cz_months[ti.tm_mon], ti.tm_year + 1900);
-                lv_label_set_text(lbl_date, buf);
                 const char *name = nameday_get(ti.tm_mon + 1, ti.tm_mday);
                 if (name && name[0]) {
-                    snprintf(buf, 64, "Svatek ma: %s", name);
+                    snprintf(buf, 64, "Sv\xC3\xA1tek m\xC3\xA1: %s", name);
                     lv_label_set_text(lbl_nameday, buf);
                 }
             }
