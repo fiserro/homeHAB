@@ -17,6 +17,7 @@ static const char *TAG = "forecast";
 
 static lv_obj_t *img_chart = NULL;
 static lv_obj_t *lbl_status = NULL;
+static lv_obj_t *home_img = NULL;  /* Home screen chart widget (set externally) */
 
 /* Double buffer: fetch writes to pending, main loop swaps to active */
 static fetched_image_t active_img = {0};
@@ -55,6 +56,11 @@ void screen_forecast_update(void)
     lv_image_set_src(img_chart, &active_img.dsc);
     lv_obj_clear_flag(img_chart, LV_OBJ_FLAG_HIDDEN);
     lv_label_set_text(lbl_status, "");
+    /* Also update home screen chart */
+    if (home_img) {
+        lv_image_set_src(home_img, &active_img.dsc);
+        lv_obj_clear_flag(home_img, LV_OBJ_FLAG_HIDDEN);
+    }
     image_fetch_free(&old);
 
     ESP_LOGI(TAG, "Chart displayed %dx%d", active_img.width, active_img.height);
@@ -103,3 +109,8 @@ lv_obj_t *screen_forecast_create(void)
 }
 
 void screen_forecast_refresh(void) {}
+
+void screen_forecast_set_home_img(lv_obj_t *img)
+{
+    home_img = img;
+}

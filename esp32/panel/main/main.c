@@ -29,7 +29,6 @@
 #include <sys/time.h>
 #include "esp_sntp.h"
 #include "namedays.h"
-#include "weather.h"
 #include "screen_forecast.h"
 
 static const char *TAG = "panel";
@@ -88,13 +87,8 @@ static lv_obj_t *btn_minus, *btn_plus;
 
 // Home screen widgets
 static lv_obj_t *lbl_time, *lbl_seconds, *lbl_date, *lbl_nameday;
-// Weather: 12 hourly columns
-static lv_obj_t *wx_hour_lbl[WEATHER_MAX_HOURS];
-static lv_obj_t *wx_temp_lbl[WEATHER_MAX_HOURS];
-static lv_obj_t *wx_icon_lbl[WEATHER_MAX_HOURS];
-static lv_obj_t *wx_wind_lbl[WEATHER_MAX_HOURS];
-static weather_hour_t wx_hours[WEATHER_MAX_HOURS];
-static int wx_count = 0;
+// Weather chart image on home screen (shared with forecast screen)
+static lv_obj_t *home_chart_img = NULL;
 
 /* ── LVGL core callbacks ── */
 static void disp_flush(lv_display_t *d, const lv_area_t *a, uint8_t *px)
@@ -426,43 +420,20 @@ static void build_home(lv_obj_t *scr)
     lv_obj_set_style_text_font(lbl_nameday, &lv_font_montserrat_16, 0);
     lv_obj_align(lbl_nameday, LV_ALIGN_CENTER, 0, 18);
 
-    // Weather forecast card - 12 hourly columns
-    lv_obj_t *wx_box = make_card_box(scr, 16, 354, 688, 320);
+    // Weather chart card
+    lv_obj_t *wx_box = make_card_box(scr, 16, 354, 688, 340);
+    lv_obj_set_style_pad_all(wx_box, 0, 0);
 
-    lv_obj_t *wx_title = lv_label_create(wx_box);
-    lv_label_set_text(wx_title, "Pocasi");
-    lv_obj_set_style_text_color(wx_title, C_TEXT, 0);
-    lv_obj_set_style_text_font(wx_title, &lv_font_montserrat_16, 0);
-    lv_obj_set_pos(wx_title, 20, 8);
+    home_chart_img = lv_image_create(wx_box);
+    lv_obj_set_pos(home_chart_img, 0, 0);
+    lv_obj_add_flag(home_chart_img, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(home_chart_img, LV_OBJ_FLAG_GESTURE_BUBBLE | LV_OBJ_FLAG_EVENT_BUBBLE);
 
-    int col_w = 56;  // 688 / 12 ≈ 57
-    for (int i = 0; i < WEATHER_MAX_HOURS; i++) {
-        int cx = 2 + i * col_w;
-
-        wx_hour_lbl[i] = lv_label_create(wx_box);
-        lv_label_set_text(wx_hour_lbl[i], "--");
-        lv_obj_set_style_text_color(wx_hour_lbl[i], C_TEXT_DIM, 0);
-        lv_obj_set_style_text_font(wx_hour_lbl[i], &lv_font_montserrat_12, 0);
-        lv_obj_set_pos(wx_hour_lbl[i], cx + 10, 36);
-
-        wx_icon_lbl[i] = lv_label_create(wx_box);
-        lv_label_set_text(wx_icon_lbl[i], "");
-        lv_obj_set_style_text_color(wx_icon_lbl[i], C_TEXT_DIM, 0);
-        lv_obj_set_style_text_font(wx_icon_lbl[i], &lv_font_montserrat_16, 0);
-        lv_obj_set_pos(wx_icon_lbl[i], cx + 10, 56);
-
-        wx_temp_lbl[i] = lv_label_create(wx_box);
-        lv_label_set_text(wx_temp_lbl[i], "");
-        lv_obj_set_style_text_color(wx_temp_lbl[i], C_TEXT, 0);
-        lv_obj_set_style_text_font(wx_temp_lbl[i], &lv_font_montserrat_12, 0);
-        lv_obj_set_pos(wx_temp_lbl[i], cx + 4, 80);
-
-        wx_wind_lbl[i] = lv_label_create(wx_box);
-        lv_label_set_text(wx_wind_lbl[i], "");
-        lv_obj_set_style_text_color(wx_wind_lbl[i], C_TEXT_DIM, 0);
-        lv_obj_set_style_text_font(wx_wind_lbl[i], &lv_font_montserrat_8, 0);
-        lv_obj_set_pos(wx_wind_lbl[i], cx + 4, 100);
-    }
+    lv_obj_t *wx_loading = lv_label_create(wx_box);
+    lv_label_set_text(wx_loading, "Nacitani predpovedi...");
+    lv_obj_set_style_text_color(wx_loading, C_TEXT_DIM, 0);
+    lv_obj_set_style_text_font(wx_loading, &lv_font_montserrat_12, 0);
+    lv_obj_align(wx_loading, LV_ALIGN_CENTER, 0, 0);
 
     create_footer(scr, 0);
 }
@@ -651,25 +622,7 @@ static void eth_init(void)
     esp_eth_start(eh);
 }
 
-/* ── Weather task ── */
-static volatile bool weather_dirty = false;
-
-static void weather_task(void *arg)
-{
-    vTaskDelay(pdMS_TO_TICKS(10000));
-    while (1) {
-        weather_hour_t tmp[WEATHER_MAX_HOURS];
-        int cnt = 0;
-        if (weather_fetch(tmp, WEATHER_MAX_HOURS, &cnt) == 0 && cnt > 0) {
-            memcpy(wx_hours, tmp, sizeof(tmp));
-            wx_count = cnt;
-            weather_dirty = true;
-        }
-        vTaskDelay(pdMS_TO_TICKS(600000));
-    }
-}
-
-/* Forecast refresh task is managed by screen_forecast module */
+/* Forecast chart fetch is managed by screen_forecast module */
 
 /* ── Main ── */
 void app_main(void)
@@ -710,6 +663,7 @@ void app_main(void)
     create_footer(scr_forecast, 1);
     scr_hrv = lv_obj_create(NULL);
     build_home(scr_home);
+    screen_forecast_set_home_img(home_chart_img);
     build_hrv(scr_hrv);
     lv_screen_load(scr_home);
 
@@ -717,9 +671,7 @@ void app_main(void)
     xTaskCreate(mqtt_task, "mqtt", 8192, NULL, 1, NULL);
 
     // Weather fetch task
-    xTaskCreate(weather_task, "weather", 8192, NULL, 1, NULL);
-
-    // Forecast chart fetch is started inside screen_forecast_create()
+    // Chart fetch is started inside screen_forecast_create()
 
     // Loop
     static const char *cz_days[] = {"Nedele","Pondeli","Utery","Streda","Ctvrtek","Patek","Sobota"};
@@ -729,31 +681,7 @@ void app_main(void)
     while (true) {
         update_ui();
         screen_forecast_update();
-        if (weather_dirty) {
-            weather_dirty = false;
-            char buf[16];
-            for (int i = 0; i < wx_count && i < WEATHER_MAX_HOURS; i++) {
-                snprintf(buf, 16, "%02d:00", wx_hours[i].hour);
-                lv_label_set_text(wx_hour_lbl[i], buf);
-
-                // Icon: sun/moon/cloud/rain symbols
-                const char *sym;
-                int ic = wx_hours[i].icon;
-                if (ic <= 3) sym = LV_SYMBOL_IMAGE;           // sun
-                else if (ic <= 6) sym = LV_SYMBOL_EYE_CLOSE;  // cloudy
-                else if (ic <= 12) sym = LV_SYMBOL_TINT;      // rain
-                else if (ic <= 17) sym = LV_SYMBOL_DOWNLOAD;  // snow
-                else if (ic <= 26) sym = LV_SYMBOL_IMAGE;     // night clear
-                else sym = LV_SYMBOL_EYE_CLOSE;               // night cloudy
-                lv_label_set_text(wx_icon_lbl[i], sym);
-
-                snprintf(buf, 16, "%.0f\xC2\xB0", wx_hours[i].temperature);
-                lv_label_set_text(wx_temp_lbl[i], buf);
-
-                snprintf(buf, 16, "%.0f %s", wx_hours[i].wind_speed, wx_hours[i].wind_dir);
-                lv_label_set_text(wx_wind_lbl[i], buf);
-            }
-        }
+        /* Home screen chart is updated via screen_forecast_update() above */
 
         // Clock update every second
         time_t now; time(&now); struct tm ti; localtime_r(&now, &ti);
