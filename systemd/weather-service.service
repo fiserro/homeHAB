@@ -1,0 +1,26 @@
+[Unit]
+Description=Weather Service - Meteosource API to InfluxDB/MQTT
+After=network-online.target mosquitto.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/local/bin/weather-service \
+    --mqtt-host localhost \
+    --influx-url http://localhost:8086 \
+    --influx-token ${INFLUX_TOKEN} \
+    --influx-org homehab \
+    --influx-bucket weather \
+    --api-key ${METEOSOURCE_API_KEY} \
+    --http-port 3030 \
+    --verbose
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+EnvironmentFile=/etc/weather-service.env
+
+[Install]
+WantedBy=multi-user.target

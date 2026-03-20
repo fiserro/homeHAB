@@ -30,6 +30,7 @@
 #include "esp_sntp.h"
 #include "namedays.h"
 #include "weather.h"
+#include "screen_forecast.h"
 
 static const char *TAG = "panel";
 
@@ -73,8 +74,11 @@ static struct {
 };
 
 /* ── LVGL widgets ── */
-static lv_obj_t *scr_home, *scr_hrv;
+static lv_obj_t *scr_home, *scr_forecast, *scr_hrv;
 static int current_screen = 0;
+#define SCREEN_HOME 0
+#define SCREEN_FORECAST 1
+#define SCREEN_HRV 2
 static lv_obj_t *lbl_outdoor, *lbl_supply, *lbl_extract, *lbl_exhaust;
 static lv_obj_t *lbl_room, *lbl_humidity, *lbl_co2, *lbl_pressure;
 static lv_obj_t *lbl_power;
@@ -112,19 +116,29 @@ static void touch_read(lv_indev_t *inv, lv_indev_data_t *d)
 static void on_gesture(lv_event_t *e)
 {
     lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_active());
-    if (dir == LV_DIR_LEFT && current_screen == 0) {
-        current_screen = 1;
-        lv_screen_load_anim(scr_hrv, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, false);
-    } else if (dir == LV_DIR_RIGHT && current_screen == 1) {
-        current_screen = 0;
-        lv_screen_load_anim(scr_home, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, false);
+    if (dir == LV_DIR_LEFT) {
+        if (current_screen == SCREEN_HOME) {
+            current_screen = SCREEN_FORECAST;
+            lv_screen_load_anim(scr_forecast, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, false);
+        } else if (current_screen == SCREEN_FORECAST) {
+            current_screen = SCREEN_HRV;
+            lv_screen_load_anim(scr_hrv, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, false);
+        }
+    } else if (dir == LV_DIR_RIGHT) {
+        if (current_screen == SCREEN_HRV) {
+            current_screen = SCREEN_FORECAST;
+            lv_screen_load_anim(scr_forecast, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, false);
+        } else if (current_screen == SCREEN_FORECAST) {
+            current_screen = SCREEN_HOME;
+            lv_screen_load_anim(scr_home, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, false);
+        }
     }
 }
 
 /* ── Page dots ── */
 static void create_footer(lv_obj_t *parent, int active)
 {
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 3; i++) {
         lv_obj_t *d = lv_obj_create(parent);
         lv_obj_set_size(d, 8, 8);
         lv_obj_set_style_radius(d, 4, 0);
@@ -133,7 +147,7 @@ static void create_footer(lv_obj_t *parent, int active)
         lv_obj_set_style_bg_color(d, (i == active) ? C_TEXT : lv_color_hex(0x444444), 0);
         lv_obj_set_style_bg_opa(d, LV_OPA_COVER, 0);
         lv_obj_clear_flag(d, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_set_pos(d, 350 + i * 18, 704);
+        lv_obj_set_pos(d, 333 + i * 18, 704);
     }
 }
 
@@ -358,7 +372,7 @@ static void build_hrv(lv_obj_t *scr)
     lv_obj_set_style_bg_color(power_bar, C_BAR_IND, LV_PART_INDICATOR);
     lv_obj_set_style_radius(power_bar, 6, LV_PART_INDICATOR);
 
-    create_footer(scr, 1);
+    create_footer(scr, 2);
 }
 
 /* ── Build Home Screen (clock, date, nameday, weather) ── */
@@ -655,6 +669,8 @@ static void weather_task(void *arg)
     }
 }
 
+/* Forecast refresh task is managed by screen_forecast module */
+
 /* ── Main ── */
 void app_main(void)
 {
@@ -689,6 +705,9 @@ void app_main(void)
 
     // UI
     scr_home = lv_obj_create(NULL);
+    scr_forecast = screen_forecast_create();
+    lv_obj_add_event_cb(scr_forecast, on_gesture, LV_EVENT_GESTURE, NULL);
+    create_footer(scr_forecast, 1);
     scr_hrv = lv_obj_create(NULL);
     build_home(scr_home);
     build_hrv(scr_hrv);
@@ -700,6 +719,8 @@ void app_main(void)
     // Weather fetch task
     xTaskCreate(weather_task, "weather", 8192, NULL, 1, NULL);
 
+    // Forecast chart fetch is started inside screen_forecast_create()
+
     // Loop
     static const char *cz_days[] = {"Nedele","Pondeli","Utery","Streda","Ctvrtek","Patek","Sobota"};
     static const char *cz_months[] = {"Ledna","Unora","Brezna","Dubna","Kvetna","Cervna","Cervence","Srpna","Zari","Rijna","Listopadu","Prosince"};
@@ -707,6 +728,7 @@ void app_main(void)
     bool date_needs_update = true;
     while (true) {
         update_ui();
+        screen_forecast_update();
         if (weather_dirty) {
             weather_dirty = false;
             char buf[16];

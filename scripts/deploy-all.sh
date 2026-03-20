@@ -58,6 +58,9 @@ print_env_info
 # Step 6: Deploy Python Bridge (prod only, if enabled)
 "$SCRIPT_DIR/deploy-python-bridge.sh" "$ENV"
 
+# Step 6b: Deploy Weather Service (prod only, if enabled)
+"$SCRIPT_DIR/deploy-weather-service.sh" "$ENV"
+
 # Step 7: Deploy ESP32 Panel
 if [ "$SKIP_PANEL" = true ]; then
     print_step "Deploying ESP32 Panel"
@@ -84,6 +87,9 @@ echo "  - OpenHAB JAR"
 echo "  - UI Pages"
 if [ "${PYTHON_DEPLOY_ENABLED:-false}" = "true" ]; then
     echo "  - Python HRV Bridge"
+fi
+if [ "${WEATHER_DEPLOY_ENABLED:-false}" = "true" ]; then
+    echo "  - Weather Service"
 fi
 if [ "$SKIP_PANEL" != true ]; then
     echo "  - ESP32 Panel (compiled)"

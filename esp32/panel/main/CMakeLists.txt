@@ -1,5 +1,5 @@
 idf_component_register(
-    SRCS main.c namedays.c weather.c
+    SRCS main.c namedays.c weather.c screen_forecast.c image_fetch.c
     INCLUDE_DIRS .
     PRIV_REQUIRES esp_http_server esp_http_client app_update esp_eth esp_netif esp_event mqtt esp_timer esp_lcd
                   espressif__esp_lcd_touch espressif__esp_lcd_touch_gt911
