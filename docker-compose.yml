@@ -37,15 +37,8 @@ services:
       - EXTRA_JAVA_OPTS=${EXTRA_JAVA_OPTS}
       - JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-arm64
       - PATH=/usr/lib/jvm/temurin-21-jdk-arm64/bin:$PATH
-    extra_hosts:
-      - "zigbee.home:192.168.1.132"
-      - "openhab.home:192.168.1.132"
-      - "grafana.home:192.168.1.132"
-      - "rpi.local:192.168.1.132"
-
-  # === Optional: Local MQTT Simulator ===
-  # Use for testing edge cases (smoke alarm, high CO2) without real hardware
-  # Requires changing mqtt.things: host="mosquitto" instead of host="zigbee.home"
+  # === MQTT Simulator (dev only) ===
+  # Publishes fake sensor data to local Mosquitto for testing
 
   mosquitto:
     container_name: ${COMPOSE_PROJECT_NAME}-mosquitto

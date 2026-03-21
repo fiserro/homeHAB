@@ -59,64 +59,24 @@ This creates two JARs in `target/`:
 The development workflow follows these steps:
 
 1. **Develop & Build** - Write code and build fat JAR with Maven
-2. **Deploy to Dev** - Copy JAR and rules to local Docker OpenHAB
-3. **Test & Debug** - Verify functionality using shared MQTT broker with real sensors
-4. **Deploy to Prod** - When stable, deploy to production Raspberry Pi via SSH
+2. **Deploy to Dev** - `./scripts/deploy-all.sh dev`
+3. **Test & Debug** - Verify functionality using local MQTT broker with simulated sensors
+4. **Deploy to Prod** - `./scripts/deploy-all.sh prod`
 
-### Shared MQTT Broker Architecture
+### Isolated Environments
 
-The development and production environments share a common MQTT broker:
-- **Mosquitto** runs on Raspberry Pi (`zigbee.home:1883`)
-- **Both environments** use the same topic prefix `homehab/`
-- **HRV Bridge** (Python on RPi) serves both dev and prod OpenHAB
+Development and production are **fully isolated** — they do not share any services:
 
-**Benefit**: Development environment can use **real sensors** and **real HRV control** without needing to mock them. This is essential for testing hardware-dependent features like PWM calibration.
+- **Dev**: Local Docker Compose with its own Mosquitto, mqtt-simulator for fake sensor data
+- **Prod**: RPi with Docker Compose, real Zigbee sensors, real HRV hardware
 
-#### MQTT Client IDs
+There is no risk of dev commands affecting production hardware.
 
-Each OpenHAB instance must use a unique `clientId` to connect to the same broker:
-- **Production**: `clientid="homehab-prod"` (in `/etc/openhab/conf/things/mqtt.things`)
-- **Development**: `clientid="homehab-dev"` (in `openhab-dev/conf/things/mqtt.things`)
+The `controlEnabled` flag in `CommonModule` can disable all control outputs (HRV, lights, heating, etc.) for safety.
 
-If two clients connect with the same `clientId`, the broker disconnects the first one.
+### MQTT Simulator (Dev)
 
-#### Topic Prefix vs Client ID
-
-These are independent concepts:
-- **Client ID** - Identifies the connection (prevents duplicate connections)
-- **Topic prefix** - Namespace for messages (both use `homehab/`)
-
-Since both use the same topic prefix, commands from either OpenHAB affect the real hardware.
-
-#### Development Best Practice
-
-When testing on dev that sends commands to HW (e.g., PWM calibration):
-1. Set `controlEnabled=OFF` on production OpenHAB
-2. This puts prod in read-only mode - calculations run but no commands are sent
-3. After testing, set `controlEnabled=ON` to restore automatic control
-
-The `controlEnabled` flag is in `CommonModule` and applies to all control systems (HRV, lights, heating, etc.). This prevents race conditions between dev and prod when both are connected to the same MQTT broker.
-
-#### Optional Local Simulator
-
-For testing edge cases (smoke alarm, high CO2) without real hardware, a local simulator is available:
-
-```bash
-# Start local MQTT broker and device simulator
-docker-compose up -d mosquitto mqtt-simulator
-
-# Change mqtt.things to use local broker
-# host="mosquitto" instead of host="zigbee.home"
-
-# Simulated devices publish to zigbee2mqtt/<device> topics
-# Configuration: mqtt-simulator/devices.yaml
-```
-
-To switch back to production:
-```bash
-docker-compose stop mosquitto mqtt-simulator
-# Change mqtt.things back to host="zigbee.home"
-```
+Dev uses `mqtt-simulator` to publish fake sensor data to the local Mosquitto. Configured in `mqtt-simulator/devices.yaml`. Useful for testing edge cases (smoke alarm, high CO2) without real hardware.
 
 ## Deployment
 
@@ -165,24 +125,24 @@ This process:
 
 **Docker commands:**
 ```bash
-# Start OpenHAB
-docker-compose up -d
+# Start all dev services
+docker compose --profile dev up -d
 
 # View logs
-docker-compose logs -f openhab
+docker compose --profile dev logs -f openhab
 
 # Restart OpenHAB (to reload changes)
-docker-compose restart openhab
+docker compose --profile dev restart openhab
 
-# Stop OpenHAB
-docker-compose down
+# Stop all
+docker compose --profile dev down
 ```
 
 **Dev environment configuration:**
-- Configuration: `.env.dev` (symlinked via `.env`)
+- Configuration: `.env.dev`
 - Web UI: http://localhost:8888
 - HTTPS: https://localhost:8889
-- MQTT: `openhab.home:1883` (shared with prod)
+- MQTT: local Docker Mosquitto (isolated from production)
   - Topic prefix: `homehab/`
 
 ### Production Environment (Remote OpenHABian)
@@ -191,20 +151,17 @@ Production runs on **Raspberry Pi** at `openhab.home` with OpenHABian.
 
 **Deployment:**
 ```bash
-# Deploy to production Raspberry Pi
-./deploy.sh prod
-```
+# Deploy everything to production Raspberry Pi
+./scripts/deploy-all.sh prod
 
-This script:
-1. Loads configuration from `.env.prod`
-2. Builds fat JAR
-3. Deploys via SSH/SCP to `openhab.home`
-4. Copies to `/etc/openhab/automation/lib/java/` on RPi
+# Deploy only Docker services
+./scripts/deploy-docker.sh prod
+```
 
 **Production configuration:**
 - Requires `.env.prod` file (see `.env.prod.example`)
-- MQTT: `localhost:1883` (Mosquitto runs on same RPi)
-  - Client ID: `homehab-prod`
+- All services run in Docker except OpenHAB (native OpenHABian)
+- MQTT: Docker Mosquitto on port 1883
   - Topic prefix: `homehab/`
 
 ### Manual Deployment
