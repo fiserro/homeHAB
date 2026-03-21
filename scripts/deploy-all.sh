@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Deploy all homeHAB components
-# Usage: ./deploy-all.sh [dev|prod] [--skip-panel] [--skip-restart]
+# Usage: ./deploy-all.sh [dev|prod] [--skip-panel] [--skip-restart] [--skip-docker]
 
 set -e
 
@@ -13,6 +13,7 @@ source "$SCRIPT_DIR/common.sh"
 ENV="${1:-dev}"
 SKIP_PANEL=false
 SKIP_RESTART=false
+SKIP_DOCKER=false
 
 shift || true
 while [[ $# -gt 0 ]]; do
@@ -25,6 +26,10 @@ while [[ $# -gt 0 ]]; do
             SKIP_RESTART=true
             shift
             ;;
+        --skip-docker)
+            SKIP_DOCKER=true
+            shift
+            ;;
         *)
             shift
             ;;
@@ -34,16 +39,16 @@ done
 # Change to project root
 cd "$PROJECT_ROOT"
 
-echo -e "${BLUE}=== homeHAB Deploy All ===${NC}"
+echo -e "${BLUE}=== homeHAB Deploy All ($ENV) ===${NC}"
 
 # Load and validate environment
 load_env "$ENV" || exit 1
 print_env_info
 
-# Step 1: Build
+# Step 1: Maven build (JAR)
 "$SCRIPT_DIR/deploy-build.sh"
 
-# Step 2: Generator
+# Step 2: Generator (items, things, UI configs)
 "$SCRIPT_DIR/deploy-generator.sh" "$ENV"
 
 # Step 3: Deploy configs (items, things)
@@ -55,11 +60,13 @@ print_env_info
 # Step 5: Deploy UI Pages
 "$SCRIPT_DIR/deploy-ui-pages.sh" "$ENV"
 
-# Step 6: Deploy Python Bridge (prod only, if enabled)
-"$SCRIPT_DIR/deploy-python-bridge.sh" "$ENV"
-
-# Step 6b: Deploy Weather Service (prod only, if enabled)
-"$SCRIPT_DIR/deploy-weather-service.sh" "$ENV"
+# Step 6: Docker services (build images, transfer, start)
+if [ "$SKIP_DOCKER" = true ]; then
+    print_step "Deploying Docker services"
+    print_skip "Docker deployment (--skip-docker)"
+else
+    "$SCRIPT_DIR/deploy-docker.sh" "$ENV"
+fi
 
 # Step 7: Deploy ESP32 Panel
 if [ "$SKIP_PANEL" = true ]; then
@@ -69,7 +76,7 @@ else
     "$SCRIPT_DIR/deploy-panel.sh" --compile-only
 fi
 
-# Step 8: Restart services
+# Step 8: Restart OpenHAB (only native service left)
 if [ "$SKIP_RESTART" = true ]; then
     print_step "Restarting services"
     print_skip "Service restart (--skip-restart)"
@@ -85,11 +92,8 @@ echo -e "${BLUE}Deployed components:${NC}"
 echo "  - Generated configs (items, things)"
 echo "  - OpenHAB JAR"
 echo "  - UI Pages"
-if [ "${PYTHON_DEPLOY_ENABLED:-false}" = "true" ]; then
-    echo "  - Python HRV Bridge"
-fi
-if [ "${WEATHER_DEPLOY_ENABLED:-false}" = "true" ]; then
-    echo "  - Weather Service"
+if [ "$SKIP_DOCKER" != true ]; then
+    echo "  - Docker services (Mosquitto, InfluxDB, Grafana, Nginx, Zigbee2MQTT, HRV Bridge, Weather Service, cloudflared)"
 fi
 if [ "$SKIP_PANEL" != true ]; then
     echo "  - ESP32 Panel (compiled)"
@@ -100,8 +104,9 @@ echo -e "${BLUE}Useful commands:${NC}"
 if is_remote_deploy; then
     parse_remote_target
     echo "  - OpenHAB logs: ssh $REMOTE_USER_HOST 'sudo journalctl -u openhab -f'"
-    echo "  - HRV Bridge logs: ssh $REMOTE_USER_HOST 'sudo journalctl -u ${PYTHON_SERVICE_NAME:-hrv-bridge} -f'"
+    echo "  - Docker logs:  ssh $REMOTE_USER_HOST 'docker logs -f homehab-<service>'"
+    echo "  - Docker status: ssh $REMOTE_USER_HOST 'docker ps'"
 else
-    echo "  - OpenHAB logs: docker-compose logs -f openhab"
-    echo "  - Panel logs: esphome logs esp32-panel/hrv-panel.yaml"
+    echo "  - OpenHAB logs: docker compose --profile dev logs -f openhab"
+    echo "  - Docker status: docker compose --profile dev ps"
 fi

@@ -150,6 +150,63 @@ services:
       - MQTT_HOST=mosquitto
       - MQTT_PORT=1883
 
+  # === HRV Bridge (production only - needs GPIO/SPI/1-Wire) ===
+
+  hrv-bridge:
+    container_name: ${COMPOSE_PROJECT_NAME}-hrv-bridge
+    build:
+      context: ./src/main/python
+      dockerfile: Dockerfile
+    image: homehab-hrv-bridge:latest
+    restart: unless-stopped
+    profiles: ["prod"]
+    privileged: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - /sys:/sys:ro
+    command:
+      - --mqtt-host
+      - host.docker.internal
+      - --gpio17
+      - "5"
+      - --gpio12
+      - "12"
+      - --gpio13
+      - "13"
+      - --verbose
+
+  # === Weather Service ===
+
+  weather-service:
+    container_name: ${COMPOSE_PROJECT_NAME}-weather
+    build:
+      context: ./src/main/python/weather_service
+      dockerfile: Dockerfile
+    image: homehab-weather:latest
+    restart: unless-stopped
+    profiles: ["prod"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command:
+      - --mqtt-host
+      - host.docker.internal
+      - --influx-url
+      - http://host.docker.internal:8086
+      - --influx-token
+      - ${INFLUX_TOKEN}
+      - --influx-org
+      - homehab
+      - --influx-bucket
+      - weather
+      - --api-key
+      - ${METEOSOURCE_API_KEY}
+      - --http-port
+      - "3030"
+      - --verbose
+    ports:
+      - "3030:3030"
+
   # === Production: Cloudflare Tunnel ===
   # Remote access to services via fiserhub.fun
   # Requires: cloudflared tunnel login + tunnel create (see docs/CLOUDFLARE-TUNNEL.md)
