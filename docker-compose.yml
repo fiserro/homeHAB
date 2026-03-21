@@ -102,6 +102,17 @@ services:
     environment:
       - ENABLE_METRICS=false
 
+  # === Nginx reverse proxy + landing page (production only) ===
+
+  nginx:
+    container_name: ${COMPOSE_PROJECT_NAME}-nginx
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    profiles: ["prod"]
+    network_mode: host
+    volumes:
+      - ${NGINX_SITES:-./nginx}:/etc/nginx/conf.d:ro
+
   # === Zigbee2MQTT (production only) ===
 
   zigbee2mqtt:
