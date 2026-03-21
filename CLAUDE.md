@@ -76,7 +76,7 @@ The `controlEnabled` flag in `CommonModule` can disable all control outputs (HRV
 
 ### MQTT Simulator (Dev)
 
-Dev uses `mqtt-simulator` to publish fake sensor data to the local Mosquitto. Configured in `mqtt-simulator/devices.yaml`. Useful for testing edge cases (smoke alarm, high CO2) without real hardware.
+Dev uses `mqtt-simulator` to publish fake sensor data to the local Mosquitto. Configured in `src/main/python/mqtt_simulator/devices.yaml`. Useful for testing edge cases (smoke alarm, high CO2) without real hardware.
 
 ## Deployment
 

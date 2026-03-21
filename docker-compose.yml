@@ -132,11 +132,11 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME}-mqtt-simulator
     profiles: ["dev"]
     build:
-      context: ./mqtt-simulator
+      context: ./src/main/python/mqtt_simulator
       dockerfile: Dockerfile
     restart: unless-stopped
     volumes:
-      - ./mqtt-simulator/devices.yaml:/app/devices.yaml
+      - ./src/main/python/mqtt_simulator/devices.yaml:/app/devices.yaml
     depends_on:
       - mosquitto
     environment:
