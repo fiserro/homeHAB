@@ -147,8 +147,9 @@ The HRV calculator uses priority-based decision tree:
 - [docs/MAIN-UI-PAGES.md](docs/MAIN-UI-PAGES.md) - OpenHAB Main UI pages guide
 
 ### Component Documentation
-- [esp32-panel/README.md](esp32-panel/README.md) - ESP32 touch panel (ESPHome, LVGL)
-- [src/main/python/README.md](src/main/python/README.md) - HRV Bridge (MQTT to PWM/DAC)
+- [esp32/panel/](esp32/panel/) - ESP32 touch panel (native ESP-IDF, LVGL)
+- [src/main/python/](src/main/python/) - Python services (HRV Bridge, Weather Service, MQTT Simulator)
+- [docs/CLOUDFLARE-TUNNEL.md](docs/CLOUDFLARE-TUNNEL.md) - Remote access via Cloudflare Tunnel
 - [openhab-dev/README.md](openhab-dev/README.md) - Docker development environment
 
 ## License

@@ -146,5 +146,5 @@ These topics publish OpenHAB item states for display on the ESP32 panel:
 - `openhab-dev/conf/things/panel-mqtt.things` - Panel commands thing
 - `openhab-dev/conf/automation/jsr223/PanelMqttBridge.java` - Panel state publishing
 - `openhab-dev/conf/html/pwm-settings.html` - PWM calibration UI
-- `esp32-panel/hrv-panel.yaml` - ESP32 panel firmware
+- `esp32/panel/` - ESP32 panel firmware (native ESP-IDF)
 - `docs/RPI-WIRING.md` - Raspberry Pi GPIO wiring documentation

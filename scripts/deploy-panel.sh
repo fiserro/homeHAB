@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Deploy ESP32 HRV Panel using ESPHome
+# Deploy ESP32 HRV Panel (native ESP-IDF)
 # Usage: ./deploy-panel.sh [--compile-only] [--device <ip>]
 
 set -e
@@ -15,9 +15,8 @@ cd "$PROJECT_ROOT"
 print_step "Deploying ESP32 Panel"
 
 # Configuration
-PANEL_DIR="esp32-panel"
-PANEL_CONFIG="hrv-panel.yaml"
-DEFAULT_DEVICE="hrv-panel.local"
+PANEL_DIR="esp32/panel"
+DEFAULT_DEVICE="panel.home"
 
 # Parse arguments
 COMPILE_ONLY=false
@@ -39,25 +38,17 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Check if ESPHome is installed
-if ! command -v esphome &> /dev/null; then
-    print_error "ESPHome is not installed"
-    echo "Install with: pip3 install esphome"
-    exit 1
-fi
-
-# Check if panel config exists
-if [ ! -f "$PANEL_DIR/$PANEL_CONFIG" ]; then
-    print_error "Panel config not found: $PANEL_DIR/$PANEL_CONFIG"
+# Check if panel directory exists
+if [ ! -f "$PANEL_DIR/CMakeLists.txt" ]; then
+    print_error "Panel project not found: $PANEL_DIR/CMakeLists.txt"
     exit 1
 fi
 
 cd "$PANEL_DIR"
 
 if [ "$COMPILE_ONLY" = true ]; then
-    # Compile only
     echo -e "${BLUE}Compiling ESP32 panel firmware...${NC}"
-    esphome compile "$PANEL_CONFIG"
+    idf.py build
 
     if [ $? -eq 0 ]; then
         print_success "Firmware compiled successfully"
@@ -66,18 +57,20 @@ if [ "$COMPILE_ONLY" = true ]; then
         exit 1
     fi
 else
-    # Compile and upload
-    echo -e "${BLUE}Compiling and uploading ESP32 panel firmware...${NC}"
+    echo -e "${BLUE}Compiling and flashing ESP32 panel firmware...${NC}"
 
-    # Compile and upload to device (default: hrv-panel.local)
-    # Use --no-logs to prevent blocking on log output after upload
-    echo -e "${BLUE}Uploading to ${DEVICE}...${NC}"
-    esphome run "$PANEL_CONFIG" --device "$DEVICE" --no-logs
+    if [ -f "ota-flash.sh" ]; then
+        ./ota-flash.sh "$DEVICE"
+    else
+        idf.py build
+        echo -e "${BLUE}Flashing to ${DEVICE}...${NC}"
+        idf.py -p "$DEVICE" flash
+    fi
 
     if [ $? -eq 0 ]; then
-        print_success "Panel firmware deployed"
+        print_success "Panel firmware deployed to $DEVICE"
     else
-        print_error "Upload failed"
+        print_error "Flash failed"
         exit 1
     fi
 fi
