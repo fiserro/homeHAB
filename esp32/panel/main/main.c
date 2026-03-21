@@ -104,6 +104,11 @@ static struct {
     int icon;
 } wx = { .temperature = "--", .summary = "--", .wind = "--", .precip = "--", .humidity = "--" };
 
+/* ── Display sleep ── */
+#define SLEEP_TIMEOUT_MS 60000
+static uint32_t last_touch_time = 0;
+static bool display_sleeping = false;
+
 /* ── LVGL core callbacks ── */
 static void disp_flush(lv_display_t *d, const lv_area_t *a, uint8_t *px)
 {
@@ -116,6 +121,11 @@ static void touch_read(lv_indev_t *inv, lv_indev_data_t *d)
     uint16_t x[1], y[1], s[1]; uint8_t cnt = 0;
     esp_lcd_touch_read_data(touch_handle);
     if (esp_lcd_touch_get_coordinates(touch_handle, x, y, s, &cnt, 1) && cnt > 0) {
+        last_touch_time = xTaskGetTickCount() * portTICK_PERIOD_MS;
+        if (display_sleeping) {
+            d->state = LV_INDEV_STATE_RELEASED;
+            return;
+        }
         d->point.x = x[0]; d->point.y = y[0]; d->state = LV_INDEV_STATE_PRESSED;
     } else { d->state = LV_INDEV_STATE_RELEASED; }
 }
@@ -712,6 +722,7 @@ void app_main(void)
     screen_forecast_init();
     build_hrv(scr_hrv);
     lv_screen_load(scr_home);
+    last_touch_time = xTaskGetTickCount() * portTICK_PERIOD_MS;
 
     // MQTT
     xTaskCreate(mqtt_task, "mqtt", 8192, NULL, 1, NULL);
@@ -757,6 +768,24 @@ void app_main(void)
                     snprintf(buf, 64, "Sv\xC3\xA1tek m\xC3\xA1: %s", name);
                     lv_label_set_text(lbl_nameday, buf);
                 }
+            }
+        }
+
+        /* Display sleep/wake */
+        {
+            uint32_t now_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+            if (display_sleeping) {
+                /* Poll touch directly for wake */
+                uint16_t tx[1], ty[1], ts[1]; uint8_t tc = 0;
+                esp_lcd_touch_read_data(touch_handle);
+                if (esp_lcd_touch_get_coordinates(touch_handle, tx, ty, ts, &tc, 1) && tc > 0) {
+                    display_sleeping = false;
+                    last_touch_time = now_ms;
+                    bsp_display_backlight_on();
+                }
+            } else if (last_touch_time > 0 && (now_ms - last_touch_time) > SLEEP_TIMEOUT_MS) {
+                display_sleeping = true;
+                bsp_display_backlight_off();
             }
         }
 

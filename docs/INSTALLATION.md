@@ -498,6 +498,23 @@ Open in browser:
 
 ---
 
+## Part 8: Remote Access (Cloudflare Tunnel)
+
+For accessing services from outside the local network, see [Cloudflare Tunnel Setup](CLOUDFLARE-TUNNEL.md).
+
+Domain `fiserhub.fun` (registered at Wedos) is routed through Cloudflare Tunnel running as a Docker container on RPi. No ports are opened on the router. No public IP address is required.
+
+| Public URL | Service |
+|---|---|
+| `https://fiserhub.fun` | Landing page with service links |
+| `https://openhab.fiserhub.fun` | OpenHAB |
+| `https://zigbee.fiserhub.fun` | Zigbee2MQTT |
+| `https://grafana.fiserhub.fun` | Grafana |
+
+All protected by Cloudflare Zero Trust Access with Google OAuth (+ One-time PIN for non-Google users).
+
+---
+
 ## Service Management
 
 ### Commands
@@ -510,7 +527,7 @@ Open in browser:
 | Status | `sudo systemctl status <service>` |
 | Logs | `sudo journalctl -u <service> -f` |
 
-Services: `openhab`, `zigbee2mqtt`, `mosquitto`, `nginx`
+Services: `openhab`, `zigbee2mqtt`, `mosquitto`, `nginx`, `cloudflared`
 
 ### Quick Reference
 

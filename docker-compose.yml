@@ -1,12 +1,14 @@
-# homeHAB Development Environment
-# Uses .env.dev configuration (via .env symlink)
+# homeHAB Docker Compose
+# Uses .env.dev or .env.prod configuration (via .env symlink)
 #
-# Default mode: OpenHAB connects to production MQTT (zigbee.home)
+# Dev mode: OpenHAB connects to production MQTT (zigbee.home)
 # Simulator mode: Start mosquitto + mqtt-simulator for edge case testing
+# Prod mode: Cloudflare Tunnel for remote access
 #
 # Usage:
 #   docker-compose up -d openhab influxdb grafana    # Normal dev (prod MQTT)
 #   docker-compose up -d                              # All services (local MQTT)
+#   docker-compose --profile prod up -d cloudflared   # Prod: Cloudflare Tunnel
 
 services:
 
@@ -115,3 +117,18 @@ services:
     environment:
       - MQTT_HOST=mosquitto
       - MQTT_PORT=1883
+
+  # === Production: Cloudflare Tunnel ===
+  # Remote access to services via fiserhub.fun
+  # Requires: cloudflared tunnel login + tunnel create (see docs/CLOUDFLARE-TUNNEL.md)
+
+  cloudflared:
+    container_name: homehab-cloudflared
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    profiles: ["prod"]
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./cloudflare/config.yml:/etc/cloudflared/config.yml:ro
+      - ~/.cloudflared:/home/nonroot/.cloudflared:ro
+    network_mode: host

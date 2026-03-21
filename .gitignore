@@ -84,6 +84,10 @@ esp32/panel/sdkconfig.old
 esp32/panel/managed_components/
 esp32/panel/dependencies.lock
 
+# Cloudflare Tunnel credentials
+cloudflare/*.json
+cloudflare/*.pem
+
 # Docker service data directories
 mosquitto/data/
 mosquitto/log/

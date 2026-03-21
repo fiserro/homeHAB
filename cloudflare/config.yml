@@ -1,0 +1,29 @@
+# Cloudflare Tunnel Configuration for homeHAB
+#
+# Runs as Docker container with --network host.
+# Credentials are mounted from ~/.cloudflared/ on RPi.
+#
+# See docs/CLOUDFLARE-TUNNEL.md for full setup guide
+
+tunnel: 74faf9e3-40ad-49e8-a7c5-409f102bcb7c
+credentials-file: /home/nonroot/.cloudflared/74faf9e3-40ad-49e8-a7c5-409f102bcb7c.json
+
+ingress:
+  # Landing page (served by Nginx default_server on port 80)
+  - hostname: fiserhub.fun
+    service: http://localhost:80
+
+  # OpenHAB - Home automation control
+  - hostname: openhab.fiserhub.fun
+    service: http://localhost:8080
+
+  # Zigbee2MQTT - Zigbee device management
+  - hostname: zigbee.fiserhub.fun
+    service: http://localhost:8081
+
+  # Grafana - Metrics and visualization
+  - hostname: grafana.fiserhub.fun
+    service: http://localhost:3000
+
+  # Catch-all rule (required by cloudflared)
+  - service: http_status:404
