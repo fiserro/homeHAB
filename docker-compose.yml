@@ -1,21 +1,20 @@
 # homeHAB Docker Compose
 # Uses .env.dev or .env.prod configuration (via .env symlink)
 #
-# Dev mode: OpenHAB connects to production MQTT (zigbee.home)
-# Simulator mode: Start mosquitto + mqtt-simulator for edge case testing
-# Prod mode: Cloudflare Tunnel for remote access
+# Dev:  docker compose --profile dev up -d
+# Prod: docker compose --profile prod up -d
 #
-# Usage:
-#   docker-compose up -d openhab influxdb grafana    # Normal dev (prod MQTT)
-#   docker-compose up -d                              # All services (local MQTT)
-#   docker-compose --profile prod up -d cloudflared   # Prod: Cloudflare Tunnel
+# Shared services (no profile): mosquitto, influxdb, grafana, renderer
+# Dev-only: openhab, mqtt-simulator
+# Prod-only: cloudflared, zigbee2mqtt
 
 services:
 
-  # === Core Services (always running) ===
+  # === OpenHAB (dev only - prod runs natively via OpenHABian) ===
 
   openhab:
     container_name: ${COMPOSE_PROJECT_NAME}-server
+    profiles: ["dev"]
     build:
       context: .
       dockerfile: Dockerfile
@@ -53,23 +52,23 @@ services:
     image: eclipse-mosquitto:2
     restart: unless-stopped
     ports:
-      - "1883:1883"
+      - "${MOSQUITTO_PORT:-1883}:1883"
     volumes:
-      - ./mosquitto/config:/mosquitto/config
-      - ./mosquitto/data:/mosquitto/data
-      - ./mosquitto/log:/mosquitto/log
+      - ${MOSQUITTO_CONFIG:-./mosquitto/config/mosquitto.conf}:/mosquitto/config/mosquitto.conf:ro
+      - ${MOSQUITTO_DATA:-./mosquitto/data}:/mosquitto/data
+      - ${MOSQUITTO_LOG:-./mosquitto/log}:/mosquitto/log
 
-  # === Metrics & Visualization (always running) ===
+  # === Metrics & Visualization ===
 
   influxdb:
     container_name: ${COMPOSE_PROJECT_NAME}-influxdb
     image: influxdb:2
     restart: unless-stopped
     ports:
-      - "8086:8086"
+      - "${INFLUXDB_PORT:-8086}:8086"
     volumes:
-      - ./influxdb/data:/var/lib/influxdb2
-      - ./influxdb/config:/etc/influxdb2
+      - ${INFLUXDB_DATA:-./influxdb/data}:/var/lib/influxdb2
+      - ${INFLUXDB_CONFIG:-./influxdb/config}:/etc/influxdb2
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=admin
@@ -79,12 +78,13 @@ services:
 
   grafana:
     container_name: ${COMPOSE_PROJECT_NAME}-grafana
-    image: grafana/grafana:latest
+    image: grafana/grafana:${GRAFANA_VERSION:-latest}
     restart: unless-stopped
+    user: "${GRAFANA_USER:-472}"
     ports:
-      - "3030:3000"
+      - "${GRAFANA_PORT:-3030}:3000"
     volumes:
-      - ./grafana/data:/var/lib/grafana
+      - ${GRAFANA_DATA:-./grafana/data}:/var/lib/grafana
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_RENDERING_SERVER_URL=http://renderer:8081/render
@@ -102,10 +102,31 @@ services:
     environment:
       - ENABLE_METRICS=false
 
+  # === Zigbee2MQTT (production only) ===
+
+  zigbee2mqtt:
+    container_name: ${COMPOSE_PROJECT_NAME}-zigbee2mqtt
+    image: koenkk/zigbee2mqtt:${Z2M_VERSION:-latest}
+    restart: unless-stopped
+    profiles: ["prod"]
+    privileged: true
+    ports:
+      - "${Z2M_PORT:-8081}:8081"
+    volumes:
+      - ${Z2M_DATA:-/opt/zigbee2mqtt/data}:/app/data
+      - /run/udev:/run/udev:ro
+    devices:
+      - ${Z2M_DEVICE:-/dev/ttyUSB0}:/dev/ttyUSB0
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - TZ=Europe/Prague
+
   # === Optional: Local MQTT Simulator ===
 
   mqtt-simulator:
     container_name: ${COMPOSE_PROJECT_NAME}-mqtt-simulator
+    profiles: ["dev"]
     build:
       context: ./mqtt-simulator
       dockerfile: Dockerfile
