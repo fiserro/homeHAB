@@ -1,0 +1,5 @@
+// CO2 sensor calibration items (manual, not auto-generated)
+
+String co2Command "CO2 Command" { channel="mqtt:topic:mosquitto:hrv_bridge:co2_command" }
+String co2Status "CO2 Status" { channel="mqtt:topic:mosquitto:hrv_bridge:co2_status" }
+Number co2SensorTemperature "CO2 Sensor Temperature" { channel="mqtt:topic:mosquitto:hrv_bridge:co2_temp" }

@@ -33,7 +33,7 @@ class CO2Sensor:
     MH-Z19C CO2 sensor reader via UART.
     """
 
-    def __init__(self, port: str = '/dev/serial0'):
+    def __init__(self, port: str = '/dev/ttyAMA0'):
         """
         Initialize CO2 sensor.
 

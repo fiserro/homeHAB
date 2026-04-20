@@ -65,18 +65,34 @@ The development workflow follows these steps:
 
 ### Isolated Environments
 
-Development and production are **fully isolated** — they do not share any services:
+Development and production are **fully isolated** — they do not share any services. There is no risk of dev commands affecting production hardware.
 
-- **Dev**: Local Docker Compose with its own Mosquitto, mqtt-simulator for fake sensor data
-- **Prod**: RPi with Docker Compose, real Zigbee sensors, real HRV hardware
+| Service | Dev | Prod |
+|---|---|---|
+| OpenHAB | Docker | Native (OpenHABian systemd) |
+| Mosquitto | Docker | Docker |
+| InfluxDB | Docker | Docker |
+| Grafana + Renderer | Docker | Docker |
+| MQTT Simulator | Docker | — |
+| Nginx | — | Docker |
+| Zigbee2MQTT | — | Docker |
+| HRV Bridge | — | Docker |
+| Weather Service | — | Docker |
+| Cloudflared | — | Docker |
 
-There is no risk of dev commands affecting production hardware.
+```bash
+# Dev (Mac)
+docker compose --profile dev up -d
 
-The `controlEnabled` flag in `CommonModule` can disable all control outputs (HRV, lights, heating, etc.) for safety.
+# Prod (RPi)
+./scripts/deploy-docker.sh prod
+```
 
 ### MQTT Simulator (Dev)
 
 Dev uses `mqtt-simulator` to publish fake sensor data to the local Mosquitto. Configured in `src/main/python/mqtt_simulator/devices.yaml`. Useful for testing edge cases (smoke alarm, high CO2) without real hardware.
+
+The `controlEnabled` flag in `CommonModule` can disable all control outputs (HRV, lights, heating, etc.) for safety.
 
 ## Deployment
 

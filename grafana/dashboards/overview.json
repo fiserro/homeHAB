@@ -1,0 +1,245 @@
+{
+  "uid": "openhab-overview",
+  "title": "homeHAB Přehled",
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"},
+  "templating": {
+    "list": [
+      {
+        "name": "environment",
+        "type": "datasource",
+        "query": "influxdb",
+        "regex": "/InfluxDB-(Dev|Prod)/",
+        "current": {"text": "InfluxDB-Prod", "value": "InfluxDB-Prod"},
+        "label": "Prostředí"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Teplota v místnostech",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 0},
+      "datasource": {"type": "influxdb", "uid": "${environment}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement =~ /^(soil1|soil2|soil3|aqara1|aqara2|aqara3)Temperature$/)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> last()\n  |> map(fn: (r) => ({r with _measurement:\n      if r._measurement == \"soil1Temperature\" then \"Obývák\"\n      else if r._measurement == \"soil2Temperature\" then \"Ložnice\"\n      else if r._measurement == \"soil3Temperature\" then \"Zádveří\"\n      else if r._measurement == \"aqara1Temperature\" then \"Koupelna sprcha\"\n      else if r._measurement == \"aqara2Temperature\" then \"Prádelna\"\n      else if r._measurement == \"aqara3Temperature\" then \"Koupelna vana\"\n      else r._measurement\n  }))\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "blue", "value": null},
+              {"color": "green", "value": 18},
+              {"color": "orange", "value": 26},
+              {"color": "red", "value": 30}
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 2,
+      "title": "Vlhkost",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 0},
+      "datasource": {"type": "influxdb", "uid": "${environment}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement =~ /^(aqara1|aqara2|aqara3)Humidity$/)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> last()\n  |> map(fn: (r) => ({r with _measurement:\n      if r._measurement == \"aqara1Humidity\" then \"Koupelna sprcha\"\n      else if r._measurement == \"aqara2Humidity\" then \"Prádelna\"\n      else if r._measurement == \"aqara3Humidity\" then \"Koupelna vana\"\n      else r._measurement\n  }))\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])"
+        },
+        {
+          "refId": "B",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement =~ /^(soil1|soil2|soil3)Humidity$/)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> last()\n  |> map(fn: (r) => ({r with _measurement:\n      if r._measurement == \"soil1Humidity\" then \"Obývák (květináč)\"\n      else if r._measurement == \"soil2Humidity\" then \"Ložnice (květináč)\"\n      else if r._measurement == \"soil3Humidity\" then \"Zádveří (květináč)\"\n      else r._measurement\n  }))\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "humidity",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "orange", "value": 20},
+              {"color": "green", "value": 30},
+              {"color": "orange", "value": 70},
+              {"color": "red", "value": 85}
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 3,
+      "title": "Výkon rekuperace",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 6},
+      "datasource": {"type": "influxdb", "uid": "${environment}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement =~ /^(hrvOutputPower|hrvOutputIntake|hrvOutputExhaust)$/)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> last()\n  |> map(fn: (r) => ({r with _measurement:\n      if r._measurement == \"hrvOutputPower\" then \"Základ\"\n      else if r._measurement == \"hrvOutputIntake\" then \"Přívod\"\n      else if r._measurement == \"hrvOutputExhaust\" then \"Odvod\"\n      else r._measurement\n  }))\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 50},
+              {"color": "orange", "value": 75},
+              {"color": "red", "value": 90}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Účinnost rekuperace",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 8, "x": 8, "y": 6},
+      "datasource": {"type": "influxdb", "uid": "${environment}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "supply = from(bucket: v.defaultBucket)\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"supplyAirTemperature\" and r._field == \"value\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\")\n\nintake = from(bucket: v.defaultBucket)\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"outdoorAirTemperature\" and r._field == \"value\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\")\n\nextract = from(bucket: v.defaultBucket)\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"extractAirTemperature\" and r._field == \"value\")\n  |> last()\n  |> findColumn(fn: (key) => true, column: \"_value\")\n\nfrom(bucket: v.defaultBucket)\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"supplyAirTemperature\" and r._field == \"value\")\n  |> last()\n  |> map(fn: (r) => ({r with _value: (supply[0] - intake[0]) / (extract[0] - intake[0]) * 100.0}))\n  |> set(key: \"_measurement\", value: \"Účinnost\")\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "orange", "value": 50},
+              {"color": "yellow", "value": 70},
+              {"color": "green", "value": 80}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Teploty rekuperace",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 8, "x": 16, "y": 6},
+      "datasource": {"type": "influxdb", "uid": "${environment}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement =~ /^(outdoorAirTemperature|supplyAirTemperature|extractAirTemperature|exhaustAirTemperature)$/)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> last()\n  |> map(fn: (r) => ({r with _measurement:\n      if r._measurement == \"outdoorAirTemperature\" then \"Sání (venku)\"\n      else if r._measurement == \"supplyAirTemperature\" then \"Přívod (do domu)\"\n      else if r._measurement == \"extractAirTemperature\" then \"Odtah (z domu)\"\n      else if r._measurement == \"exhaustAirTemperature\" then \"Výfuk (ven)\"\n      else r._measurement\n  }))\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "blue", "value": null},
+              {"color": "green", "value": 15},
+              {"color": "orange", "value": 30}
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 6,
+      "title": "CO2",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 12},
+      "datasource": {"type": "influxdb", "uid": "${environment}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"co2\" and r._field == \"value\")\n  |> last()\n  |> set(key: \"_measurement\", value: \"CO2\")\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ppm",
+          "min": 400,
+          "max": 1500,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 500},
+              {"color": "orange", "value": 700},
+              {"color": "red", "value": 900}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Tlak",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 8, "x": 8, "y": 12},
+      "datasource": {"type": "influxdb", "uid": "${environment}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement =~ /^(aqara1|aqara2|aqara3)Pressure$/)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> last()\n  |> group()\n  |> mean()\n  |> set(key: \"_measurement\", value: \"Atmosférický tlak\")\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "pressurehpa",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "blue", "value": null},
+              {"color": "green", "value": 1000},
+              {"color": "blue", "value": 1030}
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "auto"
+      }
+    }
+  ],
+  "schemaVersion": 39
+}

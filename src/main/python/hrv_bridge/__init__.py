@@ -56,7 +56,7 @@ DEFAULT_CURRENT_PUBLISH_INTERVAL = 1  # Publish to MQTT every N seconds (if chan
 DEFAULT_CURRENT_FORCE_INTERVAL = 60  # Force publish even if unchanged every N seconds
 DEFAULT_CURRENT_CHANNELS = [0, 1]  # ADC channels for SCT013 sensors (AD0, AD1)
 DEFAULT_CO2_INTERVAL = 30  # CO2 reading interval in seconds
-DEFAULT_CO2_PORT = "/dev/serial0"  # UART port for MH-Z19C
+DEFAULT_CO2_PORT = "/dev/ttyAMA0"  # UART port for MH-Z19C
 W1_DEVICES_PATH = "/sys/bus/w1/devices"
 
 # Logging setup
@@ -376,6 +376,9 @@ class HrvBridge:
             client.subscribe(f"{self.topic_prefix}/pwm/gpio13")
             log.info(f"Subscribed to topics: {self.topic_prefix}/gpio17, pwm/gpio12, pwm/gpio13")
 
+            # Subscribe to CO2 calibration commands
+            client.subscribe(f"{self.topic_prefix}/co2/command")
+
             # Subscribe to w1 topics to clean up stale retained messages
             client.subscribe(f"{self.topic_prefix}/w1/#")
         else:
@@ -399,6 +402,36 @@ class HrvBridge:
                 if sensor_id not in self.w1_bus.sensors:
                     client.publish(topic, "", retain=True)
                     log.info(f"Cleared stale retained value for 1-Wire sensor {sensor_id}")
+                return
+
+            # Handle CO2 calibration commands
+            if topic == f"{self.topic_prefix}/co2/command":
+                if self.co2_reader and self.co2_reader.sensor:
+                    cmd = payload.lower()
+                    if cmd == "calibrate":
+                        if self.co2_reader.sensor.calibrate_zero():
+                            log.info("CO2 zero point calibration triggered")
+                            client.publish(f"{self.topic_prefix}/co2/status", "calibrated", retain=True)
+                        else:
+                            log.error("CO2 calibration failed")
+                            client.publish(f"{self.topic_prefix}/co2/status", "error", retain=True)
+                    elif cmd == "abc_on":
+                        if self.co2_reader.sensor.set_auto_calibration(True):
+                            log.info("CO2 ABC enabled")
+                            client.publish(f"{self.topic_prefix}/co2/status", "abc_on", retain=True)
+                        else:
+                            client.publish(f"{self.topic_prefix}/co2/status", "error", retain=True)
+                    elif cmd == "abc_off":
+                        if self.co2_reader.sensor.set_auto_calibration(False):
+                            log.info("CO2 ABC disabled")
+                            client.publish(f"{self.topic_prefix}/co2/status", "abc_off", retain=True)
+                        else:
+                            client.publish(f"{self.topic_prefix}/co2/status", "error", retain=True)
+                    else:
+                        log.warning(f"Unknown CO2 command: {cmd}")
+                else:
+                    log.warning("CO2 command received but sensor not available")
+                    client.publish(f"{self.topic_prefix}/co2/status", "unavailable", retain=True)
                 return
 
             # Handle GPIO17 digital output (ON/OFF)

@@ -56,4 +56,12 @@ Thing mqtt:topic:mosquitto:hrv_bridge "HRV Bridge" (mqtt:broker:mosquitto) {
         Type number : co2_temp "CO2 Temperature" [
             stateTopic="homehab/hrv/co2_temp"
         ]
+        // CO2 calibration command (calibrate, abc_on, abc_off)
+        Type string : co2_command "CO2 Command" [
+            commandTopic="homehab/hrv/co2/command"
+        ]
+        // CO2 calibration status response
+        Type string : co2_status "CO2 Status" [
+            stateTopic="homehab/hrv/co2/status"
+        ]
 }

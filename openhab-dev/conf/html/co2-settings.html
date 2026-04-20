@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CO2 Calibration</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 16px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+        h2 {
+            color: #fff;
+            margin: 0 0 15px 0;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .container {
+            max-width: 500px;
+        }
+        .card {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .section-title {
+            color: #999;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .value {
+            font-size: 28px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+        .value-label {
+            font-size: 12px;
+            color: #999;
+        }
+        .value-row {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 16px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-danger {
+            background: #e64a19;
+            color: #fff;
+        }
+        .btn-danger:hover:not(:disabled) {
+            background: #d84315;
+        }
+        .btn-primary {
+            background: #1976d2;
+            color: #fff;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background: #1565c0;
+        }
+        .btn-secondary {
+            background: #424242;
+            color: #e0e0e0;
+        }
+        .btn-secondary:hover:not(:disabled) {
+            background: #555;
+        }
+        .status {
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            margin-top: 8px;
+            display: none;
+        }
+        .status.success {
+            display: block;
+            background: #1b5e20;
+            color: #a5d6a7;
+        }
+        .status.error {
+            display: block;
+            background: #b71c1c;
+            color: #ef9a9a;
+        }
+        .status.info {
+            display: block;
+            background: #0d47a1;
+            color: #90caf9;
+        }
+        .warning {
+            background: #4a3000;
+            color: #ffb74d;
+            padding: 10px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+        .abc-status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .abc-on {
+            background: #1b5e20;
+            color: #a5d6a7;
+        }
+        .abc-off {
+            background: #4a3000;
+            color: #ffb74d;
+        }
+        .abc-unknown {
+            background: #424242;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>CO2 Sensor (MH-Z19C)</h2>
+
+    <!-- Current values -->
+    <div class="card">
+        <div class="section-title">Current Reading</div>
+        <div class="value-row">
+            <div>
+                <div class="value" id="co2-value">--</div>
+                <div class="value-label">CO2 (ppm)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ABC Control -->
+    <div class="card">
+        <div class="section-title">Auto Baseline Calibration (ABC)</div>
+        <p style="font-size: 13px; color: #999; margin: 0 0 12px 0;">
+            ABC automatically calibrates the sensor every 24h using the lowest observed value as 400 ppm.
+            Disable if the sensor never sees fresh outdoor air.
+        </p>
+        <div style="margin-bottom: 12px;">
+            Status: <span id="abc-status" class="abc-status abc-unknown">unknown</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button class="btn btn-primary" style="flex:1" onclick="sendCommand('abc_on')">Enable ABC</button>
+            <button class="btn btn-secondary" style="flex:1" onclick="sendCommand('abc_off')">Disable ABC</button>
+        </div>
+        <div id="abc-result" class="status"></div>
+    </div>
+
+    <!-- Zero Calibration -->
+    <div class="card">
+        <div class="section-title">Zero Point Calibration</div>
+        <div class="warning">
+            <strong>Postup kalibrace:</strong>
+            <ol style="margin: 8px 0 0 0; padding-left: 20px; line-height: 1.8;">
+                <li>Otevři šasi rekuperace</li>
+                <li>Odpoj senzor z potrubí a vytáhni ho ven na čerstvý vzduch (okno / balkon)</li>
+                <li>Počkej <strong>minimálně 20 minut</strong></li>
+                <li>Zkontroluj, že hodnota CO2 nahoře se ustálila</li>
+                <li>Stiskni tlačítko <em>Calibrate Zero Point</em></li>
+                <li>Vrať senzor zpět do potrubí a zavři šasi</li>
+            </ol>
+            <br>
+            <strong>Tip:</strong> Dělej kalibraci při výměně filtru (každých 90 dní).
+            Nekalibruj, dokud je senzor v potrubí!
+        </div>
+        <button class="btn btn-danger" id="calibrate-btn" onclick="calibrate()">Calibrate Zero Point</button>
+        <div id="cal-result" class="status"></div>
+    </div>
+</div>
+
+<script>
+    const OPENHAB_URL = window.location.origin;
+    const MQTT_CMD_ITEM = null; // We'll use MQTT directly via OpenHAB REST API
+    const POLL_INTERVAL = 3000;
+
+    // Poll current CO2 values
+    function pollValues() {
+        fetch(`${OPENHAB_URL}/rest/items/co2/state`)
+            .then(r => r.text())
+            .then(v => {
+                document.getElementById('co2-value').textContent =
+                    (v === 'NULL' || v === 'UNDEF') ? '--' : Math.round(parseFloat(v));
+            })
+            .catch(() => {});
+
+    }
+
+    function sendCommand(cmd) {
+        const resultEl = cmd.startsWith('abc') ? 'abc-result' : 'cal-result';
+        showStatus(resultEl, 'info', 'Sending command...');
+
+        fetch(`${OPENHAB_URL}/rest/items/co2Command/state`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'text/plain'},
+            body: cmd
+        })
+        .then(r => {
+            if (r.ok) {
+                if (cmd === 'abc_on') {
+                    showStatus(resultEl, 'success', 'ABC enabled');
+                    setAbcStatus('on');
+                } else if (cmd === 'abc_off') {
+                    showStatus(resultEl, 'success', 'ABC disabled');
+                    setAbcStatus('off');
+                } else {
+                    showStatus(resultEl, 'success', 'Command sent');
+                }
+            } else {
+                showStatus(resultEl, 'error', 'Failed to send command');
+            }
+        })
+        .catch(() => showStatus(resultEl, 'error', 'Connection error'));
+    }
+
+    function calibrate() {
+        if (!confirm('Is the sensor exposed to fresh outdoor air for at least 20 minutes?')) {
+            return;
+        }
+        sendCommand('calibrate');
+        showStatus('cal-result', 'info', 'Calibrating... sensor will use current reading as 400 ppm');
+    }
+
+    function showStatus(elementId, type, message) {
+        const el = document.getElementById(elementId);
+        el.className = 'status ' + type;
+        el.textContent = message;
+    }
+
+    function setAbcStatus(state) {
+        const el = document.getElementById('abc-status');
+        if (state === 'on') {
+            el.textContent = 'ON';
+            el.className = 'abc-status abc-on';
+        } else if (state === 'off') {
+            el.textContent = 'OFF';
+            el.className = 'abc-status abc-off';
+        } else {
+            el.textContent = 'unknown';
+            el.className = 'abc-status abc-unknown';
+        }
+    }
+
+    // Initial load + polling
+    pollValues();
+    setInterval(pollValues, POLL_INTERVAL);
+</script>
+</body>
+</html>

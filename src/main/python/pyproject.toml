@@ -26,6 +26,7 @@ classifiers = [
 ]
 dependencies = [
     "paho-mqtt>=1.6.0,<3.0.0",
+    "pyserial>=3.5",
     "spidev>=3.0",
     "lgpio>=0.2.0",
 ]

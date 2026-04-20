@@ -577,6 +577,7 @@ static void send_pending(void)
     int cmd = pending_cmd; pending_cmd = CMD_NONE;
     switch (cmd) {
     case CMD_AUTO:
+        esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/manualMode", "OFF", 0, 0, 0);
         esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryManualMode", "OFF", 0, 0, 0);
         esp_mqtt_client_publish(mqtt_client, "homehab/panel/command/temporaryBoostMode", "OFF", 0, 0, 0);
         break;

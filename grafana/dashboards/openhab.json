@@ -1,0 +1,162 @@
+{
+  "uid": "openhab-main",
+  "title": "OpenHAB Monitoring",
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {"from": "now-6h", "to": "now"},
+  "templating": {
+    "list": [
+      {
+        "name": "environment",
+        "type": "datasource",
+        "query": "influxdb",
+        "regex": "/InfluxDB-(Dev|Prod)/",
+        "current": {"text": "InfluxDB-Prod", "value": "InfluxDB-Prod"},
+        "label": "Environment"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 7,
+      "title": "Indoor Temperature",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "datasource": {"type": "influxdb", "uid": "${environment}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement =~ /^(aqara|soil).*Temperature$/)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> group()\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_measurement\", value: \"Indoor Avg\")\n  |> rename(columns: {_value: \"avg Temperature\"})\n  |> keep(columns: [\"_time\", \"avg Temperature\", \"_measurement\"])"
+        },
+        {
+          "refId": "B",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"supplyAirTemperature\")\n  |> filter(fn: (r) => r._field == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_measurement\", value: \"Supply Air\")\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Humidity",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "datasource": {"type": "influxdb", "uid": "${environment}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement =~ /^(soil1|soil2|soil3|aqara1|aqara2|aqara3)Humidity$/)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({r with _measurement:\n      if r._measurement == \"soil1Humidity\" then \"Obývák (květináč)\"\n      else if r._measurement == \"soil2Humidity\" then \"Ložnice (květináč)\"\n      else if r._measurement == \"soil3Humidity\" then \"Zádveří (květináč)\"\n      else if r._measurement == \"aqara1Humidity\" then \"Koupelna sprcha\"\n      else if r._measurement == \"aqara2Humidity\" then \"Prádelna\"\n      else if r._measurement == \"aqara3Humidity\" then \"Koupelna vana\"\n      else r._measurement\n  }))\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "humidity"}}
+    },
+    {
+      "id": 4,
+      "title": "CO2",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "datasource": {"type": "influxdb", "uid": "${environment}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"co2\")\n  |> filter(fn: (r) => r._field == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ppm",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 500},
+              {"color": "orange", "value": 700},
+              {"color": "red", "value": 900}
+            ]
+          },
+          "custom": {
+            "thresholdsStyle": {"mode": "line"}
+          }
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Pressure",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "datasource": {"type": "influxdb", "uid": "${environment}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement =~ /^(aqara1|aqara2|aqara3)Pressure$/)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> group()\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_measurement\", value: \"Atmosférický tlak\")\n  |> rename(columns: {_value: \"Atmospheric Pressure\"})\n  |> keep(columns: [\"_time\", \"Atmospheric Pressure\", \"_measurement\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "pressurehpa"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "HRV Temperature",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+      "datasource": {"type": "influxdb", "uid": "${environment}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement =~ /^(outdoorAirTemperature|supplyAirTemperature|extractAirTemperature|exhaustAirTemperature)$/)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({r with _measurement:\n      if r._measurement == \"outdoorAirTemperature\" then \"Intake\"\n      else if r._measurement == \"supplyAirTemperature\" then \"Supply\"\n      else if r._measurement == \"extractAirTemperature\" then \"Extract\"\n      else if r._measurement == \"exhaustAirTemperature\" then \"Exhaust\"\n      else r._measurement\n  }))\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "HRV Power",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 24},
+      "datasource": {"type": "influxdb", "uid": "${environment}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement =~ /^(hrvOutputPower|hrvOutputIntake|hrvOutputExhaust)$/)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({r with _measurement:\n      if r._measurement == \"hrvOutputPower\" then \"Base Power\"\n      else if r._measurement == \"hrvOutputIntake\" then \"Intake Power\"\n      else if r._measurement == \"hrvOutputExhaust\" then \"Exhaust Power\"\n      else r._measurement\n  }))\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Room Temperature",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 32},
+      "datasource": {"type": "influxdb", "uid": "${environment}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement =~ /^(soil1|soil2|soil3|aqara1|aqara2|aqara3)Temperature$/)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({r with _measurement:\n      if r._measurement == \"soil1Temperature\" then \"Obývák\"\n      else if r._measurement == \"soil2Temperature\" then \"Ložnice\"\n      else if r._measurement == \"soil3Temperature\" then \"Zádveří\"\n      else if r._measurement == \"aqara1Temperature\" then \"Koupelna sprcha\"\n      else if r._measurement == \"aqara2Temperature\" then \"Prádelna\"\n      else if r._measurement == \"aqara3Temperature\" then \"Koupelna vana\"\n      else r._measurement\n  }))\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius"
+        }
+      }
+    }
+  ],
+  "schemaVersion": 39
+}
