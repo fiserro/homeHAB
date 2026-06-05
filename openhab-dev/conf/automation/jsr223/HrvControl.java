@@ -5,6 +5,7 @@ import helper.rules.annotations.Rule;
 import helper.rules.eventinfo.ItemStateChange;
 import io.github.fiserro.homehab.Calculator;
 import io.github.fiserro.homehab.HabStateFactory;
+import io.github.fiserro.homehab.hrv.BypassCalculator;
 import io.github.fiserro.homehab.hrv.HrvCalculator;
 import io.github.fiserro.homehab.module.HabState;
 import java.time.Instant;
@@ -108,9 +109,19 @@ public class HrvControl extends Java223Script {
   @Rule(name = "bypass.changed", description = "Forward bypass state to HRV bridge")
   @ItemStateChangeTrigger(itemName = Items.bypass)
   public void onBypassChanged() {
-    // Enable temporary manual mode so BypassCalculator won't override the manual change
+    // Pin temp manual mode ONLY when the user overrides the automatic bypass decision.
+    // The automatic recalc (onZigbeeItemChanged) also sends bypass commands; re-arming temp
+    // manual mode on those would reset the 8h timer forever and make the mode impossible to
+    // exit (the recalc flips bypass, which would re-arm the mode again).
     if (_items.manualMode().getStateAs(OnOffType.class) == OnOffType.OFF) {
-      events.sendCommand(_items.temporaryManualMode(), OnOffType.ON);
+      HabState state = HabStateFactory.of(HabState.class, items);
+      HabState autoState = state.withValue("manualMode", false)
+          .withValue("temporaryManualMode", false);
+      boolean autoBypass = new BypassCalculator<HabState>().calculate(autoState).bypass();
+      boolean userBypass = _items.bypass().getStateAs(OnOffType.class) == OnOffType.ON;
+      if (userBypass != autoBypass) {
+        events.sendCommand(_items.temporaryManualMode(), OnOffType.ON);
+      }
     }
     // Forward to HRV bridge (stateTopic updates don't trigger commandTopic)
     OnOffType state = _items.bypass().getStateAs(OnOffType.class);
