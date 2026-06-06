@@ -12,6 +12,7 @@
 #include "esp_http_server.h"
 #include "esp_ota_ops.h"
 #include "esp_system.h"
+#include "esp_task_wdt.h"
 #include "esp_netif.h"
 #include "esp_eth.h"
 #include "esp_event.h"
@@ -736,7 +737,11 @@ void app_main(void)
     static const char *cz_months[] = {"ledna","\xC3\xBAnora","b\xC5\x99""ezna","dubna","kv\xC4\x9Btna","\xC4\x8Dervna","\xC4\x8Dervence","srpna","z\xC3\xA1\xC5\x99\xC3\xAD","\xC5\x99\xC3\xADjna","listopadu","prosince"};
     int last_sec = -1;
     bool date_needs_update = true;
+    // Self-recovery: if the UI loop ever stalls >5s (deadlock/blocked task during
+    // a services bounce), the task WDT panics -> reboot -> clean boot reconnects.
+    esp_task_wdt_add(NULL);
     while (true) {
+        esp_task_wdt_reset();
         update_ui();
         screen_forecast_update();
         if (wx_dirty) {
